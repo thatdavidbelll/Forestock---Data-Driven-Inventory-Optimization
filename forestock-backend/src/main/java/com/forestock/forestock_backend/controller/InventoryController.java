@@ -37,7 +37,7 @@ public class InventoryController {
             @Valid @RequestBody InventoryUpdateRequest request) {
         try {
             InventoryDto result = inventoryService.updateStock(productId, request.getQuantity());
-            return ResponseEntity.ok(ApiResponse.success("Stoc actualizat", result));
+            return ResponseEntity.ok(ApiResponse.success("Stock updated", result));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         }

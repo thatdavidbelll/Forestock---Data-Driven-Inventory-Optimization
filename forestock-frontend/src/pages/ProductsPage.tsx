@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
+import { extractErrorMessage } from '../lib/errors'
 
 interface Product {
   id: string
@@ -38,8 +39,9 @@ export default function ProductsPage() {
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState<null | {
     message: string
-    onConfirm: () => void
+    onConfirm: () => Promise<void>
   }>(null)
+  const [confirmError, setConfirmError] = useState('')
 
   useEffect(() => {
     fetchProducts()
@@ -104,14 +106,14 @@ export default function ProductsPage() {
       setShowModal(false)
       fetchProducts()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setFormError(msg ?? 'Failed to save product.')
+      setFormError(extractErrorMessage(e, 'Failed to save product.'))
     } finally {
       setSaving(false)
     }
   }
 
   function confirmDeactivate(p: Product) {
+    setConfirmError('')
     setConfirmAction({
       message: `Deactivate "${p.name}" (${p.sku})? It will be hidden from forecasts until restored.`,
       onConfirm: async () => {
@@ -123,6 +125,7 @@ export default function ProductsPage() {
   }
 
   function confirmRestore(p: Product) {
+    setConfirmError('')
     setConfirmAction({
       message: `Restore "${p.name}" (${p.sku})? It will be included in forecasts again.`,
       onConfirm: async () => {
@@ -134,6 +137,7 @@ export default function ProductsPage() {
   }
 
   function confirmHardDelete(p: Product) {
+    setConfirmError('')
     setConfirmAction({
       message: `⚠️ Permanently delete "${p.name}" (${p.sku})?\n\nThis will also delete ALL sales transactions, inventory history and order suggestions for this product. This cannot be undone.`,
       onConfirm: async () => {
@@ -363,15 +367,24 @@ export default function ProductsPage() {
             <div className="px-6 py-5">
               <p className="text-sm text-gray-700 whitespace-pre-line">{confirmAction.message}</p>
             </div>
+            {confirmError && (
+              <p className="px-6 pb-2 text-sm text-red-700">{confirmError}</p>
+            )}
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
-                onClick={() => setConfirmAction(null)}
+                onClick={() => { setConfirmAction(null); setConfirmError('') }}
                 className="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={confirmAction.onConfirm}
+                onClick={async () => {
+                  try {
+                    await confirmAction.onConfirm()
+                  } catch (e) {
+                    setConfirmError(extractErrorMessage(e, 'Operation failed. Please try again.'))
+                  }
+                }}
                 className="text-sm px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
               >
                 Confirm

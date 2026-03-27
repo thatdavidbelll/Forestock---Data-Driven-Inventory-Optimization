@@ -46,6 +46,18 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
     @Query("SELECT COUNT(s) FROM SalesTransaction s WHERE s.saleDate BETWEEN :from AND :to")
     long countByDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    /** Store-scoped version of findBySaleDateBetween — used by getSummary(). */
+    @Query("""
+           SELECT s FROM SalesTransaction s
+           JOIN FETCH s.product p
+           WHERE s.saleDate BETWEEN :from AND :to
+           AND p.store.id = :storeId
+           """)
+    List<SalesTransaction> findBySaleDateBetweenAndStoreId(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("storeId") UUID storeId);
+
     // ── Paginated list (store-scoped, filterable) ────────────────────────────
     @Query(value = """
             SELECT s FROM SalesTransaction s

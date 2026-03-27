@@ -28,6 +28,8 @@ export default function SuggestionsPage() {
   const [error, setError] = useState('')
   const [urgencyFilter, setUrgencyFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [exportingExcel, setExportingExcel] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   useEffect(() => {
     fetchSuggestions()
@@ -50,42 +52,43 @@ export default function SuggestionsPage() {
     }
   }
 
-  function exportExcel() {
-    const params = new URLSearchParams()
-    if (urgencyFilter) params.set('urgency', urgencyFilter)
-    if (categoryFilter) params.set('category', categoryFilter)
-    const token = localStorage.getItem('accessToken')
-    fetch(`/api/suggestions/export/excel?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.blob())
-      .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `forestock-suggestions-${new Date().toISOString().slice(0, 10)}.xlsx`
-        a.click()
-        URL.revokeObjectURL(url)
-      })
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
-  function exportPdf() {
-    const params = new URLSearchParams()
-    if (urgencyFilter) params.set('urgency', urgencyFilter)
-    if (categoryFilter) params.set('category', categoryFilter)
-    const token = localStorage.getItem('accessToken')
-    fetch(`/api/suggestions/export/pdf?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.blob())
-      .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `forestock-suggestions-${new Date().toISOString().slice(0, 10)}.pdf`
-        a.click()
-        URL.revokeObjectURL(url)
-      })
+  async function exportExcel() {
+    setExportingExcel(true)
+    try {
+      const params: Record<string, string> = {}
+      if (urgencyFilter) params.urgency = urgencyFilter
+      if (categoryFilter) params.category = categoryFilter
+      const response = await api.get('/suggestions/export/excel', { params, responseType: 'blob' })
+      downloadBlob(response.data, `forestock-suggestions-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch {
+      setError('Failed to export Excel report.')
+    } finally {
+      setExportingExcel(false)
+    }
+  }
+
+  async function exportPdf() {
+    setExportingPdf(true)
+    try {
+      const params: Record<string, string> = {}
+      if (urgencyFilter) params.urgency = urgencyFilter
+      if (categoryFilter) params.category = categoryFilter
+      const response = await api.get('/suggestions/export/pdf', { params, responseType: 'blob' })
+      downloadBlob(response.data, `forestock-suggestions-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch {
+      setError('Failed to export PDF report.')
+    } finally {
+      setExportingPdf(false)
+    }
   }
 
   return (
@@ -113,15 +116,17 @@ export default function SuggestionsPage() {
           />
           <button
             onClick={exportExcel}
-            className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={exportingExcel}
+            className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Export Excel
+            {exportingExcel ? 'Exporting…' : 'Export Excel'}
           </button>
           <button
             onClick={exportPdf}
-            className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={exportingPdf}
+            className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Export PDF
+            {exportingPdf ? 'Exporting…' : 'Export PDF'}
           </button>
         </div>
       </div>

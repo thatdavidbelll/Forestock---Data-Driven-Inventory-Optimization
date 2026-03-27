@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
+import { extractErrorMessage } from '../lib/errors'
 
 interface Transaction {
   id: string
@@ -315,9 +316,14 @@ export default function SalesPage() {
               </button>
               <button
                 onClick={async () => {
-                  await confirmAction.onConfirm()
-                  setConfirmAction(null)
-                  setError('')
+                  try {
+                    await confirmAction.onConfirm()
+                    setConfirmAction(null)
+                    setError('')
+                  } catch (e) {
+                    setConfirmAction(null)
+                    setError(extractErrorMessage(e, 'Operation failed. Please try again.'))
+                  }
                 }}
                 className="text-sm px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
               >

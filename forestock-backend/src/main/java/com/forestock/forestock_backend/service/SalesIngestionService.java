@@ -259,7 +259,10 @@ public class SalesIngestionService {
     public SalesSummary getSummary(int days) {
         LocalDate from = LocalDate.now().minusDays(days);
         LocalDate to   = LocalDate.now();
-        List<SalesTransaction> txs = salesTransactionRepository.findBySaleDateBetween(from, to);
+        UUID storeId = TenantContext.getStoreId();
+        List<SalesTransaction> txs = (storeId != null)
+                ? salesTransactionRepository.findBySaleDateBetweenAndStoreId(from, to, storeId)
+                : salesTransactionRepository.findBySaleDateBetween(from, to);
         java.math.BigDecimal total = txs.stream()
                 .map(SalesTransaction::getQuantitySold)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);

@@ -29,8 +29,15 @@ public class RegisterService {
      * Creates a new store and its first admin user atomically.
      * Returns tokens so the user is logged in immediately after registration.
      */
+    private static final java.util.regex.Pattern SLUG_PATTERN =
+            java.util.regex.Pattern.compile("^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$");
+
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        if (!SLUG_PATTERN.matcher(request.getStoreSlug()).matches()) {
+            throw new IllegalArgumentException(
+                    "Slug must be 3–50 chars, lowercase letters/numbers/hyphens, cannot start or end with a hyphen.");
+        }
         if (storeRepository.existsBySlug(request.getStoreSlug())) {
             throw new IllegalArgumentException("Store slug already taken: " + request.getStoreSlug());
         }

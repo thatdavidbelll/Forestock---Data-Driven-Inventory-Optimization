@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
+import { extractErrorMessage } from '../lib/errors'
 
 interface InventoryItem {
   productId: string
@@ -40,6 +41,7 @@ export default function InventoryPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     fetchInventory()
@@ -62,29 +64,33 @@ export default function InventoryPage() {
   function startEdit(item: InventoryItem) {
     setEditingId(item.productId)
     setEditValue(String(item.currentStock))
+    setSaveError('')
   }
 
   function cancelEdit() {
     setEditingId(null)
     setEditValue('')
+    setSaveError('')
   }
 
   async function saveStock(productId: string) {
     const qty = Number(editValue)
-    if (isNaN(qty) || qty < 0) return
+    if (isNaN(qty) || qty < 0) {
+      setSaveError('Enter a valid non-negative number.')
+      return
+    }
     setSaving(true)
+    setSaveError('')
     try {
       await api.put(`/inventory/${productId}`, { quantity: qty })
       setEditingId(null)
       fetchInventory()
-    } catch {
-      // keep editing open on error
+    } catch (e) {
+      setSaveError(extractErrorMessage(e, 'Failed to update stock.'))
     } finally {
       setSaving(false)
     }
   }
-
-  const displayed = items
 
   const alertCount = items.filter((i) => stockStatus(i) !== 'ok').length
 
@@ -135,14 +141,14 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {displayed.length === 0 ? (
+              {items.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                     {alertsOnly ? 'No stock alerts.' : 'No inventory data.'}
                   </td>
                 </tr>
               ) : (
-                displayed.map((item) => {
+                items.map((item) => {
                   const status = stockStatus(item)
                   const isEditing = editingId === item.productId
                   return (
@@ -152,20 +158,23 @@ export default function InventoryPage() {
                       <td className="px-4 py-3 text-gray-500">{item.productCategory ?? '—'}</td>
                       <td className="px-4 py-3">
                         {isEditing ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') saveStock(item.productId)
-                                if (e.key === 'Escape') cancelEdit()
-                              }}
-                              className="w-24 border border-indigo-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                            <span className="text-gray-400 text-xs">{item.unit}</span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveStock(item.productId)
+                                  if (e.key === 'Escape') cancelEdit()
+                                }}
+                                className="w-24 border border-indigo-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                autoFocus
+                              />
+                              <span className="text-gray-400 text-xs">{item.unit}</span>
+                            </div>
+                            {saveError && <p className="text-xs text-red-600">{saveError}</p>}
                           </div>
                         ) : (
                           <span className={`font-semibold ${status === 'critical' ? 'text-red-600' : status === 'low' ? 'text-orange-600' : 'text-gray-900'}`}>
@@ -216,9 +225,9 @@ export default function InventoryPage() {
               )}
             </tbody>
           </table>
-          {displayed.length > 0 && (
+          {items.length > 0 && (
             <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
-              {displayed.length} product{displayed.length !== 1 ? 's' : ''}
+              {items.length} product{items.length !== 1 ? 's' : ''}
               {alertCount > 0 && !alertsOnly && (
                 <span className="ml-2 text-orange-600 font-medium">{alertCount} below reorder point</span>
               )}

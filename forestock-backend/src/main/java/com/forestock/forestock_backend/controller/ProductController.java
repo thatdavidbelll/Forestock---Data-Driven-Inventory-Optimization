@@ -62,7 +62,8 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductDto>> getById(@PathVariable UUID id) {
         return productRepository.findById(id)
-                .map(p -> ResponseEntity.ok(ApiResponse.success(toDto(p))))
+                .map(p -> isAccessDenied(p) ? FORBIDDEN
+                        : ResponseEntity.ok(ApiResponse.success(toDto(p))))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("Product not found")));
     }
@@ -106,6 +107,7 @@ public class ProductController {
             @RequestBody Product updates) {
         return productRepository.findById(id)
                 .map(existing -> {
+                    if (isAccessDenied(existing)) return FORBIDDEN;
                     existing.setName(updates.getName());
                     existing.setCategory(updates.getCategory());
                     existing.setUnit(updates.getUnit());
@@ -127,6 +129,7 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductDto>> restore(@PathVariable UUID id) {
         return productRepository.findById(id)
                 .map(p -> {
+                    if (isAccessDenied(p)) return FORBIDDEN;
                     if (Boolean.TRUE.equals(p.getActive())) {
                         return ResponseEntity.status(HttpStatus.CONFLICT)
                                 .body(ApiResponse.<ProductDto>error("Product is already active"));
@@ -150,6 +153,9 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
         return productRepository.findById(id)
                 .map(p -> {
+                    if (isAccessDenied(p))
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(ApiResponse.<Void>error("Access denied"));
                     p.setActive(false);
                     productRepository.save(p);
                     return ResponseEntity.ok(ApiResponse.<Void>success("Product deactivated", null));
@@ -169,6 +175,9 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> hardDelete(@PathVariable UUID id) {
         return productRepository.findById(id)
                 .map(p -> {
+                    if (isAccessDenied(p))
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(ApiResponse.<Map<String, Object>>error("Access denied"));
                     int suggestions  = orderSuggestionRepository.deleteByProductId(p.getId());
                     int transactions = salesTransactionRepository.deleteByProductId(p.getId());
                     int inventory    = inventoryRepository.deleteByProductId(p.getId());
@@ -186,6 +195,18 @@ public class ProductController {
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("Product not found")));
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /** Returns 403 if the product belongs to a different store than the current tenant. */
+    private boolean isAccessDenied(Product p) {
+        UUID storeId = TenantContext.getStoreId();
+        if (storeId == null) return false; // no tenant context (e.g. admin without store)
+        return p.getStore() == null || !storeId.equals(p.getStore().getId());
+    }
+
+    private static final ResponseEntity<ApiResponse<ProductDto>> FORBIDDEN =
+            ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied"));
 
     // ── Mapping ───────────────────────────────────────────────────────────────
 
