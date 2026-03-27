@@ -18,11 +18,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetryConfig
 
-    // Attempt silent token refresh on first 401 (but never retry the refresh call itself)
+    // Attempt silent token refresh on first 401
+    // But never retry the refresh or login calls themselves
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/refresh')
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/auth/login')
     ) {
       const refreshToken = localStorage.getItem('refreshToken')
 
@@ -47,7 +49,11 @@ api.interceptors.response.use(
     }
 
     // No refresh token available, or second 401 — force logout
-    if (error.response?.status === 401) {
+    // But don't intercept the login page's own 401 (wrong credentials)
+    if (
+      error.response?.status === 401 &&
+      !originalRequest.url?.includes('/auth/login')
+    ) {
       localStorage.clear()
       window.location.href = '/login'
     }

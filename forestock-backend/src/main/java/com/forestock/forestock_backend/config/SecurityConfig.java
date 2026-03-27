@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.MediaType;
 
 @Configuration
 @EnableWebSecurity
@@ -55,6 +56,13 @@ public class SecurityConfig {
                     // Password change: any authenticated user for their own account
                     .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/users/me/password").authenticated()
                     .anyRequest().authenticated())
+            .exceptionHandling(e -> e.authenticationEntryPoint(
+                    (req, res, ex) -> {
+                        res.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                        res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        res.getWriter().write("{\"status\":\"error\",\"message\":\"Unauthorized — please log in.\"}");
+                    }
+            ))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
