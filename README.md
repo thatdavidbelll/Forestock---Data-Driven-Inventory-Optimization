@@ -2,7 +2,7 @@
 
 Decision support tool for retail store managers. Analyzes historical sales data, forecasts demand using **Holt-Winters Triple Exponential Smoothing**, and generates prioritized restocking suggestions. The store manager sees what to order and how much — the final decision is always human.
 
-Multi-tenant SaaS: each store has isolated data, scoped by JWT-carried `storeId`.
+**Commercial SaaS model:** you (the platform owner) create and manage stores. Each store has isolated data scoped by JWT-carried `storeId`. Store admins manage their own team.
 
 ---
 
@@ -23,10 +23,11 @@ Forestock/
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
 | Database | PostgreSQL 17 (Neon serverless for dev, AWS RDS for prod) |
-| Migrations | Flyway (V1–V6) |
+| Migrations | Flyway (V1–V7) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 (sales data backup + forecast results) |
 | Notifications | AWS SNS (email on forecast complete / failed) |
+| Email | Spring Mail / SMTP (password reset) |
 | Security | Spring Security + JWT (JJWT 0.12.6), multi-role |
 | ORM | Spring Data JPA + Hibernate |
 | CSV parsing | Apache Commons CSV 1.12.0 |
@@ -85,17 +86,31 @@ npm run dev
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | Adminer | http://localhost:8090 |
 
-### Default admin account
+---
+
+## Access Model
+
+```
+ROLE_SUPER_ADMIN (you — the platform owner)
+  └── Creates stores + their first admin via Platform Admin panel
+        └── ROLE_ADMIN (store owner)
+              └── Invites team members via /users page
+                    ├── ROLE_MANAGER  — full use, no user management
+                    └── ROLE_VIEWER   — read-only access
+```
+
+### Super Admin account
 
 Created automatically on first startup:
 
-| Field | Value |
+| Field | Default value |
 |---|---|
-| Username | `admin` |
-| Password | `admin123` |
-| Role | `ROLE_ADMIN` |
+| Username | `superadmin` |
+| Password | `Admin@12345` |
 
-> Change this password before any production deployment.
+Override via environment variables: `SUPER_ADMIN_USERNAME`, `SUPER_ADMIN_PASSWORD`
+
+> **Change the password immediately** after first login, especially in production.
 
 ---
 
@@ -105,30 +120,39 @@ Created automatically on first startup:
 - All entities (`products`, `inventory`, `sales_transactions`, `forecast_runs`, `order_suggestions`, `users`) carry a `store_id` FK
 - `TenantContext` — `ThreadLocal<UUID>` — is set from the JWT on every request by `JwtAuthFilter`
 - All queries are automatically scoped to the current store
+- `ROLE_SUPER_ADMIN` has no `store_id` — bypasses tenant scoping to manage the platform
 
-### Registration (creates a new tenant)
+### Creating a new store (super admin only)
 ```bash
-POST /api/register
+POST /api/register   # requires Authorization: Bearer <super_admin_token>
 {
   "storeName": "My Store",
   "storeSlug": "my-store",
-  "username": "manager",
-  "password": "secret"
+  "username": "store_admin",
+  "password": "SecurePass1"
 }
-# Returns accessToken + refreshToken immediately
+# Returns accessToken + refreshToken for the new store admin immediately
 ```
 
 ---
 
 ## Authentication
 
-All `/api/**` endpoints require a JWT Bearer token, except `/api/auth/login`, `/api/auth/refresh`, `/api/register`, `/actuator/health`.
+All `/api/**` endpoints require a JWT Bearer token.
+
+**Public endpoints (no auth required):**
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+- `GET  /actuator/health`
+- Swagger UI (dev only)
 
 ```bash
 # Login
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+  -d '{"username":"store_admin","password":"SecurePass1"}'
 
 # Use the token
 curl http://localhost:8080/api/dashboard \
@@ -136,13 +160,18 @@ curl http://localhost:8080/api/dashboard \
 ```
 
 Token expiry: access **8h** · refresh **30 days**
+Silent refresh: the frontend automatically retries with a refresh token on 401 before logging out.
 
 ### Roles
 | Role | Permissions |
 |---|---|
-| `ROLE_ADMIN` | Full access — product management, user management |
-| `ROLE_MANAGER` | View, import, export, trigger forecast |
+| `ROLE_SUPER_ADMIN` | Platform management — create stores, list/deactivate all stores |
+| `ROLE_ADMIN` | Full store access — products, inventory, sales, forecasts, user management |
+| `ROLE_MANAGER` | View, import, export, trigger forecast (no user management) |
 | `ROLE_VIEWER` | Read-only — dashboard, suggestions, export reports |
+
+### Rate limiting
+Login and forgot-password endpoints: **10 requests/minute per IP**. Returns HTTP 429 when exceeded.
 
 ---
 
@@ -151,16 +180,40 @@ Token expiry: access **8h** · refresh **30 days**
 All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 
 ### Auth
+| Method | Endpoint | Auth required | Description |
+|---|---|---|---|
+| POST | `/api/auth/login` | No | Get access + refresh tokens |
+| POST | `/api/auth/refresh` | No | Refresh expired access token |
+| POST | `/api/auth/forgot-password` | No | Send password reset link to email |
+| POST | `/api/auth/reset-password` | No | Reset password using token from email |
+| POST | `/api/register` | SUPER_ADMIN | Create new store + admin account |
+
+### Platform Admin (SUPER_ADMIN only)
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/login` | Get access + refresh tokens |
-| POST | `/api/auth/refresh` | Refresh expired access token |
-| POST | `/api/register` | Create new store + admin account |
+| GET | `/api/admin/stores` | List all stores on the platform |
+| PUT | `/api/admin/stores/{id}/deactivate` | Deactivate a store |
+| PUT | `/api/admin/stores/{id}/activate` | Reactivate a store |
+
+### User Management (ROLE_ADMIN only, store-scoped)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/users` | List all users in current store |
+| POST | `/api/users` | Create new user (ROLE_MANAGER or ROLE_VIEWER) |
+| PUT | `/api/users/{id}` | Update user role or active status |
+| DELETE | `/api/users/{id}` | Soft-deactivate a user |
+| PUT | `/api/users/me/password` | Change own password (any authenticated user) |
+
+### Store
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/store` | Current tenant's store info |
+| PUT | `/api/store` | Update store name (ROLE_ADMIN) |
 
 ### Products
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/products?includeInactive=false` | List products (add `includeInactive=true` for all) |
+| GET | `/api/products?includeInactive=false` | List products |
 | GET | `/api/products/{id}` | Get product by ID |
 | POST | `/api/products` | Create product |
 | PUT | `/api/products/{id}` | Update product fields |
@@ -209,12 +262,6 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 |---|---|---|
 | GET | `/api/dashboard` | KPIs: alerts, CRITICAL count, last run |
 | GET | `/api/dashboard/categories` | Product breakdown by category |
-
-### Store
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/store` | Current tenant's store info |
-| PUT | `/api/store` | Update store name |
 
 ---
 
@@ -268,14 +315,22 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 
 ## Frontend Pages
 
+### Regular store users
+| Page | Route | Who sees it | Description |
+|---|---|---|---|
+| Dashboard | `/dashboard` | All | KPI cards, forecast trigger button |
+| Suggestions | `/suggestions` | All | Restock table, urgency/category filters, Excel/PDF export |
+| Products | `/products` | All | Create, edit, deactivate, restore, hard delete |
+| Inventory | `/inventory` | All | Current stock, inline update, alerts filter |
+| Sales | `/sales` | All | Paginated transaction list, delete by SKU/range/all |
+| Import | `/import` | All | Drag-and-drop CSV upload |
+| Users | `/users` | ROLE_ADMIN | Invite team members, change roles, deactivate |
+| Settings | `/settings` | All | Store name (admin) + change own password |
+
+### Platform owner (super admin)
 | Page | Route | Description |
 |---|---|---|
-| Dashboard | `/dashboard` | KPI cards, forecast trigger button |
-| Suggestions | `/suggestions` | Restock table, urgency/category filters, Excel/PDF export |
-| Products | `/products` | Create, edit, deactivate, restore, hard delete |
-| Inventory | `/inventory` | Current stock, inline update, alerts filter |
-| Sales | `/sales` | Paginated transaction list, delete by SKU/range/all |
-| Import | `/import` | Drag-and-drop CSV upload |
+| Platform Admin | `/admin` | Create stores, list all stores, activate/deactivate |
 
 ---
 
@@ -289,6 +344,7 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 | `V4__users.sql` | Creates `users` table for JWT authentication |
 | `V5__multi_tenant.sql` | Creates `stores` table, adds `store_id` FK to all 6 entities |
 | `V6__backfill_store_id.sql` | Backfills `store_id = NULL` rows to the default store |
+| `V7__user_email_and_reset.sql` | Adds `email`, `password_reset_token`, `password_reset_expires_at` to users |
 
 ---
 
@@ -325,6 +381,16 @@ AWS_S3_BUCKET=...
 AWS_SNS_TOPIC_ARN=...
 JWT_SECRET=<base64-random-48-bytes>
 FORESTOCK_ALERT_EMAIL=manager@example.com
+SUPER_ADMIN_USERNAME=superadmin
+SUPER_ADMIN_PASSWORD=<strong-password>
+FORESTOCK_FRONTEND_URL=https://app.forestock.app
+
+# Optional — enables password reset emails
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your@gmail.com
+MAIL_PASSWORD=<app-password>
+MAIL_FROM=noreply@forestock.app
 ```
 
 Generate a JWT secret:
@@ -363,3 +429,4 @@ Multi-stage Dockerfile: `eclipse-temurin:21-jdk-alpine` build → `eclipse-temur
 | Sprint 3 | PDF/Excel reports, suggestion engine, nightly scheduler, dashboard | ✅ Done |
 | Sprint 4 | JWT security, React frontend, Dockerfile, GitHub Actions CI | ✅ Done |
 | Sprint 5 | Multi-tenant SaaS, Neon PostgreSQL, JDBC batch import, data management API | ✅ Done |
+| Sprint 6 | Commercial launch: ROLE_SUPER_ADMIN, user management, password reset, rate limiting | ✅ Done |

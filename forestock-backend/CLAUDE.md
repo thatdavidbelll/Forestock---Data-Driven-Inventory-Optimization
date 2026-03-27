@@ -457,14 +457,23 @@ public class PrevizoApplication {
 - Access token expiry: 8h
 - Refresh token expiry: 30 days
 - All `/api/**` endpoints require authentication
-- Public: `/api/auth/login`, `/api/auth/refresh`, `/actuator/health`
+- Public: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/forgot-password`, `/api/auth/reset-password`, `/actuator/health`
+- `/api/register` and `/api/admin/**` require `ROLE_SUPER_ADMIN`
+- Rate limiting: 10 req/min per IP on `/api/auth/login` and `/api/auth/forgot-password` (RateLimitFilter.java — sliding window, no external deps)
 
 ### Roles
 | Role | Permissions |
 |---|---|
-| ROLE_MANAGER | Full access: view, import, export, trigger forecast |
+| ROLE_SUPER_ADMIN | Platform owner — creates stores, manages all stores, no store_id in JWT |
+| ROLE_ADMIN | Full store access — products, inventory, sales, forecasts, user management |
+| ROLE_MANAGER | Full use: view, import, export, trigger forecast (no user management) |
 | ROLE_VIEWER | Read-only: dashboard, suggestions, export reports |
-| ROLE_ADMIN | Product management, reorder points, user management |
+
+### Access model
+- `ROLE_SUPER_ADMIN` is seeded by `DataInitializer` on first startup (env vars: `SUPER_ADMIN_USERNAME`, `SUPER_ADMIN_PASSWORD`)
+- New stores are created by super admin via `POST /api/register` (no public self-registration)
+- Store admins invite team members via `POST /api/users` (ROLE_MANAGER or ROLE_VIEWER only)
+- Password reset: 1-hour single-use token sent via email (spring-boot-starter-mail + SMTP)
 
 ---
 
@@ -474,8 +483,13 @@ Files go in `src/main/resources/db/migration/`
 Naming: `V{number}__{description}.sql` — double underscore required
 
 ```
-V1__init_schema.sql        → create all 5 tables
-V2__indexes_and_views.sql  → indexes + current_inventory view
+V1__init_schema.sql              → create all 5 tables
+V2__indexes_and_views.sql        → indexes + current_inventory view
+V3__forecast_run_cleanup.sql     → remove legacy ARN columns, add products_processed
+V4__users.sql                    → users table for JWT authentication
+V5__multi_tenant.sql             → stores table + store_id FK on all 6 entities
+V6__backfill_store_id.sql        → backfill store_id=NULL rows to default store
+V7__user_email_and_reset.sql     → email, password_reset_token, password_reset_expires_at on users
 ```
 
 Flyway runs automatically at Spring Boot startup and applies any missing migrations.
@@ -525,11 +539,31 @@ Flyway runs automatically at Spring Boot startup and applies any missing migrati
 - Unit tests (SuggestionEngine), integration tests (SalesIngestion)
 - SpringDoc OpenAPI annotations, README.md
 
+### Sprint 5 — Multi-tenant SaaS foundation
+- Store + user entities with store_id FK on all tables (V4, V5, V6 migrations)
+- TenantContext (ThreadLocal<UUID>) set by JwtAuthFilter from JWT storeId claim
+- RegisterService: creates Store + admin user atomically
+- JDBC batch UPSERT for CSV import (chunks of 500, ~2s for 8000+ rows)
+- Data management: products (soft/hard delete, restore), sales (delete by SKU/range/all), inventory
+- Neon PostgreSQL (serverless) as cloud dev database
+- React frontend with 6 pages: Dashboard, Suggestions, Products, Inventory, Sales, Import
+
+### Sprint 6 — Commercial launch features
+- ROLE_SUPER_ADMIN: platform owner controls store creation (no public self-registration)
+- DataInitializer: seeds super admin on first startup (SUPER_ADMIN_USERNAME/PASSWORD env vars)
+- V7 migration: email + password reset token columns on users
+- UserManagementService + UserController: store admins manage team (invite/role/deactivate)
+- PlatformAdminController: list all stores, activate/deactivate (/api/admin/*)
+- PasswordResetService: forgot/reset flow via email (spring-boot-starter-mail)
+- RateLimitFilter: 10 req/min per IP on login + forgot-password (sliding window, no deps)
+- Frontend: AdminPage, UsersPage, SettingsPage, ForgotPasswordPage, ResetPasswordPage
+- Frontend: silent JWT refresh on 401, role-based navigation, login → role-aware redirect
+
 ---
 
 ## Important Conventions
 
-- Package root: `com.previzo` — all classes must be under this package for @ComponentScan to work
+- Package root: `com.forestock.forestock_backend` — all classes must be under this package for @ComponentScan to work
 - Entity IDs: UUID, generated with `gen_random_uuid()`
 - All API responses wrapped in `ApiResponse<T>`: `{status, message, data}`
 - CSV format for AWS Forecast: `item_id, timestamp (yyyy-MM-dd), target_value`
@@ -567,6 +601,15 @@ AWS_S3_BUCKET=forestock-forecast-data-104091534682
 AWS_SNS_TOPIC_ARN=...
 JWT_SECRET=...
 FORESTOCK_ALERT_EMAIL=manager@magazin.ro
+SUPER_ADMIN_USERNAME=superadmin
+SUPER_ADMIN_PASSWORD=<strong-password>
+FORESTOCK_FRONTEND_URL=https://app.forestock.app
+# Optional — enables password reset emails:
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your@gmail.com
+MAIL_PASSWORD=<app-password>
+MAIL_FROM=noreply@forestock.app
 ```
 
 ---
@@ -592,4 +635,8 @@ FORESTOCK_ALERT_EMAIL=manager@magazin.ro
 - [x] Controllers (ProductController, InventoryController, SalesController)
 - [x] DTOs (ApiResponse, ProductDto, InventoryDto, SuggestionDto, ForecastRunDto, DashboardDto, request DTOs)
 
-**Sprint 2 — în așteptare** (AWS Integration)
+**Sprint 2 — COMPLET** (Forecasting Engine + AWS)
+**Sprint 3 — COMPLET** (Reports, Suggestions, Scheduler)
+**Sprint 4 — COMPLET** (Security, Frontend, CI/CD)
+**Sprint 5 — COMPLET** (Multi-tenant, JDBC batch, data management)
+**Sprint 6 — COMPLET** (Commercial launch: SUPER_ADMIN, user mgmt, password reset, rate limiting)
