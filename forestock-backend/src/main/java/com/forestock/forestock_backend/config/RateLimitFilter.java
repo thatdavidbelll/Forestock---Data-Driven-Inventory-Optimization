@@ -1,11 +1,9 @@
 package com.forestock.forestock_backend.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,7 +14,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -28,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final int MAX_REQUESTS  = 10;
@@ -41,8 +37,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     /** Per-IP sliding window of request timestamps. */
     private final ConcurrentHashMap<String, Deque<Long>> requestLog = new ConcurrentHashMap<>();
-
-    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -74,10 +68,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             log.warn("Rate limit exceeded for IP {} on {}", ip, request.getRequestURI());
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            objectMapper.writeValue(response.getWriter(), Map.of(
-                    "status",  "error",
-                    "message", "Too many requests — please wait a minute and try again."
-            ));
+            response.getWriter().write(
+                    "{\"status\":\"error\",\"message\":\"Too many requests — please wait a minute and try again.\"}"
+            );
         }
     }
 

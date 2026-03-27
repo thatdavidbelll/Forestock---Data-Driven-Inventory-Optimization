@@ -30,7 +30,8 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/**",         // login, refresh, forgot-password, reset-password
-            "/actuator/health",
+            "/actuator/**",         // health + metrics (Spring Boot 4.x needs the wildcard)
+            "/error",               // Spring error dispatch
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**"
