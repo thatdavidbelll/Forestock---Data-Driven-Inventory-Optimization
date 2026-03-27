@@ -1,0 +1,54 @@
+package com.forestock.forestock_backend.controller;
+
+import com.forestock.forestock_backend.dto.request.InventoryUpdateRequest;
+import com.forestock.forestock_backend.dto.response.ApiResponse;
+import com.forestock.forestock_backend.dto.response.InventoryDto;
+import com.forestock.forestock_backend.service.InventoryService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/inventory")
+@RequiredArgsConstructor
+public class InventoryController {
+
+    private final InventoryService inventoryService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<InventoryDto>>> getCurrentStock() {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getCurrentStock()));
+    }
+
+    @GetMapping("/alerts")
+    public ResponseEntity<ApiResponse<List<InventoryDto>>> getAlerts() {
+        return ResponseEntity.ok(ApiResponse.success(inventoryService.getAlerts()));
+    }
+
+    @PutMapping("/{productId}")
+    public ResponseEntity<ApiResponse<InventoryDto>> updateStock(
+            @PathVariable UUID productId,
+            @Valid @RequestBody InventoryUpdateRequest request) {
+        try {
+            InventoryDto result = inventoryService.updateStock(productId, request.getQuantity());
+            return ResponseEntity.ok(ApiResponse.success("Stoc actualizat", result));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{productId}/history")
+    public ResponseEntity<ApiResponse<List<InventoryDto>>> getHistory(@PathVariable UUID productId) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(inventoryService.getHistory(productId)));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+}

@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/forestock_test}
+    username: ${SPRING_DATASOURCE_USERNAME:forestock_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:forestock_pass}
+
+  jpa:
+    show-sql: false
+
+server:
+  error:
+    include-stacktrace: never
+
+logging:
+  level:
+    com.forestock.forestock_backend: INFO
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false

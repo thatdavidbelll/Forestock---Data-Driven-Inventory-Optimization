@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: forestock-backend
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Flyway manages the schema — Hibernate only validates
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+aws:
+  region: eu-central-1
+  s3:
+    bucket-name: ${AWS_S3_BUCKET:forestock-forecast-data}
+    input-prefix: input/
+    reports-prefix: reports/
+  sns:
+    topic-arn: ${AWS_SNS_TOPIC_ARN:}
+
+forestock:
+  forecast:
+    horizon-days: 14
+    safety-buffer-pct: 0.20
+    # Minimum history days for full Holt-Winters forecasting; below this threshold falls back to SMA
+    min-history-days: 30
+    # Weekly seasonality period
+    seasonality-period: 7
+  scheduler:
+    cron: "0 0 2 * * *"
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production-use-a-long-random-string}
+    access-token-expiry-hours: 8
+    refresh-token-expiry-days: 30
+  notifications:
+    alert-email: ${FORESTOCK_ALERT_EMAIL:manager@example.com}

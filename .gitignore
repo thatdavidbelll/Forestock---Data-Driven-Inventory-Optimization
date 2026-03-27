@@ -1,0 +1,12 @@
+# Backend
+forestock-backend/target/
+forestock-backend/*.zip
+
+# Frontend
+forestock-frontend/node_modules/
+forestock-frontend/dist/
+
+# OS
+.DS_Store
+*.iml
+.idea/

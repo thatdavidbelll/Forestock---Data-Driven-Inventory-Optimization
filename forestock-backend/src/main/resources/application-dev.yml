@@ -1,0 +1,30 @@
+forestock:
+  jwt:
+    secret: Zt2M/wQDzhhBHqm1ycZSRA2356j560TnBiVvvBf+sAZZHrDXuLRdOHOTgKHOUhVD
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/forestock
+    username: forestock_user
+    password: forestock_pass
+
+  jpa:
+    show-sql: true
+
+server:
+  error:
+    include-stacktrace: always
+
+logging:
+  level:
+    com.forestock.forestock_backend: DEBUG
+    org.springframework.security: DEBUG
+    org.flywaydb: DEBUG
+
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  api-docs:
+    enabled: true
+    path: /v3/api-docs

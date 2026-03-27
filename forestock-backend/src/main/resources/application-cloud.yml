@@ -1,0 +1,53 @@
+# ── Cloud development profile (Neon PostgreSQL) ────────────────────────────────
+# Run with:
+#   export SPRING_PROFILES_ACTIVE=cloud
+#   export DB_PASSWORD=npg_nADt5TYd6qJg
+#   export AWS_ACCESS_KEY_ID=...
+#   export AWS_SECRET_ACCESS_KEY=...
+#   export AWS_S3_BUCKET=forestock-forecast-data-104091534682
+#   export AWS_SNS_TOPIC_ARN=...
+#   ./mvnw spring-boot:run
+
+forestock:
+  jwt:
+    secret: Zt2M/wQDzhhBHqm1ycZSRA2356j560TnBiVvvBf+sAZZHrDXuLRdOHOTgKHOUhVD
+
+spring:
+  datasource:
+    url: jdbc:postgresql://ep-soft-credit-agkhx8ux-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
+    username: neondb_owner
+    password: ${DB_PASSWORD}
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 5
+      # Neon pooler (PgBouncer) — keep pool small
+      minimum-idle: 1
+      idle-timeout: 600000
+      keepalive-time: 30000
+
+  # Flyway uses a dedicated direct connection (non-pooler) to avoid PgBouncer advisory lock issues
+  flyway:
+    url: jdbc:postgresql://ep-soft-credit-agkhx8ux.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
+    user: neondb_owner
+    password: ${DB_PASSWORD}
+
+  jpa:
+    show-sql: false
+
+server:
+  error:
+    include-stacktrace: never
+
+logging:
+  level:
+    com.forestock.forestock_backend: DEBUG
+    org.springframework.security: INFO
+    org.flywaydb: INFO
+
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  api-docs:
+    enabled: true
+    path: /v3/api-docs

@@ -1,0 +1,35 @@
+# docker-compose.yml — development: starts PostgreSQL + Adminer only.
+# Run the Spring Boot app separately from IntelliJ or via ./mvnw spring-boot:run
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: forestock-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: forestock
+      POSTGRES_USER: forestock_user
+      POSTGRES_PASSWORD: forestock_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forestock_user -d forestock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: forestock-adminer
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+      # Open http://localhost:8090 — Server: postgres | User: forestock_user | Pass: forestock_pass | DB: forestock
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

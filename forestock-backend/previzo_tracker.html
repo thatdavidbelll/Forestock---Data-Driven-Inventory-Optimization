@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forestock — Roadmap Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f6f2;
+    --bg3: #f0efe9;
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #9c9a92;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --success: #0f6e56;
+    --success-bg: #e1f5ee;
+    --info: #185fa5;
+    --info-bg: #e6f1fb;
+    --warn: #854f0b;
+    --warn-bg: #faeeda;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --purple: #534ab7;
+    --purple-bg: #eeedfe;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg2: #2a2a27;
+      --bg3: #323230;
+      --text: #e8e6de;
+      --text2: #b0ae a6;
+      --text3: #6e6c66;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --success: #1d9e75;
+      --success-bg: #04342c;
+      --info: #378add;
+      --info-bg: #042c53;
+      --warn: #ef9f27;
+      --warn-bg: #412402;
+      --danger: #e24b4a;
+      --danger-bg: #501313;
+      --purple: #7f77dd;
+      --purple-bg: #26215c;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .header-left h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .header-left p {
+    font-size: 13px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .global-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .global-bar-wrap {
+    width: 200px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .global-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--success);
+    transition: width 0.4s ease;
+  }
+  .global-pct {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .stats {
+    display: flex;
+    gap: 8px;
+  }
+  .stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .stat-lbl {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .reset-btn {
+    font-size: 12px;
+    color: var(--text3);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover {
+    border-color: var(--border2);
+    color: var(--text2);
+    background: var(--bg2);
+  }
+
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  .sprint {
+    margin-bottom: 24px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .sprint-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s;
+  }
+  .sprint-header:hover { background: var(--bg2); }
+
+  .sprint-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sprint-info { flex: 1; }
+  .sprint-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .sprint-meta {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .sprint-prog {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sprint-bar-wrap {
+    width: 140px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .sprint-bar {
+    height: 4px;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .sprint-pct {
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .sprint-toggle {
+    font-size: 12px;
+    color: var(--text3);
+    transition: transform 0.2s;
+  }
+  .sprint.collapsed .sprint-toggle { transform: rotate(-90deg); }
+
+  .sprint-body { padding: 0 20px 12px; }
+  .sprint.collapsed .sprint-body { display: none; }
+
+  .category-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text3);
+    padding: 16px 0 6px;
+  }
+
+  .task-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .task-row:hover { background: var(--bg2); }
+  .task-row.done .task-label {
+    color: var(--text3);
+    text-decoration: line-through;
+  }
+  .task-row.done .task-detail { color: var(--text3); }
+
+  .checkbox {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border2);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    background: var(--bg);
+  }
+  .checkbox.checked {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .checkmark {
+    width: 8px;
+    height: 5px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+
+  .task-label {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .task-detail {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 2px;
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 20px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.02em;
+  }
+  .badge-aws  { background: var(--warn-bg);    color: var(--warn);    }
+  .badge-db   { background: var(--info-bg);    color: var(--info);    }
+  .badge-java { background: var(--danger-bg);  color: var(--danger);  }
+  .badge-devops { background: var(--success-bg); color: var(--success); }
+
+  .confetti-msg {
+    display: none;
+    text-align: center;
+    padding: 40px;
+    font-size: 15px;
+    color: var(--success);
+    font-weight: 500;
+  }
+  .confetti-msg.show { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Forestock — Roadmap Tracker</h1>
+    <p>Forecast &amp; Order Planning Platform · 4 sprinturi · 8 săptămâni</p>
+  </div>
+  <div class="header-right">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num" id="s-done">0</div>
+        <div class="stat-lbl">done</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="s-total">0</div>
+        <div class="stat-lbl">total</div>
+      </div>
+    </div>
+    <div class="global-progress">
+      <div class="global-bar-wrap">
+        <div class="global-bar" id="global-bar" style="width:0%"></div>
+      </div>
+      <span class="global-pct" id="global-pct">0%</span>
+    </div>
+    <button class="reset-btn" onclick="resetAll()">Reset</button>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<script>
+const SPRINTS = [
+  {
+    id:'s1', label:'Sprint 1', weeks:'Săptămânile 1–2', color:'#1D9E75',
+    categories:[
+      { name:'Setup & configurare', tasks:[
+        {id:'t01', label:'Creare proiect Spring Boot 3.5.9 cu Spring Initializr', detail:'Dependințe: Web, JPA, Security, Validation, Flyway, PostgreSQL driver, Lombok', badge:'java'},
+        {id:'t02', label:'Configurare pom.xml cu toate dependințele necesare', detail:'AWS SDK BOM, Commons CSV, Apache POI, JJWT, MapStruct, SpringDoc OpenAPI', badge:'java'},
+        {id:'t03', label:'Structură de foldere conform arhitecturii', detail:'config/ domain/ repository/ service/ controller/ dto/ scheduler/', badge:'java'},
+        {id:'t04', label:'Docker Compose pentru development local', detail:'PostgreSQL 16, Adminer (UI pentru DB), porturile corecte', badge:'devops'},
+        {id:'t05', label:'Configurare application.yml și application-dev.yml', detail:'DataSource, JPA, Flyway, variabile de environment cu ${...}', badge:'java'},
+      ]},
+      { name:'Baza de date', tasks:[
+        {id:'t06', label:'Migrație Flyway V1: creare tabele de bază', detail:'products, inventory, sales_transactions, forecast_runs, order_suggestions', badge:'db'},
+        {id:'t07', label:'Migrație Flyway V2: index-uri și view current_inventory', detail:'idx pe product_id+sale_date, view pentru stocul curent per produs', badge:'db'},
+        {id:'t08', label:'Entități JPA: Product, Inventory, SalesTransaction', detail:'Adnotări @Entity, @Id, @GeneratedValue, @Column, @ManyToOne', badge:'java'},
+        {id:'t09', label:'Entități JPA: ForecastRun, OrderSuggestion', detail:'Enum pentru status (RUNNING/COMPLETED/FAILED) și urgență (CRITICAL/HIGH/MEDIUM/LOW)', badge:'java'},
+        {id:'t10', label:'Repository interfaces (Spring Data JPA)', detail:'ProductRepository, SalesTransactionRepository cu query-uri custom pentru agregare', badge:'java'},
+      ]},
+      { name:'API inventar & produse', tasks:[
+        {id:'t11', label:'ProductController: GET /api/products, POST, PUT', detail:'CRUD complet, validare @Valid pe DTO-uri, răspunsuri standardizate', badge:'java'},
+        {id:'t12', label:'InventoryController: GET /api/inventory, PUT actualizare', detail:'GET /api/inventory/alerts — produse sub reorder_point', badge:'java'},
+        {id:'t13', label:'InventoryService: logică stoc curent + alertă reorder', detail:'Metodă getCurrentStock(sku), getProductsBelowReorderPoint()', badge:'java'},
+        {id:'t14', label:'DTO-uri: ProductDto, InventoryDto, ApiResponse wrapper', detail:'ApiResponse<T> cu status, message, data — format consistent pentru toate endpoint-urile', badge:'java'},
+      ]},
+      { name:'Import vânzări', tasks:[
+        {id:'t15', label:'SalesIngestionService: parsare CSV cu Apache Commons CSV', detail:'Mapare coloane: sku, date (yyyy-MM-dd), quantity_sold', badge:'java'},
+        {id:'t16', label:'Validare CSV: SKU existent, dată validă, qty > 0', detail:'Colectare erori per linie, raport la final (ex: 98/100 rânduri importate, 2 erori)', badge:'java'},
+        {id:'t17', label:'Upsert în sales_transactions (ON CONFLICT DO UPDATE)', detail:'Query nativ JPA sau @Query cu JPQL pentru insert idempotent', badge:'java'},
+        {id:'t18', label:'SalesController: POST /api/sales/import (multipart)', detail:'Acceptă fișier CSV, returnează SalesImportResult cu detalii', badge:'java'},
+      ]},
+    ]
+  },
+  {
+    id:'s2', label:'Sprint 2', weeks:'Săptămânile 3–4', color:'#185FA5',
+    categories:[
+      { name:'Setup AWS', tasks:[
+        {id:'t19', label:'Configurare AWS CLI + credențiale IAM (user forestock-backend)', detail:'Access key configurat local, permisiuni S3FullAccess + SNSFullAccess + IAMFullAccess', badge:'aws'},
+        {id:'t20', label:'Creare S3 bucket: forestock-forecast-data-{accountId}', detail:'Region eu-central-1, structură: input/ pentru backup date, reports/ pentru exporturi', badge:'aws'},
+        {id:'t21', label:'IAM Role ForecastS3Role cu acces S3', detail:'Trust policy pentru servicii AWS, permisiuni s3:GetObject și s3:PutObject', badge:'aws'},
+        {id:'t22', label:'AwsConfig.java: S3Client + SnsClient beans', detail:'RegionProvider din application.yml, credențiale din environment variables', badge:'java'},
+      ]},
+      { name:'Forecasting Engine (Holt-Winters)', tasks:[
+        {id:'t23', label:'ForecastingEngine: Triple Exponential Smoothing (Holt-Winters)', detail:'Algoritm complet în Java — trend + sezonalitate săptămânală (period=7)', badge:'java'},
+        {id:'t24', label:'Optimizare parametri alpha/beta/gamma cu Sum of Squared Errors', detail:'Grid search pe alpha∈[0.1–0.9], beta∈[0.1–0.5], gamma∈[0.1–0.5]', badge:'java'},
+        {id:'t25', label:'Generare forecast 14 zile: p50 (median) și p90 (p50 × 1.20)', detail:'Returnează ForecastResult{p50Total, p90Total, dailyValues[14]}', badge:'java'},
+        {id:'t26', label:'Cold start: produse cu < 30 zile date → Simple Moving Average', detail:'Fallback la media ultimelor zile disponibile când datele sunt insuficiente', badge:'java'},
+        {id:'t27', label:'ForecastResult: Map<SKU, ForecastResult> agregate pe 14 zile', detail:'Interfață clară pentru SuggestionEngine — p50Total și p90Total gata de folosit', badge:'java'},
+      ]},
+      { name:'Date & Orchestrare', tasks:[
+        {id:'t28', label:'Query agregare zilnică din sales_transactions', detail:'SELECT product_id, sale_date, SUM(quantity_sold) GROUP BY product_id, sale_date', badge:'db'},
+        {id:'t29', label:'Completare calendar: zile fără vânzări → 0 (365 zile istorice)', detail:'Generare calendar complet, fill-in cu 0 pentru zilele lipsă per produs', badge:'java'},
+        {id:'t30', label:'ForecastOrchestrator: ciclu complet load → forecast → sugestii → notificare', detail:'Coordonare servicii, salvare ForecastRun, tratare erori cu status FAILED', badge:'java'},
+        {id:'t31', label:'ForecastRun tracking: RUNNING → COMPLETED/FAILED cu timestamps', detail:'Salvare în DB, actualizare status în timp real, durata și nr produse procesate', badge:'java'},
+      ]},
+      { name:'S3 & Notificări', tasks:[
+        {id:'t32', label:'S3DataExportService: backup date vânzări în S3 input/', detail:'CSV format: sku, sale_date, quantity_sold — pentru audit și reprocessare', badge:'aws'},
+        {id:'t33', label:'Export rezultate forecast în S3 reports/', detail:'JSON cu forecastResults per run — trasabilitate completă a predicțiilor', badge:'aws'},
+        {id:'t34', label:'NotificationService: email via AWS SNS la finalizare run', detail:'Mesaj cu: nr produse procesate, nr CRITICAL, link dashboard', badge:'aws'},
+        {id:'t35', label:'Configurare SNS topic + subscripție email în AWS Console', detail:'Topic ARN salvat în env var AWS_SNS_TOPIC_ARN', badge:'aws'},
+      ]},
+    ]
+  },
+  {
+    id:'s3', label:'Sprint 3', weeks:'Săptămânile 5–6', color:'#854F0B',
+    categories:[
+      { name:'Suggestion engine', tasks:[
+        {id:'t36', label:'SuggestionEngine: calcul cantitate recomandată', detail:'qty = max(0, P90_14zile × 1.20 − stocCurent), rotunjit la întreg', badge:'java'},
+        {id:'t37', label:'SuggestionEngine: calcul zile de stoc rămase', detail:'daysOfStock = currentStock / (P50_14zile / 14) — cu guard pentru division by zero', badge:'java'},
+        {id:'t38', label:'SuggestionEngine: logică urgență (CRITICAL/HIGH/MEDIUM/LOW)', detail:'< 2 zile CRITICAL, 2–5 HIGH, 5–10 MEDIUM, > 10 LOW', badge:'java'},
+        {id:'t39', label:'Sortare sugestii: CRITICAL primul, LOW ultimul', detail:'Comparator pe urgency.priority(), secundar pe daysOfStock ASC', badge:'java'},
+        {id:'t40', label:'Salvare OrderSuggestion în DB cu forecast_run_id', detail:'Batch insert pentru toate produsele dintr-un run, link la ForecastRun', badge:'java'},
+      ]},
+      { name:'API sugestii & forecast', tasks:[
+        {id:'t41', label:'SuggestionController: GET /api/suggestions cu filtre', detail:'Query params: urgency, category, minQty — cu Specification JPA', badge:'java'},
+        {id:'t42', label:'ForecastController: POST /api/forecast/run (trigger manual)', detail:'Pornește ciclu async (@Async), returnează imediat forecast_run_id', badge:'java'},
+        {id:'t43', label:'ForecastController: GET /api/forecast/runs/{id}/status', detail:'Polling endpoint pentru UI — returnează status + progres', badge:'java'},
+        {id:'t44', label:'DashboardController: GET /api/dashboard', detail:'Nr alerte stoc, nr sugestii CRITICAL, ultima rulare forecast, stats generale', badge:'java'},
+      ]},
+      { name:'Job nocturn', tasks:[
+        {id:'t45', label:'DailyForecastJob: @Scheduled cu cron "0 0 2 * * *"', detail:'Rulează la 02:00 noaptea, pornește ForecastOrchestrator.runFullCycle()', badge:'java'},
+        {id:'t46', label:'Error handling robust în job: try-catch + logging', detail:'La eroare: marchează ForecastRun ca FAILED, trimite notificare admin', badge:'java'},
+        {id:'t47', label:'Guard: nu porni job dacă unul e deja RUNNING', detail:'Check în DB înainte de start, previne rulări paralele', badge:'java'},
+        {id:'t48', label:'Configurare @EnableScheduling în main application class', detail:'+ ThreadPoolTaskScheduler pentru izolare thread-uri', badge:'java'},
+      ]},
+      { name:'Export rapoarte', tasks:[
+        {id:'t49', label:'ReportService: generare PDF cu Apache PDFBox', detail:'Tabel cu produse sortate, qty sugerată, urgență cu culoare, data generării', badge:'java'},
+        {id:'t50', label:'ReportService: generare Excel cu Apache POI', detail:'Coloane: SKU, Produs, Stoc curent, Forecast P50/P90, Qty sugerată, Urgență', badge:'java'},
+        {id:'t51', label:'SuggestionController: GET /api/suggestions/export/pdf', detail:'Content-Type: application/pdf, Content-Disposition: attachment', badge:'java'},
+        {id:'t52', label:'SuggestionController: GET /api/suggestions/export/excel', detail:'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', badge:'java'},
+      ]},
+      { name:'Notificări', tasks:[
+        {id:'t53', label:'NotificationService: email via AWS SNS sau JavaMailSender', detail:'La finalizare run: câte sugestii CRITICAL, link la dashboard', badge:'aws'},
+        {id:'t54', label:'Configurare destinatar email în application.yml', detail:'previzo.alerts.email=manager@magazin.ro', badge:'java'},
+      ]},
+    ]
+  },
+  {
+    id:'s4', label:'Sprint 4', weeks:'Săptămânile 7–8', color:'#534AB7',
+    categories:[
+      { name:'Securitate', tasks:[
+        {id:'t55', label:'Spring Security: JWT filter chain pe /api/**', detail:'JwtAuthenticationFilter extends OncePerRequestFilter', badge:'java'},
+        {id:'t56', label:'Generare și validare JWT tokens (JJWT library)', detail:'Expiry 8h, secret din AWS Secrets Manager sau env var', badge:'java'},
+        {id:'t57', label:'Endpoint-uri auth: POST /api/auth/login, /refresh', detail:'Login cu username/password, returnează accessToken + refreshToken', badge:'java'},
+        {id:'t58', label:'Roluri: ROLE_MANAGER, ROLE_VIEWER, ROLE_ADMIN', detail:'@PreAuthorize pe metodele de controller, config în SecurityConfig', badge:'java'},
+        {id:'t59', label:'User management: tabel users în DB + UserService', detail:'BCrypt pentru parole, endpoint /api/admin/users doar pentru ADMIN', badge:'java'},
+      ]},
+      { name:'Frontend React', tasks:[
+        {id:'t60', label:'Setup proiect React cu Vite + TypeScript', detail:'React Router, Axios pentru API calls, TanStack Query pentru caching', badge:'java'},
+        {id:'t61', label:'Pagina Login cu form și JWT storage', detail:'Token în memory (nu localStorage), refresh automat', badge:'java'},
+        {id:'t62', label:'Dashboard: KPI cards + lista alerte stoc critic', detail:'Refresh automat la 5 minute, indicator "ultima actualizare"', badge:'java'},
+        {id:'t63', label:'Pagina Sugestii: tabel filtrat pe urgență/categorie', detail:'Badge colorat pentru urgență, buton Export PDF/Excel', badge:'java'},
+        {id:'t64', label:'Pagina Import: drag-and-drop CSV + preview + confirmare', detail:'Validare client-side format, progress bar la upload', badge:'java'},
+        {id:'t65', label:'Pagina Forecast: status run curent + istoric rulări', detail:'Polling la 30s când un run e RUNNING, timeline cu durate', badge:'java'},
+      ]},
+      { name:'Deployment', tasks:[
+        {id:'t66', label:'Dockerfile: multi-stage build (Maven build + JRE runtime)', detail:'Base image: eclipse-temurin:21-jre-alpine, port 8080', badge:'devops'},
+        {id:'t67', label:'GitHub Actions: CI pipeline (build + test)', detail:'La fiecare push pe main: mvn test + build Docker image', badge:'devops'},
+        {id:'t68', label:'Deploy pe AWS EC2 sau ECS Fargate', detail:'RDS PostgreSQL în aceeași VPC, security groups corecte', badge:'aws'},
+        {id:'t69', label:'Nginx reverse proxy + HTTPS (Let\'s Encrypt)', detail:'Proxy pass la Spring Boot :8080, SSL termination', badge:'devops'},
+        {id:'t70', label:'CloudWatch: logging + alarm la erori Forecast job', detail:'Log group /previzo/app, alarm dacă job fail în 3 zile consecutive', badge:'aws'},
+      ]},
+      { name:'Calitate & finalizare', tasks:[
+        {id:'t71', label:'Unit tests pentru SuggestionEngine (JUnit 5 + Mockito)', detail:'Teste pentru toate scenariile de urgență, edge cases (stoc 0, forecast 0)', badge:'java'},
+        {id:'t72', label:'Integration test pentru SalesIngestionService', detail:'Test cu fișiere CSV reale (valid, invalid, parțial invalid)', badge:'java'},
+        {id:'t73', label:'Test end-to-end cu date reale de la magazin', detail:'Import 90+ zile vânzări, rulare forecast, verificare sugestii', badge:'aws'},
+        {id:'t74', label:'Documentare API cu Swagger/OpenAPI 3', detail:'springdoc-openapi, adnotări @Operation pe toate endpoint-urile', badge:'java'},
+        {id:'t75', label:'README.md cu instrucțiuni setup local și producție', detail:'Pași Docker Compose, variabile de environment necesare', badge:'devops'},
+      ]},
+    ]
+  }
+];
+
+const STORAGE_KEY = 'forestock_tracker_v1';
+
+// Sprint 1 complet — bifat automat la prima deschidere
+const DEFAULT_DONE = {
+  t01:true, t02:true, t03:true, t04:true, t05:true,
+  t06:true, t07:true, t08:true, t09:true, t10:true,
+  t11:true, t12:true, t13:true, t14:true, t15:true,
+  t16:true, t17:true, t18:true,
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_DONE };
+    return JSON.parse(raw);
+  } catch { return { ...DEFAULT_DONE }; }
+}
+
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+
+function totalTasks() {
+  return SPRINTS.reduce((n, s) => n + s.categories.reduce((m, c) => m + c.tasks.length, 0), 0);
+}
+
+function doneTasks() {
+  return Object.values(state).filter(Boolean).length;
+}
+
+function sprintProgress(sprint) {
+  let done = 0, total = 0;
+  sprint.categories.forEach(c => c.tasks.forEach(t => {
+    total++;
+    if (state[t.id]) done++;
+  }));
+  return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
+}
+
+function updateGlobal() {
+  const done = doneTasks(), total = totalTasks();
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('global-bar').style.width = pct + '%';
+  document.getElementById('global-pct').textContent = pct + '%';
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-total').textContent = total;
+}
+
+function updateSprintBar(sprintId) {
+  const sprint = SPRINTS.find(s => s.id === sprintId);
+  const { done, total, pct } = sprintProgress(sprint);
+  const bar = document.getElementById('bar-' + sprintId);
+  const pctEl = document.getElementById('pct-' + sprintId);
+  if (bar) bar.style.width = pct + '%';
+  if (pctEl) {
+    pctEl.textContent = pct + '%';
+    pctEl.style.color = pct === 100 ? 'var(--success)' : 'var(--text3)';
+  }
+}
+
+function toggle(taskId, sprintId) {
+  state[taskId] = !state[taskId];
+  saveState(state);
+  const row = document.getElementById('row-' + taskId);
+  const box = document.getElementById('box-' + taskId);
+  row.classList.toggle('done', state[taskId]);
+  box.classList.toggle('checked', state[taskId]);
+  if (state[taskId]) {
+    box.innerHTML = '<div class="checkmark"></div>';
+  } else {
+    box.innerHTML = '';
+  }
+  updateGlobal();
+  updateSprintBar(sprintId);
+}
+
+function toggleSprint(sprintId) {
+  const el = document.getElementById('sprint-' + sprintId);
+  el.classList.toggle('collapsed');
+}
+
+function resetAll() {
+  if (!confirm('Resetezi tot progresul? Această acțiune nu poate fi anulată.')) return;
+  state = {};
+  saveState(state);
+  renderAll();
+}
+
+function renderAll() {
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+
+  SPRINTS.forEach(sprint => {
+    const { done, total, pct } = sprintProgress(sprint);
+
+    const sprintEl = document.createElement('div');
+    sprintEl.className = 'sprint';
+    sprintEl.id = 'sprint-' + sprint.id;
+
+    sprintEl.innerHTML = `
+      <div class="sprint-header" onclick="toggleSprint('${sprint.id}')">
+        <div class="sprint-dot" style="background:${sprint.color}"></div>
+        <div class="sprint-info">
+          <div class="sprint-title">${sprint.label}</div>
+          <div class="sprint-meta">${sprint.weeks} &mdash; ${total} task-uri</div>
+        </div>
+        <div class="sprint-prog">
+          <div class="sprint-bar-wrap">
+            <div class="sprint-bar" id="bar-${sprint.id}" style="width:${pct}%;background:${sprint.color}"></div>
+          </div>
+          <span class="sprint-pct" id="pct-${sprint.id}" style="color:${pct===100?'var(--success)':'var(--text3)'}">${pct}%</span>
+        </div>
+        <span class="sprint-toggle">&#9660;</span>
+      </div>
+      <div class="sprint-body"></div>
+    `;
+
+    const body = sprintEl.querySelector('.sprint-body');
+
+    sprint.categories.forEach(cat => {
+      const catLabel = document.createElement('div');
+      catLabel.className = 'category-label';
+      catLabel.textContent = cat.name;
+      body.appendChild(catLabel);
+
+      cat.tasks.forEach(task => {
+        const isDone = !!state[task.id];
+        const row = document.createElement('div');
+        row.className = 'task-row' + (isDone ? ' done' : '');
+        row.id = 'row-' + task.id;
+        row.onclick = () => toggle(task.id, sprint.id);
+
+        const badgeHtml = task.badge
+          ? `<span class="badge badge-${task.badge}">${task.badge}</span>`
+          : '';
+
+        row.innerHTML = `
+          <div class="checkbox${isDone?' checked':''}" id="box-${task.id}">
+            ${isDone ? '<div class="checkmark"></div>' : ''}
+          </div>
+          <div>
+            <div class="task-label">${task.label}${badgeHtml}</div>
+            <div class="task-detail">${task.detail}</div>
+          </div>
+        `;
+        body.appendChild(row);
+      });
+    });
+
+    main.appendChild(sprintEl);
+  });
+
+  updateGlobal();
+}
+
+renderAll();
+</script>
+</body>
+</html>

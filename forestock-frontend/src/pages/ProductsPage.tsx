@@ -1,0 +1,385 @@
+import { useEffect, useState } from 'react'
+import api from '../lib/api'
+
+interface Product {
+  id: string
+  sku: string
+  name: string
+  category: string | null
+  unit: string
+  reorderPoint: number | null
+  maxStock: number | null
+  active: boolean
+  createdAt: string
+}
+
+const emptyForm = {
+  sku: '',
+  name: '',
+  category: '',
+  unit: 'buc',
+  reorderPoint: '',
+  maxStock: '',
+}
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [includeInactive, setIncludeInactive] = useState(false)
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
+
+  // Confirm dialog
+  const [confirmAction, setConfirmAction] = useState<null | {
+    message: string
+    onConfirm: () => void
+  }>(null)
+
+  useEffect(() => {
+    fetchProducts()
+  }, [includeInactive])
+
+  async function fetchProducts() {
+    setLoading(true)
+    setError('')
+    try {
+      const { data } = await api.get('/products', { params: { includeInactive } })
+      setProducts(data.data ?? [])
+    } catch {
+      setError('Failed to load products.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function openCreate() {
+    setEditingId(null)
+    setForm(emptyForm)
+    setFormError('')
+    setShowModal(true)
+  }
+
+  function openEdit(p: Product) {
+    setEditingId(p.id)
+    setForm({
+      sku: p.sku,
+      name: p.name,
+      category: p.category ?? '',
+      unit: p.unit,
+      reorderPoint: p.reorderPoint != null ? String(p.reorderPoint) : '',
+      maxStock: p.maxStock != null ? String(p.maxStock) : '',
+    })
+    setFormError('')
+    setShowModal(true)
+  }
+
+  async function saveProduct() {
+    if (!form.sku.trim() || !form.name.trim() || !form.unit.trim()) {
+      setFormError('SKU, Name and Unit are required.')
+      return
+    }
+    setSaving(true)
+    setFormError('')
+    const payload = {
+      sku: form.sku.trim(),
+      name: form.name.trim(),
+      category: form.category.trim() || null,
+      unit: form.unit.trim(),
+      reorderPoint: form.reorderPoint !== '' ? Number(form.reorderPoint) : null,
+      maxStock: form.maxStock !== '' ? Number(form.maxStock) : null,
+      active: true,
+    }
+    try {
+      if (editingId) {
+        await api.put(`/products/${editingId}`, payload)
+      } else {
+        await api.post('/products', payload)
+      }
+      setShowModal(false)
+      fetchProducts()
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setFormError(msg ?? 'Failed to save product.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function confirmDeactivate(p: Product) {
+    setConfirmAction({
+      message: `Deactivate "${p.name}" (${p.sku})? It will be hidden from forecasts until restored.`,
+      onConfirm: async () => {
+        await api.delete(`/products/${p.id}`)
+        setConfirmAction(null)
+        fetchProducts()
+      },
+    })
+  }
+
+  function confirmRestore(p: Product) {
+    setConfirmAction({
+      message: `Restore "${p.name}" (${p.sku})? It will be included in forecasts again.`,
+      onConfirm: async () => {
+        await api.put(`/products/${p.id}/restore`)
+        setConfirmAction(null)
+        fetchProducts()
+      },
+    })
+  }
+
+  function confirmHardDelete(p: Product) {
+    setConfirmAction({
+      message: `⚠️ Permanently delete "${p.name}" (${p.sku})?\n\nThis will also delete ALL sales transactions, inventory history and order suggestions for this product. This cannot be undone.`,
+      onConfirm: async () => {
+        await api.delete(`/products/${p.id}/hard`)
+        setConfirmAction(null)
+        fetchProducts()
+      },
+    })
+  }
+
+  const activeCount = products.filter((p) => p.active).length
+  const inactiveCount = products.filter((p) => !p.active).length
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Products</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {activeCount} active{inactiveCount > 0 ? `, ${inactiveCount} inactive` : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => setIncludeInactive(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Show inactive
+          </label>
+          <button
+            onClick={openCreate}
+            className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+          >
+            + New Product
+          </button>
+        </div>
+      </div>
+
+      {loading && <p className="text-gray-400 text-sm">Loading…</p>}
+      {error && <p className="text-sm text-red-700 bg-red-50 rounded-lg px-4 py-3">{error}</p>}
+
+      {/* Table */}
+      {!loading && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                {['SKU', 'Name', 'Category', 'Unit', 'Reorder Point', 'Max Stock', 'Status', 'Actions'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                    No products found.
+                  </td>
+                </tr>
+              ) : (
+                products.map((p) => (
+                  <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${!p.active ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.sku}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.category ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.unit}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.reorderPoint ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.maxStock ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                          p.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {p.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEdit(p)}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                          Edit
+                        </button>
+                        {p.active ? (
+                          <button
+                            onClick={() => confirmDeactivate(p)}
+                            className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+                          >
+                            Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => confirmRestore(p)}
+                            className="text-xs text-green-600 hover:text-green-800 font-medium"
+                          >
+                            Restore
+                          </button>
+                        )}
+                        <button
+                          onClick={() => confirmHardDelete(p)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+          {products.length > 0 && (
+            <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
+              {products.length} product{products.length !== 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">{editingId ? 'Edit Product' : 'New Product'}</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              {formError && (
+                <p className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{formError}</p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">SKU *</label>
+                  <input
+                    value={form.sku}
+                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                    disabled={!!editingId}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
+                    placeholder="LAPTE-1L"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Unit *</label>
+                  <input
+                    value={form.unit}
+                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="buc / kg / L"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Lapte 1L"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                <input
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Lactate"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Reorder Point</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.reorderPoint}
+                    onChange={(e) => setForm({ ...form, reorderPoint: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Max Stock</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.maxStock}
+                    onChange={(e) => setForm({ ...form, maxStock: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="500"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveProduct}
+                disabled={saving}
+                className="text-sm px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-700 whitespace-pre-line">{confirmAction.message}</p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="text-sm px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAction.onConfirm}
+                className="text-sm px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

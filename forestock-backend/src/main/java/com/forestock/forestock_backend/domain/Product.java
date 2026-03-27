@@ -1,0 +1,58 @@
+package com.forestock.forestock_backend.domain;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "products",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"store_id", "sku"}))
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+
+    @Column(nullable = false, length = 50)
+    private String sku;
+
+    @Column(nullable = false, length = 255)
+    private String name;
+
+    @Column(length = 100)
+    private String category;
+
+    @Column(nullable = false, length = 20)
+    private String unit;
+
+    @Column(name = "reorder_point", precision = 10, scale = 2)
+    private BigDecimal reorderPoint;
+
+    @Column(name = "max_stock", precision = 10, scale = 2)
+    private BigDecimal maxStock;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean active = true;
+
+    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    void prePersist() {
+        if (active == null) active = true;
+    }
+}
