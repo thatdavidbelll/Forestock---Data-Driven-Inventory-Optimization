@@ -157,7 +157,13 @@
 			<version>${springdoc.version}</version>
 		</dependency>
 
-		<!-- ─── Test ──────────────────────────────────────────────── -->
+		<!-- ─── Spring Mail (password reset emails) ─────────────── -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
+<!-- ─── Test ──────────────────────────────────────────────── -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

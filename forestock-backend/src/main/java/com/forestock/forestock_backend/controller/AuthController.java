@@ -1,12 +1,15 @@
 package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.domain.AppUser;
+import com.forestock.forestock_backend.dto.request.ForgotPasswordRequest;
 import com.forestock.forestock_backend.dto.request.LoginRequest;
+import com.forestock.forestock_backend.dto.request.ResetPasswordRequest;
 import java.util.UUID;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.AuthResponse;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import com.forestock.forestock_backend.service.JwtService;
+import com.forestock.forestock_backend.service.PasswordResetService;
 import io.jsonwebtoken.JwtException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class AuthController {
     private final UserDetailsService userDetailsService;
     private final AppUserRepository userRepository;
     private final JwtService jwtService;
+    private final PasswordResetService passwordResetService;
 
     /** Authenticates a user and returns access + refresh tokens. */
     @PostMapping("/login")
@@ -98,6 +102,32 @@ public class AuthController {
         } catch (JwtException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid token: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Sends a password-reset link to the user's email.
+     * Always returns 200 to prevent email enumeration.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If an account with that email exists, a reset link has been sent.", null));
+    }
+
+    /**
+     * Resets the password using a valid reset token.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            passwordResetService.resetPassword(request);
+            return ResponseEntity.ok(ApiResponse.success("Password reset successfully.", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
         }
     }
 }

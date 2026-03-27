@@ -8,8 +8,9 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<string>  // returns role
   logout: () => void
+  updateAccessToken: (token: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -22,7 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { isAuthenticated: !!token, username, role }
   })
 
-  async function login(username: string, password: string) {
+  /** Returns the role so callers can decide where to redirect. */
+  async function login(username: string, password: string): Promise<string> {
     const { data } = await api.post('/auth/login', { username, password })
     const { accessToken, refreshToken, username: user, role } = data.data
     localStorage.setItem('accessToken', accessToken)
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('username', user)
     localStorage.setItem('role', role)
     setAuth({ isAuthenticated: true, username: user, role })
+    return role
   }
 
   function logout() {
@@ -37,8 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth({ isAuthenticated: false, username: null, role: null })
   }
 
+  /** Called by the api interceptor after a silent token refresh. */
+  function updateAccessToken(token: string) {
+    localStorage.setItem('accessToken', token)
+    // username and role don't change on refresh — no state update needed
+  }
+
   return (
-    <AuthContext.Provider value={{ ...auth, login, logout }}>
+    <AuthContext.Provider value={{ ...auth, login, logout, updateAccessToken }}>
       {children}
     </AuthContext.Provider>
   )

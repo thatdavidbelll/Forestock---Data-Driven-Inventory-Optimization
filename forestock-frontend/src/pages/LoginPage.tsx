@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
@@ -15,8 +15,9 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(username, password)
-      navigate('/dashboard')
+      const role = await login(username, password)
+      // Super admins go to the platform admin panel; everyone else to dashboard
+      navigate(role === 'ROLE_SUPER_ADMIN' ? '/admin' : '/dashboard')
     } catch {
       setError('Invalid username or password')
     } finally {
@@ -64,6 +65,11 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+        <p className="mt-4 text-center text-sm text-gray-500">
+          <Link to="/forgot-password" className="text-indigo-600 hover:underline">
+            Forgot your password?
+          </Link>
+        </p>
       </div>
     </div>
   )

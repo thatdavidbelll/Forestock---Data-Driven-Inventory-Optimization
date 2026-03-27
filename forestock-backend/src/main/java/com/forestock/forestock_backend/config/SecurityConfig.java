@@ -29,8 +29,7 @@ public class SecurityConfig {
     private final UserDetailsServiceImpl userDetailsService;
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**",
-            "/api/register",
+            "/api/auth/**",         // login, refresh, forgot-password, reset-password
             "/actuator/health",
             "/swagger-ui/**",
             "/swagger-ui.html",
@@ -44,6 +43,16 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                    // Platform-level admin: only SUPER_ADMIN can create stores or access admin panel
+                    .requestMatchers("/api/register").hasRole("SUPER_ADMIN")
+                    .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
+                    // Store-level user management: only store ADMIN
+                    .requestMatchers(org.springframework.http.HttpMethod.GET,  "/api/users").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.PUT,  "/api/users/{id}").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/users/{id}").hasRole("ADMIN")
+                    // Password change: any authenticated user for their own account
+                    .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/users/me/password").authenticated()
                     .anyRequest().authenticated())
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

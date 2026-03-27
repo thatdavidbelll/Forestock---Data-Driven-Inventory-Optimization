@@ -39,6 +39,18 @@ public class AppUser {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** Optional — used for password reset emails and account communication. */
+    @Column(length = 255)
+    private String email;
+
+    /** Single-use UUID token for password reset; null when no reset is pending. */
+    @Column(name = "password_reset_token", length = 255)
+    private String passwordResetToken;
+
+    /** Expiry timestamp for the password reset token (1 hour from issuance). */
+    @Column(name = "password_reset_expires_at")
+    private LocalDateTime passwordResetExpiresAt;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();

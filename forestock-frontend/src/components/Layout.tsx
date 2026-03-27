@@ -1,18 +1,38 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard' },
+const storeNavItems = [
+  { to: '/dashboard',   label: 'Dashboard' },
   { to: '/suggestions', label: 'Suggestions' },
-  { to: '/products', label: 'Products' },
-  { to: '/inventory', label: 'Inventory' },
-  { to: '/sales', label: 'Sales' },
-  { to: '/import', label: 'Import' },
+  { to: '/products',    label: 'Products' },
+  { to: '/inventory',   label: 'Inventory' },
+  { to: '/sales',       label: 'Sales' },
+  { to: '/import',      label: 'Import' },
+]
+
+const adminNavItems = [
+  { to: '/users',    label: 'Users' },
+  { to: '/settings', label: 'Settings' },
+]
+
+const superAdminNavItems = [
+  { to: '/admin', label: 'Platform Admin' },
 ]
 
 export default function Layout() {
-  const { username, logout } = useAuth()
+  const { username, role, logout } = useAuth()
   const navigate = useNavigate()
+
+  const isSuperAdmin = role === 'ROLE_SUPER_ADMIN'
+  const isAdmin = role === 'ROLE_ADMIN'
+
+  // Choose nav items based on role
+  const navItems = isSuperAdmin
+    ? superAdminNavItems
+    : [
+        ...storeNavItems,
+        ...(isAdmin ? adminNavItems : [{ to: '/settings', label: 'Settings' }]),
+      ]
 
   function handleLogout() {
     logout()
@@ -24,6 +44,11 @@ export default function Layout() {
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <span className="font-bold text-lg text-indigo-600 tracking-tight">Forestock</span>
+          {isSuperAdmin && (
+            <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+              PLATFORM ADMIN
+            </span>
+          )}
           <nav className="flex gap-1">
             {navItems.map((item) => (
               <NavLink
