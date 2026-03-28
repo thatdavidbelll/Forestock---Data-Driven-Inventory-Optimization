@@ -184,7 +184,22 @@ export default function ProductsPage() {
       {error && <p className="text-sm text-red-700 bg-red-50 rounded-lg px-4 py-3">{error}</p>}
 
       {/* Table */}
-      {!loading && (
+      {!loading && products.length === 0 && !error ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+          <h2 className="text-xl font-semibold text-gray-900">No products yet.</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">
+            Add your first product to start importing sales, tracking stock, and generating forecasts.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              onClick={openCreate}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+            >
+              Create your first product
+            </button>
+          </div>
+        </div>
+      ) : !loading && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -197,14 +212,7 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {products.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
-                    No products found.
-                  </td>
-                </tr>
-              ) : (
-                products.map((p) => (
+              {products.map((p) => (
                   <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${!p.active ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.sku}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
@@ -253,8 +261,7 @@ export default function ProductsPage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
+                ))}
             </tbody>
           </table>
           {products.length > 0 && (

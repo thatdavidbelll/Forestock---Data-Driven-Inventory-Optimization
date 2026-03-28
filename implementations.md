@@ -39,6 +39,8 @@
 - `IMPL-05` Email Verification on First Login
 - `IMPL-06` Password Strength Enforcement
 - `IMPL-07` Audit Log
+- `IMPL-09` Empty State + Guided Onboarding
+- `IMPL-10` In-App Forecast Status Polling
 
 ### Notes
 

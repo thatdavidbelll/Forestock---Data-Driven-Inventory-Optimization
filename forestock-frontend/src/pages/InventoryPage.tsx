@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
 
@@ -126,7 +127,28 @@ export default function InventoryPage() {
       {loading && <p className="text-gray-400 text-sm">Loading…</p>}
       {error && <p className="text-sm text-red-700 bg-red-50 rounded-lg px-4 py-3">{error}</p>}
 
-      {!loading && (
+      {!loading && items.length === 0 && !error ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {alertsOnly ? 'No stock alerts right now.' : 'No inventory data yet.'}
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">
+            {alertsOnly
+              ? 'All tracked products are currently above their reorder thresholds.'
+              : 'Add products first, then import sales or update stock manually to start tracking inventory.'}
+          </p>
+          {!alertsOnly && (
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Link
+                to="/products"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Add products
+              </Link>
+            </div>
+          )}
+        </div>
+      ) : !loading && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -141,14 +163,7 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
-                    {alertsOnly ? 'No stock alerts.' : 'No inventory data.'}
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => {
+              {items.map((item) => {
                   const status = stockStatus(item)
                   const isEditing = editingId === item.productId
                   return (
@@ -221,8 +236,7 @@ export default function InventoryPage() {
                       </td>
                     </tr>
                   )
-                })
-              )}
+                })}
             </tbody>
           </table>
           {items.length > 0 && (

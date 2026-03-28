@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../lib/api'
 
 interface Suggestion {
@@ -15,6 +16,11 @@ interface Suggestion {
   urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
   acknowledged: boolean
   acknowledgedAt: string | null
+}
+
+interface DashboardSummary {
+  totalActiveProducts: number
+  lastRunStatus: string | null
 }
 
 const urgencyStyle: Record<string, string> = {
@@ -34,14 +40,27 @@ export default function SuggestionsPage() {
   const [exportingPdf, setExportingPdf] = useState(false)
   const [showAcknowledged, setShowAcknowledged] = useState(false)
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null)
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null)
+  const [missingForecast, setMissingForecast] = useState(false)
 
   useEffect(() => {
+    void fetchDashboardSummary()
     fetchSuggestions()
   }, [urgencyFilter, categoryFilter, showAcknowledged])
+
+  async function fetchDashboardSummary() {
+    try {
+      const { data } = await api.get('/dashboard')
+      setDashboard(data.data ?? null)
+    } catch {
+      setDashboard(null)
+    }
+  }
 
   async function fetchSuggestions() {
     setLoading(true)
     setError('')
+    setMissingForecast(false)
     try {
       const params: Record<string, string> = {}
       if (urgencyFilter) params.urgency = urgencyFilter
@@ -51,7 +70,12 @@ export default function SuggestionsPage() {
       setSuggestions(data.data ?? [])
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'No completed forecast run found. Run a forecast first.')
+      if ((msg ?? '').toLowerCase().includes('no completed forecast run')) {
+        setSuggestions([])
+        setMissingForecast(true)
+      } else {
+        setError(msg ?? 'No completed forecast run found. Run a forecast first.')
+      }
     } finally {
       setLoading(false)
     }
@@ -117,6 +141,37 @@ export default function SuggestionsPage() {
     }
   }
 
+  const emptyState = !loading && !error && suggestions.length === 0
+    ? dashboard?.totalActiveProducts === 0
+      ? {
+          title: 'No products yet.',
+          description: 'Add your first product before running forecasts or reviewing suggestions.',
+          actions: [
+            <Link key="products" to="/products" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+              Add your first product
+            </Link>,
+          ],
+        }
+      : dashboard?.lastRunStatus == null || missingForecast
+        ? {
+            title: 'No suggestions yet.',
+            description: 'Import sales data and run a forecast to generate your first restocking recommendations.',
+            actions: [
+              <Link key="forecast" to="/dashboard" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                Run a forecast
+              </Link>,
+              <Link key="import" to="/import" className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Import sales data
+              </Link>,
+            ],
+          }
+        : {
+            title: 'Everything looks well-stocked.',
+            description: 'Your latest completed forecast did not produce any active restocking suggestions. Check back after your next import.',
+            actions: [],
+          }
+    : null
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -169,7 +224,17 @@ export default function SuggestionsPage() {
       {loading && <p className="text-gray-400 text-sm">Loading…</p>}
       {error && <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-4 py-3">{error}</p>}
 
-      {!loading && !error && (
+      {!loading && !error && emptyState ? (
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+          <h2 className="text-xl font-semibold text-gray-900">{emptyState.title}</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">{emptyState.description}</p>
+          {emptyState.actions.length > 0 && (
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              {emptyState.actions}
+            </div>
+          )}
+        </div>
+      ) : !loading && !error && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -184,14 +249,7 @@ export default function SuggestionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {suggestions.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
-                    No suggestions found.
-                  </td>
-                </tr>
-              ) : (
-                suggestions.map((s) => (
+              {suggestions.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{s.productSku}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{s.productName}</td>
@@ -230,8 +288,7 @@ export default function SuggestionsPage() {
                       )}
                     </td>
                   </tr>
-                ))
-              )}
+                ))}
             </tbody>
           </table>
           {suggestions.length > 0 && (
