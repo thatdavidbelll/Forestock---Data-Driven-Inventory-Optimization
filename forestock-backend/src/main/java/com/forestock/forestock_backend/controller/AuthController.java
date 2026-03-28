@@ -34,6 +34,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Slf4j
@@ -93,6 +94,8 @@ public class AuthController {
         try {
             UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
             AppUser user = userRepository.findWithStoreByUsername(request.getUsername()).orElseThrow();
+            user.setLastLoginAt(LocalDateTime.now());
+            userRepository.save(user);
             String role = user.getRole();
             UUID storeId = user.getStore() != null ? user.getStore().getId() : null;
 

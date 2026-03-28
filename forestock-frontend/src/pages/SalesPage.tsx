@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
 
@@ -25,6 +26,7 @@ type ConfirmAction = {
 }
 
 export default function SalesPage() {
+  const [searchParams] = useSearchParams()
   const [page, setPage] = useState<Page<Transaction> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -32,7 +34,7 @@ export default function SalesPage() {
   const PAGE_SIZE = 50
 
   // Filters
-  const [skuFilter, setSkuFilter] = useState('')
+  const [skuFilter, setSkuFilter] = useState(searchParams.get('sku') ?? '')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
 
@@ -43,6 +45,11 @@ export default function SalesPage() {
   useEffect(() => {
     fetchTransactions()
   }, [currentPage, skuFilter, fromDate, toDate])
+
+  useEffect(() => {
+    setSkuFilter(searchParams.get('sku') ?? '')
+    setCurrentPage(0)
+  }, [searchParams])
 
   async function fetchTransactions() {
     setLoading(true)

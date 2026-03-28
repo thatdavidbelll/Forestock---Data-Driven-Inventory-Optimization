@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import com.forestock.forestock_backend.security.TenantContext;
 
 @Slf4j
 @RestController
@@ -91,7 +92,7 @@ public class SuggestionController {
             @RequestParam(required = false) String category) {
         try {
             List<SuggestionDto> suggestions = suggestionService.getSuggestions(urgency, category);
-            byte[] bytes = reportService.generateExcel(suggestions);
+            byte[] bytes = reportService.generateExcel(suggestions, TenantContext.getStoreId());
             String filename = "forestock-suggestions-" + LocalDate.now() + ".xlsx";
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
@@ -113,7 +114,7 @@ public class SuggestionController {
             @RequestParam(required = false) String category) {
         try {
             List<SuggestionDto> suggestions = suggestionService.getSuggestions(urgency, category);
-            byte[] bytes = reportService.generatePdf(suggestions);
+            byte[] bytes = reportService.generatePdf(suggestions, TenantContext.getStoreId());
             String filename = "forestock-suggestions-" + LocalDate.now() + ".pdf";
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_PDF)

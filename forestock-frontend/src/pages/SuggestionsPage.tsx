@@ -52,6 +52,10 @@ export default function SuggestionsPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [exportingExcel, setExportingExcel] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [reportLoading, setReportLoading] = useState<string | null>(null)
+  const [salesReportFrom, setSalesReportFrom] = useState('')
+  const [salesReportTo, setSalesReportTo] = useState('')
+  const [slowMoverDays, setSlowMoverDays] = useState('30')
   const [showAcknowledged, setShowAcknowledged] = useState(false)
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -215,6 +219,22 @@ export default function SuggestionsPage() {
     }
   }
 
+  async function downloadReport(
+    endpoint: string,
+    filename: string,
+    params?: Record<string, string | number>,
+  ) {
+    setReportLoading(filename)
+    try {
+      const response = await api.get(endpoint, { params, responseType: 'blob' })
+      downloadBlob(response.data, filename)
+    } catch {
+      setError('Failed to download report.')
+    } finally {
+      setReportLoading(null)
+    }
+  }
+
   const emptyState = !loading && !error && suggestions.length === 0
     ? dashboard?.totalActiveProducts === 0
       ? {
@@ -282,20 +302,66 @@ export default function SuggestionsPage() {
             />
             Show acknowledged
           </label>
-          <button
-            onClick={exportExcel}
-            disabled={exportingExcel}
-            className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {exportingExcel ? 'Exporting…' : 'Export Excel'}
-          </button>
-          <button
-            onClick={exportPdf}
-            disabled={exportingPdf}
-            className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {exportingPdf ? 'Exporting…' : 'Export PDF'}
-          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Download Reports</h2>
+            <p className="mt-1 text-xs text-gray-500">Operational exports for restocking, valuation, sales, and slow movers.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Restocking Suggestions</p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={exportExcel} disabled={exportingExcel} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  {exportingExcel ? 'Exporting…' : 'Excel'}
+                </button>
+                <button onClick={exportPdf} disabled={exportingPdf} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  {exportingPdf ? 'Exporting…' : 'PDF'}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Inventory Valuation</p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => void downloadReport('/reports/inventory-valuation', `inventory-valuation-${new Date().toISOString().slice(0, 10)}.xlsx`, { format: 'excel' })} disabled={reportLoading != null} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  {reportLoading?.includes('inventory-valuation') ? 'Working…' : 'Excel'}
+                </button>
+                <button onClick={() => void downloadReport('/reports/inventory-valuation', `inventory-valuation-${new Date().toISOString().slice(0, 10)}.pdf`, { format: 'pdf' })} disabled={reportLoading != null} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  {reportLoading?.includes('inventory-valuation') ? 'Working…' : 'PDF'}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Sales Performance</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input type="date" value={salesReportFrom} onChange={(e) => setSalesReportFrom(e.target.value)} className="rounded border border-gray-300 px-2 py-1 text-xs" />
+                <input type="date" value={salesReportTo} onChange={(e) => setSalesReportTo(e.target.value)} className="rounded border border-gray-300 px-2 py-1 text-xs" />
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => void downloadReport('/reports/sales', `sales-performance-${new Date().toISOString().slice(0, 10)}.xlsx`, { from: salesReportFrom, to: salesReportTo, format: 'excel' })} disabled={!salesReportFrom || !salesReportTo || reportLoading != null} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  Excel
+                </button>
+                <button onClick={() => void downloadReport('/reports/sales', `sales-performance-${new Date().toISOString().slice(0, 10)}.pdf`, { from: salesReportFrom, to: salesReportTo, format: 'pdf' })} disabled={!salesReportFrom || !salesReportTo || reportLoading != null} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  PDF
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Slow Movers</p>
+              <input type="number" min="1" value={slowMoverDays} onChange={(e) => setSlowMoverDays(e.target.value)} className="mt-2 w-24 rounded border border-gray-300 px-2 py-1 text-xs" />
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => void downloadReport('/reports/slow-movers', `slow-movers-${new Date().toISOString().slice(0, 10)}.xlsx`, { inactiveDays: Number(slowMoverDays || '30'), format: 'excel' })} disabled={reportLoading != null} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  Excel
+                </button>
+                <button onClick={() => void downloadReport('/reports/slow-movers', `slow-movers-${new Date().toISOString().slice(0, 10)}.pdf`, { inactiveDays: Number(slowMoverDays || '30'), format: 'pdf' })} disabled={reportLoading != null} className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-50">
+                  PDF
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

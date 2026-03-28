@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
 
@@ -44,11 +44,23 @@ const defaultColumns = {
   leadTime: false,
 }
 
+type SortField = 'name' | 'sku' | 'category' | 'createdAt'
+
+interface ImportResult {
+  imported: number
+  skipped: number
+  errors: string[]
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [sortField, setSortField] = useState<SortField>('createdAt')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
   // Modal state
   const [showModal, setShowModal] = useState(false)
@@ -59,6 +71,12 @@ export default function ProductsPage() {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showColumnMenu, setShowColumnMenu] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [updateExisting, setUpdateExisting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState('')
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
 
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState<null | {
@@ -69,18 +87,78 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts()
-  }, [includeInactive])
+  }, [includeInactive, search])
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setSearch(searchInput.trim())
+    }, 300)
+    return () => window.clearTimeout(handle)
+  }, [searchInput])
 
   async function fetchProducts() {
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.get('/products', { params: { includeInactive } })
+      const params: Record<string, string | boolean> = { includeInactive }
+      if (search) params.search = search
+      const { data } = await api.get('/products', { params })
       setProducts(data.data ?? [])
     } catch {
       setError('Failed to load products.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection(field === 'createdAt' ? 'desc' : 'asc')
+  }
+
+  async function exportCsv(templateOnly = false) {
+    try {
+      const response = await api.get('/products/export/csv', {
+        params: { templateOnly },
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(response.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = templateOnly ? 'products-template.csv' : 'products.csv'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError(extractErrorMessage(e, 'Failed to export products CSV.'))
+    }
+  }
+
+  async function importProducts() {
+    if (!importFile) {
+      setImportError('Choose a CSV file to import.')
+      return
+    }
+
+    setImporting(true)
+    setImportError('')
+    setImportResult(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+      const { data } = await api.post('/products/import', formData, {
+        params: { updateExisting },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setImportResult(data.data ?? null)
+      void fetchProducts()
+    } catch (e) {
+      setImportError(extractErrorMessage(e, 'Failed to import products.'))
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -201,15 +279,37 @@ export default function ProductsPage() {
 
   const activeCount = products.filter((p) => p.active).length
   const inactiveCount = products.filter((p) => !p.active).length
+  const sortedProducts = useMemo(() => {
+    const direction = sortDirection === 'asc' ? 1 : -1
+    return [...products].sort((left, right) => {
+      let comparison = 0
+      switch (sortField) {
+        case 'name':
+          comparison = left.name.localeCompare(right.name)
+          break
+        case 'sku':
+          comparison = left.sku.localeCompare(right.sku)
+          break
+        case 'category':
+          comparison = (left.category ?? '').localeCompare(right.category ?? '')
+          break
+        case 'createdAt':
+          comparison = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+          break
+      }
+      return comparison * direction
+    })
+  }, [products, sortDirection, sortField])
   const tableHeaders = [
-    'SKU',
-    'Name',
-    'Category',
+    { label: 'SKU', sortable: true, field: 'sku' as SortField },
+    { label: 'Name', sortable: true, field: 'name' as SortField },
+    { label: 'Category', sortable: true, field: 'category' as SortField },
     'Unit',
     'Reorder Point',
     'Max Stock',
     ...(visibleColumns.supplier ? ['Supplier'] : []),
     ...(visibleColumns.leadTime ? ['Lead Time'] : []),
+    { label: 'Created', sortable: true, field: 'createdAt' as SortField },
     'Status',
     'Actions',
   ]
@@ -225,6 +325,13 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by name or SKU..."
+            className="w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
           <div className="relative">
             <button
               onClick={() => setShowColumnMenu((current) => !current)}
@@ -270,6 +377,18 @@ export default function ProductsPage() {
             Show inactive
           </label>
           <button
+            onClick={() => setShowImportModal(true)}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Import CSV
+          </button>
+          <button
+            onClick={() => void exportCsv(false)}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Export CSV
+          </button>
+          <button
             onClick={openCreate}
             className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
@@ -303,14 +422,29 @@ export default function ProductsPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 {tableHeaders.map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    {h}
-                  </th>
+                  typeof h === 'string' ? (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      {h}
+                    </th>
+                  ) : (
+                    <th key={h.label} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(h.field)}
+                        className="inline-flex items-center gap-1 hover:text-gray-700"
+                      >
+                        {h.label}
+                        <span className="text-[10px]">
+                          {sortField === h.field ? (sortDirection === 'asc' ? '▲' : '▼') : '↕'}
+                        </span>
+                      </button>
+                    </th>
+                  )
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {products.map((p) => (
+              {sortedProducts.map((p) => (
                   <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${!p.active ? 'opacity-50' : ''}`}>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.sku}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
@@ -326,6 +460,9 @@ export default function ProductsPage() {
                     {visibleColumns.leadTime && (
                       <td className="px-4 py-3 text-gray-500">{p.leadTimeDays != null ? `${p.leadTimeDays} days` : '—'}</td>
                     )}
+                    <td className="px-4 py-3 text-gray-500 text-xs">
+                      {new Date(p.createdAt).toLocaleDateString()}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`text-xs font-medium px-2.5 py-1 rounded-full ${
@@ -577,6 +714,92 @@ export default function ProductsPage() {
                 className="text-sm px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50"
               >
                 {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Product'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+            <div className="border-b border-gray-200 px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Import Products CSV</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Upload a product catalogue CSV with supplier and replenishment fields.
+              </p>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center">
+                <p className="text-sm font-medium text-gray-700">
+                  {importFile ? importFile.name : 'Drop a CSV here or choose a file'}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Expected columns: sku, name, category, unit, reorder_point, max_stock, lead_time_days, minimum_order_qty, unit_cost, supplier_name
+                </p>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                  className="mx-auto mt-4 block text-sm text-gray-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-4 py-3">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={updateExisting}
+                    onChange={(e) => setUpdateExisting(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Update existing products with matching SKUs
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void exportCsv(true)}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Download template
+                </button>
+              </div>
+
+              {importError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{importError}</p>}
+              {importResult && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                  <p>Imported: {importResult.imported}</p>
+                  <p>Skipped: {importResult.skipped}</p>
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-2">
+                      <p className="font-medium text-red-700">Errors</p>
+                      <ul className="mt-1 max-h-40 list-disc overflow-auto pl-5 text-xs text-red-600">
+                        {importResult.errors.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                onClick={() => {
+                  setShowImportModal(false)
+                  setImportFile(null)
+                  setImportResult(null)
+                  setImportError('')
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => void importProducts()}
+                disabled={importing}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {importing ? 'Importing…' : 'Import CSV'}
               </button>
             </div>
           </div>

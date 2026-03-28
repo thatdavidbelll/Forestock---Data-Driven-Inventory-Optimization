@@ -14,9 +14,14 @@ public class InventoryDto {
     private UUID productId;
     private String productSku;
     private String productName;
+    private String productCategory;
     private String unit;
     private BigDecimal quantity;
     private BigDecimal reorderPoint;
     private boolean belowReorderPoint;
+    private BigDecimal p50Daily;
+    private String adjustmentReason;
+    private String adjustmentNote;
+    private String adjustedBy;
     private LocalDateTime recordedAt;
 }

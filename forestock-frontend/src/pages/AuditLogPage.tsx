@@ -27,6 +27,7 @@ export default function AuditLogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionFilter, setActionFilter] = useState('')
+  const [actorFilter, setActorFilter] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [page, setPage] = useState(0)
@@ -46,6 +47,7 @@ export default function AuditLogPage() {
           page: targetPage,
           size: 20,
           action: actionFilter || undefined,
+          actor: actorFilter || undefined,
           from: from || undefined,
           to: to || undefined,
         },
@@ -67,6 +69,57 @@ export default function AuditLogPage() {
     await loadLogs(0)
   }
 
+  async function exportCsv() {
+    try {
+      const response = await api.get('/audit-logs/export/csv', {
+        params: {
+          action: actionFilter || undefined,
+          actor: actorFilter || undefined,
+          from: from || undefined,
+          to: to || undefined,
+        },
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'audit-logs.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to export audit logs'))
+    }
+  }
+
+  function renderDetail(detail: string | null, entityId: string | null) {
+    if (!detail) return entityId ?? '—'
+    try {
+      const parsed = JSON.parse(detail) as {
+        before?: Record<string, unknown>
+        after?: Record<string, unknown>
+        reason?: string
+        note?: string
+      }
+      if (parsed.before || parsed.after) {
+        const keys = Array.from(new Set([
+          ...Object.keys(parsed.before ?? {}),
+          ...Object.keys(parsed.after ?? {}),
+        ]))
+        const parts = keys.map((key) => {
+          const before = parsed.before?.[key]
+          const after = parsed.after?.[key]
+          return `${key}: ${before ?? '—'} → ${after ?? '—'}`
+        })
+        if (parsed.reason) parts.push(`reason: ${parsed.reason}`)
+        if (parsed.note) parts.push(`note: ${parsed.note}`)
+        return parts.join(' · ')
+      }
+      return JSON.stringify(parsed)
+    } catch {
+      return detail
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -74,16 +127,24 @@ export default function AuditLogPage() {
           <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
           <p className="text-sm text-gray-500 mt-1">Track changes made across your store.</p>
         </div>
-        <Link
-          to="/settings"
-          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-        >
-          Back to Settings
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => void exportCsv()}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Export CSV
+          </button>
+          <Link
+            to="/settings"
+            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Back to Settings
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
             <input
@@ -91,6 +152,16 @@ export default function AuditLogPage() {
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
               placeholder="e.g. USER_CREATED"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Actor</label>
+            <input
+              type="text"
+              value={actorFilter}
+              onChange={(e) => setActorFilter(e.target.value)}
+              placeholder="username contains…"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -163,7 +234,7 @@ export default function AuditLogPage() {
                       {log.entityType ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-gray-600 min-w-80">
-                      {log.detail ?? log.entityId ?? '—'}
+                      {renderDetail(log.detail, log.entityId)}
                     </td>
                   </tr>
                 ))}

@@ -12,4 +12,8 @@ public class InventoryUpdateRequest {
     @NotNull(message = "Quantity is required")
     @DecimalMin(value = "0.0", message = "Quantity cannot be negative")
     private BigDecimal quantity;
+
+    private String adjustmentReason;
+
+    private String adjustmentNote;
 }

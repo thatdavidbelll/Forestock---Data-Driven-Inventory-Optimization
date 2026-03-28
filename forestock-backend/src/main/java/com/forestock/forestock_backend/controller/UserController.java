@@ -5,6 +5,7 @@ import com.forestock.forestock_backend.dto.request.CreateUserInviteRequest;
 import com.forestock.forestock_backend.dto.request.CreateUserRequest;
 import com.forestock.forestock_backend.dto.request.UpdateUserRequest;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
+import com.forestock.forestock_backend.dto.response.CurrentUserDto;
 import com.forestock.forestock_backend.dto.response.UserInviteDto;
 import com.forestock.forestock_backend.dto.response.UserDto;
 import com.forestock.forestock_backend.service.UserInviteService;
@@ -106,6 +107,11 @@ public class UserController {
     }
 
     /** Change the currently authenticated user's own password. */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<CurrentUserDto>> getCurrentUser() {
+        return ResponseEntity.ok(ApiResponse.success(userManagementService.getCurrentUser()));
+    }
+
     @PutMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         try {

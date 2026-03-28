@@ -31,6 +31,15 @@ public class Inventory {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal quantity;
 
+    @Column(name = "adjustment_reason", length = 50)
+    private String adjustmentReason;
+
+    @Column(name = "adjustment_note", length = 255)
+    private String adjustmentNote;
+
+    @Column(name = "adjusted_by", length = 100)
+    private String adjustedBy;
+
     @Column(name = "recorded_at", updatable = false)
     @CreationTimestamp
     private LocalDateTime recordedAt;

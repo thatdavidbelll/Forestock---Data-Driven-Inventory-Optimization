@@ -61,6 +61,9 @@ public class AppUser {
     @Column(name = "email_verification_sent_at")
     private LocalDateTime emailVerificationSentAt;
 
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();

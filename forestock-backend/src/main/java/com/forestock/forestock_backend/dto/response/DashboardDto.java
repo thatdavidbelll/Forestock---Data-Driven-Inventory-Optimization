@@ -15,6 +15,8 @@ public class DashboardDto {
     private long alertsCount;           // produse sub reorder_point
     private long criticalCount;         // sugestii cu urgency CRITICAL
     private long highCount;             // sugestii cu urgency HIGH
+    private long slowMoversCount;
+    private long deadStockCount;
     private ForecastStatus lastRunStatus;
     private LocalDateTime lastRunAt;
     private AccuracyScore accuracyScore;

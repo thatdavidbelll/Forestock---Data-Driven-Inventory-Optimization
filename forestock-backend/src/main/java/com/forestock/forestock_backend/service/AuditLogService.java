@@ -3,6 +3,8 @@ package com.forestock.forestock_backend.service;
 import com.forestock.forestock_backend.domain.AuditLog;
 import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.dto.response.AuditLogDto;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.forestock.forestock_backend.repository.AuditLogRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
@@ -14,8 +16,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -24,6 +32,7 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final StoreRepository storeRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void log(String action, String entityType, String entityId, String detail) {
@@ -42,8 +51,19 @@ public class AuditLogService {
                 .build());
     }
 
+    @Transactional
+    public void logChange(String action, String entityType, String entityId, Object before, Object after, Map<String, Object> extra) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("before", before);
+        detail.put("after", after);
+        if (extra != null) {
+            detail.putAll(extra);
+        }
+        log(action, entityType, entityId, toJson(detail));
+    }
+
     @Transactional(readOnly = true)
-    public Page<AuditLogDto> listStoreAuditLogs(String action, LocalDate from, LocalDate to, Pageable pageable) {
+    public Page<AuditLogDto> listStoreAuditLogs(String action, String actor, LocalDate from, LocalDate to, Pageable pageable) {
         UUID storeId = TenantContext.getStoreId();
         if (storeId == null) {
             throw new IllegalStateException("No store context");
@@ -52,8 +72,36 @@ public class AuditLogService {
         LocalDateTime fromDateTime = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDateTime = to != null ? to.plusDays(1).atStartOfDay().minusNanos(1) : null;
 
-        return auditLogRepository.findByStoreFiltered(storeId, normalize(action), fromDateTime, toDateTime, pageable)
+        return auditLogRepository.findByStoreFiltered(storeId, normalize(action), normalize(actor), fromDateTime, toDateTime, pageable)
                 .map(this::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportStoreAuditLogsCsv(String action, String actor, LocalDate from, LocalDate to) {
+        UUID storeId = TenantContext.getStoreId();
+        if (storeId == null) {
+            throw new IllegalStateException("No store context");
+        }
+
+        LocalDateTime fromDateTime = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDateTime = to != null ? to.plusDays(1).atStartOfDay().minusNanos(1) : null;
+        List<AuditLog> logs = auditLogRepository.findAllByStoreFiltered(storeId, normalize(action), normalize(actor), fromDateTime, toDateTime);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintWriter writer = new PrintWriter(out);
+        writer.println("occurred_at,actor,action,entity_type,entity_id,detail");
+        for (AuditLog log : logs) {
+            writer.println(csv(
+                    log.getOccurredAt(),
+                    log.getActorUsername(),
+                    log.getAction(),
+                    log.getEntityType(),
+                    log.getEntityId(),
+                    log.getDetail()
+            ));
+        }
+        writer.flush();
+        return out.toByteArray();
     }
 
     private String resolveActorUsername() {
@@ -66,6 +114,24 @@ public class AuditLogService {
 
     private String normalize(String action) {
         return action == null || action.isBlank() ? null : action.trim();
+    }
+
+    private String toJson(Object detail) {
+        try {
+            return objectMapper.writeValueAsString(detail);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize audit detail", e);
+        }
+    }
+
+    private String csv(Object... values) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) builder.append(',');
+            String value = values[i] == null ? "" : values[i].toString();
+            builder.append('"').append(value.replace("\"", "\"\"")).append('"');
+        }
+        return builder.toString();
     }
 
     private AuditLogDto toDto(AuditLog log) {

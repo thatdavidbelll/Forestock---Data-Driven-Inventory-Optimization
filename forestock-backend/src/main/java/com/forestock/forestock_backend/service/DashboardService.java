@@ -43,6 +43,8 @@ public class DashboardService {
 
         long totalActive = activeProducts.size();
         long alertsCount = inventoryService.getAlerts().size();
+        long slowMoversCount = storeId != null ? inventoryService.getSlowMovers(30).size() : 0;
+        long deadStockCount = storeId != null ? inventoryService.getSlowMovers(90).size() : 0;
 
         Optional<ForecastRun> latestRun = storeId != null
                 ? forecastRunRepository.findTopByStoreIdAndStatusOrderByFinishedAtDesc(storeId, ForecastStatus.COMPLETED)
@@ -63,6 +65,8 @@ public class DashboardService {
                 .alertsCount(alertsCount)
                 .criticalCount(criticalCount)
                 .highCount(highCount)
+                .slowMoversCount(slowMoversCount)
+                .deadStockCount(deadStockCount)
                 .lastRunStatus(latestRun.map(ForecastRun::getStatus).orElse(null))
                 .lastRunAt(latestRun.map(ForecastRun::getFinishedAt).orElse(null))
                 .accuracyScore(storeId != null ? toAccuracyScore(forecastAccuracyService.getDashboardAccuracy(storeId)) : null)

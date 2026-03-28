@@ -18,6 +18,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import AcceptInvitePage from './pages/AcceptInvitePage'
+import SlowMoversPage from './pages/SlowMoversPage'
 
 /** Root index redirect — super admins go to /admin, everyone else to /dashboard */
 function RootRedirect() {
@@ -36,6 +37,12 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { role } = useAuth()
   if (role !== 'ROLE_ADMIN') return <Navigate to="/dashboard" replace />
+  return <>{children}</>
+}
+
+function AdminManagerRoute({ children }: { children: React.ReactNode }) {
+  const { role } = useAuth()
+  if (role !== 'ROLE_ADMIN' && role !== 'ROLE_MANAGER') return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -70,6 +77,7 @@ export default function App() {
             <Route path="suggestions" element={<SuggestionsPage />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="inventory" element={<InventoryPage />} />
+            <Route path="slow-movers" element={<AdminManagerRoute><SlowMoversPage /></AdminManagerRoute>} />
             <Route path="sales" element={<SalesPage />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="users" element={<AdminOnlyRoute><UsersPage /></AdminOnlyRoute>} />

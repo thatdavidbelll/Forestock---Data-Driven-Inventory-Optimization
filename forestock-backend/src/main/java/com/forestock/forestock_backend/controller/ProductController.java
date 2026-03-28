@@ -11,12 +11,18 @@ import com.forestock.forestock_backend.repository.SalesTransactionRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.AuditLogService;
+import com.forestock.forestock_backend.service.ProductBulkImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -33,6 +39,7 @@ public class ProductController {
     private final InventoryRepository inventoryRepository;
     private final OrderSuggestionRepository orderSuggestionRepository;
     private final AuditLogService auditLogService;
+    private final ProductBulkImportService productBulkImportService;
 
     // ── Read ─────────────────────────────────────────────────────────────────
 
@@ -43,12 +50,11 @@ public class ProductController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProductDto>>> listAll(
-            @RequestParam(defaultValue = "false") boolean includeInactive) {
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(required = false) String search) {
         UUID storeId = TenantContext.getStoreId();
         List<ProductDto> products = (storeId != null
-                ? (includeInactive
-                        ? productRepository.findByStoreId(storeId)
-                        : productRepository.findByStoreIdAndActiveTrue(storeId))
+                ? productRepository.searchByStoreId(storeId, includeInactive, normalizeSearch(search))
                 : (includeInactive
                         ? productRepository.findAll()
                         : productRepository.findByActiveTrue()))
@@ -56,6 +62,28 @@ public class ProductController {
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(products));
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importProducts(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean updateExisting) throws IOException {
+        ProductBulkImportService.ImportResult result = productBulkImportService.importCsv(file, updateExisting);
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+                "imported", result.imported(),
+                "skipped", result.skipped(),
+                "errors", result.errors()
+        )));
+    }
+
+    @GetMapping("/export/csv")
+    public ResponseEntity<byte[]> exportProductsCsv(
+            @RequestParam(defaultValue = "false") boolean templateOnly) throws IOException {
+        byte[] csv = productBulkImportService.exportCsv(templateOnly);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=products.csv")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csv);
     }
 
     /**
@@ -129,6 +157,17 @@ public class ProductController {
         return productRepository.findById(id)
                 .map(existing -> {
                     if (isAccessDenied(existing)) return FORBIDDEN;
+                    Map<String, Object> before = new LinkedHashMap<>();
+                    before.put("name", existing.getName());
+                    before.put("category", existing.getCategory());
+                    before.put("unit", existing.getUnit());
+                    before.put("reorderPoint", existing.getReorderPoint());
+                    before.put("maxStock", existing.getMaxStock());
+                    before.put("leadTimeDays", existing.getLeadTimeDays());
+                    before.put("minimumOrderQty", existing.getMinimumOrderQty());
+                    before.put("unitCost", existing.getUnitCost());
+                    before.put("supplierName", existing.getSupplierName());
+                    before.put("active", existing.getActive());
                     existing.setName(updates.getName());
                     existing.setCategory(updates.getCategory());
                     existing.setUnit(updates.getUnit());
@@ -144,8 +183,27 @@ public class ProductController {
                     existing.setNotes(updates.getNotes());
                     existing.setActive(updates.getActive());
                     Product saved = productRepository.save(existing);
-                    auditLogService.log("PRODUCT_UPDATED", "Product", saved.getId().toString(),
-                            "Updated product '" + saved.getSku() + "' (" + saved.getName() + "), active=" + saved.getActive());
+                    Map<String, Object> after = new LinkedHashMap<>();
+                    after.put("name", saved.getName());
+                    after.put("category", saved.getCategory());
+                    after.put("unit", saved.getUnit());
+                    after.put("reorderPoint", saved.getReorderPoint());
+                    after.put("maxStock", saved.getMaxStock());
+                    after.put("leadTimeDays", saved.getLeadTimeDays());
+                    after.put("minimumOrderQty", saved.getMinimumOrderQty());
+                    after.put("unitCost", saved.getUnitCost());
+                    after.put("supplierName", saved.getSupplierName());
+                    after.put("active", saved.getActive());
+                    Map<String, Object> extra = new LinkedHashMap<>();
+                    extra.put("sku", saved.getSku());
+                    auditLogService.logChange(
+                            "PRODUCT_UPDATED",
+                            "Product",
+                            saved.getId().toString(),
+                            before,
+                            after,
+                            extra
+                    );
                     return ResponseEntity.ok(ApiResponse.success(toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -245,6 +303,12 @@ public class ProductController {
 
     private static final ResponseEntity<ApiResponse<ProductDto>> FORBIDDEN =
             ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied"));
+
+    private String normalizeSearch(String search) {
+        if (search == null) return null;
+        String trimmed = search.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
 
     // ── Mapping ───────────────────────────────────────────────────────────────
 

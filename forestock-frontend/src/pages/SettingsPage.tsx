@@ -31,6 +31,14 @@ interface StoreConfig {
   autoForecastOnImport: boolean
 }
 
+interface CurrentUser {
+  id: string
+  username: string
+  email: string | null
+  role: string
+  lastLoginAt: string | null
+}
+
 export default function SettingsPage() {
   const { username, role } = useAuth()
 
@@ -56,14 +64,25 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState('')
   const [exportingData, setExportingData] = useState(false)
   const [exportError, setExportError] = useState('')
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
 
   const isAdmin = role === 'ROLE_ADMIN'
 
   useEffect(() => {
+    void loadCurrentUser()
     if (isAdmin) {
       loadStore()
     }
   }, [isAdmin])
+
+  async function loadCurrentUser() {
+    try {
+      const { data } = await api.get('/users/me')
+      setCurrentUser(data.data ?? null)
+    } catch {
+      setCurrentUser(null)
+    }
+  }
 
   async function loadStore() {
     try {
@@ -174,10 +193,10 @@ export default function SettingsPage() {
         <p className="text-sm text-gray-500 mt-1">Manage your store and account settings.</p>
       </div>
 
-      {/* Store Info — admin only */}
+      {/* Section 1: Store Profile */}
       {isAdmin && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Store Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Store Profile</h2>
           {storeLoading ? (
             <p className="text-sm text-gray-400">Loading…</p>
           ) : (
@@ -203,6 +222,34 @@ export default function SettingsPage() {
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 font-mono"
                 />
               </div>
+              {config && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+                    <select
+                      value={config.timezone}
+                      onChange={(e) => setConfig({ ...config, timezone: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {commonTimezones.map((timezone) => (
+                        <option key={timezone} value={timezone}>
+                          {timezone}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
+                    <input
+                      type="text"
+                      maxLength={5}
+                      value={config.currencySymbol}
+                      onChange={(e) => setConfig({ ...config, currencySymbol: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
               {storeError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{storeError}</p>}
               {storeSuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {storeSuccess}</p>}
               <button
@@ -217,6 +264,7 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Section 2: Forecast & Restocking */}
       {isAdmin && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Forecast & Restocking</h2>
@@ -288,33 +336,6 @@ export default function SettingsPage() {
               </div>
               <p className="text-xs text-gray-500">Thresholds must be ascending: Critical &lt; High &lt; Medium.</p>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
-                  <select
-                    value={config.timezone}
-                    onChange={(e) => setConfig({ ...config, timezone: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {commonTimezones.map((timezone) => (
-                      <option key={timezone} value={timezone}>
-                        {timezone}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
-                  <input
-                    type="text"
-                    maxLength={5}
-                    value={config.currencySymbol}
-                    onChange={(e) => setConfig({ ...config, currencySymbol: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
               <label className="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-700">
                 <input
                   type="checkbox"
@@ -355,30 +376,16 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Section 3: Account */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Privacy & Data</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Download a ZIP archive containing your profile, products, sales history, and current inventory snapshot.
-        </p>
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            onClick={handleExportData}
-            disabled={exportingData}
-            className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-          >
-            {exportingData ? 'Preparing export…' : 'Download my data'}
-          </button>
-        </div>
-        {exportError && <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{exportError}</p>}
-      </div>
-
-      {/* My Account */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">My Account</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Account</h2>
         <div className="flex items-center gap-3 mb-6">
           <div>
             <p className="text-sm font-medium text-gray-900">{username}</p>
             <p className="text-xs text-gray-400">{role}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Last signed in: {currentUser?.lastLoginAt ? new Date(currentUser.lastLoginAt).toLocaleString() : '—'}
+            </p>
           </div>
         </div>
 
@@ -428,6 +435,32 @@ export default function SettingsPage() {
             {passwordSaving ? 'Changing…' : 'Change Password'}
           </button>
         </form>
+      </div>
+
+      {/* Section 4: Data & Privacy */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Data & Privacy</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Download a ZIP archive containing your profile, products, sales history, and current inventory snapshot.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleExportData}
+            disabled={exportingData}
+            className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {exportingData ? 'Preparing export…' : 'Download my data'}
+          </button>
+          <button
+            type="button"
+            disabled
+            title="Contact support to delete your account"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
+          >
+            Delete my account
+          </button>
+        </div>
+        {exportError && <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{exportError}</p>}
       </div>
     </div>
   )

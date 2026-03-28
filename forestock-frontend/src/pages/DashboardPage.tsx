@@ -9,6 +9,8 @@ interface Dashboard {
   alertsCount: number
   criticalCount: number
   highCount: number
+  slowMoversCount: number
+  deadStockCount: number
   lastRunStatus: string | null
   lastRunAt: string | null
   accuracyScore?: {
@@ -290,6 +292,21 @@ export default function DashboardPage() {
             sub={accuracySub}
             accent={accuracy?.lastRunMape != null && accuracy.lastRunMape <= 10 ? 'green' : 'default'}
           />
+        </div>
+      )}
+
+      {!showOnboarding && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Link to="/slow-movers" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 transition-colors hover:bg-amber-100">
+            <p className="text-sm font-semibold text-amber-900">Slow Movers</p>
+            <p className="mt-2 text-3xl font-bold text-amber-800">{data.slowMoversCount}</p>
+            <p className="mt-1 text-xs text-amber-700">Products with no sales in the last 30 days</p>
+          </Link>
+          <Link to="/slow-movers?inactiveDays=90" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 transition-colors hover:bg-rose-100">
+            <p className="text-sm font-semibold text-rose-900">Dead Stock</p>
+            <p className="mt-2 text-3xl font-bold text-rose-800">{data.deadStockCount}</p>
+            <p className="mt-1 text-xs text-rose-700">Products with no sales in the last 90 days</p>
+          </Link>
         </div>
       )}
 

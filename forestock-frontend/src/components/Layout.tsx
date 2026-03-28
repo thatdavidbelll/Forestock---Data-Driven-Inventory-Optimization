@@ -25,12 +25,14 @@ export default function Layout() {
 
   const isSuperAdmin = role === 'ROLE_SUPER_ADMIN'
   const isAdmin = role === 'ROLE_ADMIN'
+  const isManager = role === 'ROLE_MANAGER'
 
   // Choose nav items based on role
   const navItems = isSuperAdmin
     ? superAdminNavItems
     : [
         ...storeNavItems,
+        ...((isAdmin || isManager) ? [{ to: '/slow-movers', label: 'Slow Movers' }] : []),
         ...(isAdmin ? adminNavItems : [{ to: '/settings', label: 'Settings' }]),
       ]
 

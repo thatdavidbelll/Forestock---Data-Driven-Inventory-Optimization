@@ -48,6 +48,18 @@ public interface OrderSuggestionRepository extends JpaRepository<OrderSuggestion
     @Query("SELECT s FROM OrderSuggestion s JOIN FETCH s.product WHERE s.id = :id AND s.store.id = :storeId")
     Optional<OrderSuggestion> findByIdAndStoreId(@Param("id") UUID id, @Param("storeId") UUID storeId);
 
+    @Query("""
+            SELECT s FROM OrderSuggestion s
+            JOIN FETCH s.product p
+            WHERE s.store.id = :storeId
+            AND s.generatedAt = (
+                SELECT MAX(s2.generatedAt)
+                FROM OrderSuggestion s2
+                WHERE s2.product = s.product
+            )
+            """)
+    List<OrderSuggestion> findLatestByStoreId(@Param("storeId") UUID storeId);
+
     /** Deletes all suggestions for a product (used before hard-deleting a product). */
     @Modifying
     @Query("DELETE FROM OrderSuggestion s WHERE s.product.id = :productId")

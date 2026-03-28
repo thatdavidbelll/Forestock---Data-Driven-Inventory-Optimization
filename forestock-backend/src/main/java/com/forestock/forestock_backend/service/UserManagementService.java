@@ -8,6 +8,7 @@ import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.dto.request.ChangePasswordRequest;
 import com.forestock.forestock_backend.dto.request.CreateUserRequest;
 import com.forestock.forestock_backend.dto.request.UpdateUserRequest;
+import com.forestock.forestock_backend.dto.response.CurrentUserDto;
 import com.forestock.forestock_backend.dto.response.UserDto;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import com.forestock.forestock_backend.repository.InventoryRepository;
@@ -31,8 +32,10 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -104,6 +107,10 @@ public class UserManagementService {
             throw new IllegalArgumentException("You cannot modify your own account via this endpoint.");
         }
 
+        Map<String, Object> before = new HashMap<>();
+        before.put("role", user.getRole());
+        before.put("active", user.getActive());
+
         if (request.getRole() != null) {
             if ("ROLE_SUPER_ADMIN".equals(request.getRole())) {
                 throw new IllegalArgumentException("Cannot assign ROLE_SUPER_ADMIN.");
@@ -115,8 +122,14 @@ public class UserManagementService {
         }
 
         AppUser saved = userRepository.save(user);
-        auditLogService.log("USER_UPDATED", "AppUser", saved.getId().toString(),
-                "Updated user '" + saved.getUsername() + "' to role " + saved.getRole() + ", active=" + saved.getActive());
+        auditLogService.logChange(
+                "USER_UPDATED",
+                "AppUser",
+                saved.getId().toString(),
+                before,
+                Map.of("role", saved.getRole(), "active", saved.getActive()),
+                Map.of("username", saved.getUsername())
+        );
         return toDto(saved);
     }
 
@@ -183,6 +196,20 @@ public class UserManagementService {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to export account data", e);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public CurrentUserDto getCurrentUser() {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        AppUser user = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new NoSuchElementException("User not found"));
+        return CurrentUserDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .lastLoginAt(user.getLastLoginAt())
+                .build();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

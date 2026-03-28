@@ -16,6 +16,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     @EntityGraph(attributePaths = "store")
     Optional<AppUser> findWithStoreByUsername(String username);
     boolean existsByUsername(String username);
+    boolean existsByStoreIdAndEmail(UUID storeId, String email);
 
     /** All users belonging to a specific store (for user management). */
     List<AppUser> findByStoreId(UUID storeId);

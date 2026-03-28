@@ -1,6 +1,13 @@
 package com.forestock.forestock_backend.service;
 
+import com.forestock.forestock_backend.domain.Inventory;
+import com.forestock.forestock_backend.domain.Product;
+import com.forestock.forestock_backend.domain.SalesTransaction;
 import com.forestock.forestock_backend.dto.response.SuggestionDto;
+import com.forestock.forestock_backend.repository.InventoryRepository;
+import com.forestock.forestock_backend.repository.ProductRepository;
+import com.forestock.forestock_backend.repository.SalesTransactionRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.text.Normalizer;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -16,19 +23,34 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ReportService {
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
+    private final SalesTransactionRepository salesTransactionRepository;
+    private final InventoryService inventoryService;
+    private final StoreConfigurationService storeConfigurationService;
 
     // ─── Excel ──────────────────────────────────────────────────────────────
 
     public byte[] generateExcel(List<SuggestionDto> suggestions) throws IOException {
+        return generateExcel(suggestions, null);
+    }
+
+    public byte[] generateExcel(List<SuggestionDto> suggestions, java.util.UUID storeId) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
@@ -74,7 +96,7 @@ public class ReportService {
             // Title row
             Row titleRow = sheet.createRow(0);
             Cell titleCell = titleRow.createCell(0);
-            titleCell.setCellValue("Forestock — Restock Suggestions Report — " + LocalDate.now().format(DATE_FMT));
+            titleCell.setCellValue("Forestock — Restock Suggestions Report — " + LocalDate.now().format(dateFormatterForStore(storeId)));
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 9));
 
@@ -134,6 +156,10 @@ public class ReportService {
     // ─── PDF ────────────────────────────────────────────────────────────────
 
     public byte[] generatePdf(List<SuggestionDto> suggestions) throws IOException {
+        return generatePdf(suggestions, null);
+    }
+
+    public byte[] generatePdf(List<SuggestionDto> suggestions, java.util.UUID storeId) throws IOException {
         try (PDDocument doc = new PDDocument();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
@@ -166,7 +192,7 @@ public class ReportService {
                 cs.beginText();
                 cs.setFont(fontNormal, 9);
                 cs.newLineAtOffset(margin, y);
-                cs.showText("Generated: " + LocalDate.now().format(DATE_FMT) + "   |   Total suggestions: " + suggestions.size());
+                cs.showText("Generated: " + LocalDate.now().format(dateFormatterForStore(storeId)) + "   |   Total suggestions: " + suggestions.size());
                 cs.endText();
                 y -= 20;
 
@@ -263,6 +289,188 @@ public class ReportService {
             doc.save(out);
             return out.toByteArray();
         }
+    }
+
+    public byte[] generateInventoryValuationReport(java.util.UUID storeId, String format) throws IOException {
+        List<Inventory> inventory = inventoryRepository.findLatestForAllProductsByStore(storeId);
+        List<Map<String, Object>> rows = inventory.stream()
+                .sorted(Comparator.comparing((Inventory item) -> item.getProduct().getCategory() != null ? item.getProduct().getCategory() : "")
+                        .thenComparing(item -> item.getProduct().getName()))
+                .map(item -> {
+                    Product product = item.getProduct();
+                    BigDecimal totalValue = product.getUnitCost() != null
+                            ? item.getQuantity().multiply(product.getUnitCost()).setScale(2, RoundingMode.HALF_UP)
+                            : null;
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("SKU", product.getSku());
+                    row.put("Product", product.getName());
+                    row.put("Category", product.getCategory());
+                    row.put("Quantity", item.getQuantity());
+                    row.put("Unit Cost", product.getUnitCost());
+                    row.put("Total Value", totalValue);
+                    return row;
+                })
+                .toList();
+        return renderTabularReport(storeId, "Inventory Valuation", List.of("SKU", "Product", "Category", "Quantity", "Unit Cost", "Total Value"), rows, format);
+    }
+
+    public byte[] generateSalesReport(java.util.UUID storeId, LocalDate from, LocalDate to, String format) throws IOException {
+        Map<java.util.UUID, BigDecimal> totalsByProduct = new LinkedHashMap<>();
+        for (SalesTransaction transaction : salesTransactionRepository.findBySaleDateBetweenAndStoreId(from, to, storeId)) {
+            totalsByProduct.merge(transaction.getProduct().getId(), transaction.getQuantitySold(), BigDecimal::add);
+        }
+
+        List<Map<String, Object>> rows = productRepository.findByStoreIdAndActiveTrue(storeId).stream()
+                .filter(product -> totalsByProduct.containsKey(product.getId()))
+                .sorted((left, right) -> totalsByProduct.get(right.getId()).compareTo(totalsByProduct.get(left.getId())))
+                .map(product -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("SKU", product.getSku());
+                    row.put("Product", product.getName());
+                    row.put("Category", product.getCategory());
+                    row.put("Units Sold", totalsByProduct.get(product.getId()));
+                    return row;
+                })
+                .toList();
+        return renderTabularReport(storeId, "Sales Performance (" + from + " to " + to + ")", List.of("SKU", "Product", "Category", "Units Sold"), rows, format);
+    }
+
+    public byte[] generateSlowMoversReport(java.util.UUID storeId, int inactiveDays, String format) throws IOException {
+        List<Map<String, Object>> rows = inventoryService.getSlowMovers(inactiveDays).stream()
+                .sorted((left, right) -> Long.compare(
+                        right.getDaysSinceLastSale() != null ? right.getDaysSinceLastSale() : Long.MAX_VALUE,
+                        left.getDaysSinceLastSale() != null ? left.getDaysSinceLastSale() : Long.MAX_VALUE
+                ))
+                .map(item -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("SKU", item.getSku());
+                    row.put("Product", item.getName());
+                    row.put("Category", item.getCategory());
+                    row.put("Current Stock", item.getCurrentStock());
+                    row.put("Last Sale Date", item.getLastSaleDate());
+                    row.put("Days Inactive", item.getDaysSinceLastSale());
+                    row.put("Est. Value", item.getEstimatedStockValue());
+                    return row;
+                })
+                .toList();
+        return renderTabularReport(storeId, "Slow Movers (" + inactiveDays + " days)", List.of("SKU", "Product", "Category", "Current Stock", "Last Sale Date", "Days Inactive", "Est. Value"), rows, format);
+    }
+
+    private byte[] renderTabularReport(java.util.UUID storeId, String title, List<String> headers, List<Map<String, Object>> rows, String format) throws IOException {
+        if ("pdf".equalsIgnoreCase(format)) {
+            return renderTablePdf(storeId, title, headers, rows);
+        }
+        return renderTableExcel(storeId, title, headers, rows);
+    }
+
+    private byte[] renderTableExcel(java.util.UUID storeId, String title, List<String> headers, List<Map<String, Object>> rows) throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Report");
+            CellStyle titleStyle = workbook.createCellStyle();
+            Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFont);
+
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+
+            Row titleRow = sheet.createRow(0);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue(title + " — " + LocalDate.now().format(dateFormatterForStore(storeId)));
+            titleCell.setCellStyle(titleStyle);
+
+            Row headerRow = sheet.createRow(2);
+            for (int i = 0; i < headers.size(); i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers.get(i));
+                cell.setCellStyle(headerStyle);
+            }
+
+            int rowIndex = 3;
+            for (Map<String, Object> row : rows) {
+                Row excelRow = sheet.createRow(rowIndex++);
+                for (int i = 0; i < headers.size(); i++) {
+                    Object value = row.get(headers.get(i));
+                    excelRow.createCell(i).setCellValue(value == null ? "—" : value.toString());
+                }
+            }
+
+            for (int i = 0; i < headers.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] renderTablePdf(java.util.UUID storeId, String title, List<String> headers, List<Map<String, Object>> rows) throws IOException {
+        try (PDDocument doc = new PDDocument();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage(new PDRectangle(PDRectangle.A4.getHeight(), PDRectangle.A4.getWidth()));
+            doc.addPage(page);
+            PDType1Font fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+            PDType1Font fontNormal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                float margin = 30;
+                float y = page.getMediaBox().getHeight() - margin;
+                cs.beginText();
+                cs.setFont(fontBold, 13);
+                cs.newLineAtOffset(margin, y);
+                cs.showText(sanitizeForPdf(title));
+                cs.endText();
+                y -= 16;
+                cs.beginText();
+                cs.setFont(fontNormal, 9);
+                cs.newLineAtOffset(margin, y);
+                cs.showText("Generated: " + LocalDate.now().format(dateFormatterForStore(storeId)));
+                cs.endText();
+                y -= 22;
+
+                float colWidth = (page.getMediaBox().getWidth() - (2 * margin)) / headers.size();
+                float x = margin;
+                cs.setFont(fontBold, 8);
+                for (String header : headers) {
+                    cs.beginText();
+                    cs.newLineAtOffset(x, y);
+                    cs.showText(truncate(header, 16));
+                    cs.endText();
+                    x += colWidth;
+                }
+                y -= 16;
+
+                cs.setFont(fontNormal, 7);
+                for (Map<String, Object> row : rows) {
+                    x = margin;
+                    for (String header : headers) {
+                        cs.beginText();
+                        cs.newLineAtOffset(x, y);
+                        cs.showText(truncate(row.get(header) == null ? "—" : row.get(header).toString(), 18));
+                        cs.endText();
+                        x += colWidth;
+                    }
+                    y -= 14;
+                    if (y < margin) break;
+                }
+            }
+
+            doc.save(out);
+            return out.toByteArray();
+        }
+    }
+
+    private DateTimeFormatter dateFormatterForStore(java.util.UUID storeId) {
+        if (storeId == null) {
+            return DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        }
+        String timezone = storeConfigurationService.getConfigForStore(storeId).getTimezone();
+        ZoneId.of(timezone);
+        return DateTimeFormatter.ofPattern("dd/MM/yyyy");
     }
 
     private String fmt(java.math.BigDecimal val) {
