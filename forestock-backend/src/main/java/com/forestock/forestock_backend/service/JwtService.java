@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.time.Duration;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +39,7 @@ public class JwtService {
 
     private String buildToken(String subject, String role, UUID storeId, long expiryMs, String tokenType) {
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(subject)
                 .claims(Map.of(
                         "role", role,
@@ -62,10 +64,20 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("type", String.class));
     }
 
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
+    }
+
     public UUID extractStoreId(String token) {
         String raw = extractClaim(token, claims -> claims.get("storeId", String.class));
         if (raw == null || raw.isBlank()) return null;
         return UUID.fromString(raw);
+    }
+
+    public Duration getRemainingTtl(String token) {
+        Date expiration = extractClaim(token, Claims::getExpiration);
+        long remainingMs = expiration.getTime() - System.currentTimeMillis();
+        return remainingMs > 0 ? Duration.ofMillis(remainingMs) : Duration.ZERO;
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

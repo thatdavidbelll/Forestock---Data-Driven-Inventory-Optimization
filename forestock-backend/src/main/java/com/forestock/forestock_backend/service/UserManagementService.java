@@ -11,11 +11,13 @@ import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -28,6 +30,8 @@ public class UserManagementService {
     private final AppUserRepository userRepository;
     private final StoreRepository storeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     /** Returns all users for the current store. */
     @Transactional(readOnly = true)
@@ -121,6 +125,7 @@ public class UserManagementService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        revokeCurrentToken();
         log.info("Password changed for user: {}", currentUsername);
     }
 
@@ -141,5 +146,24 @@ public class UserManagementService {
                 .active(u.getActive())
                 .createdAt(u.getCreatedAt())
                 .build();
+    }
+
+    private void revokeCurrentToken() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return;
+        }
+
+        Object credentials = authentication.getCredentials();
+        if (!(credentials instanceof String token) || token.isBlank()) {
+            return;
+        }
+
+        Duration remaining = jwtService.getRemainingTtl(token);
+        if (remaining.isZero() || remaining.isNegative()) {
+            return;
+        }
+
+        tokenBlacklistService.blacklist(jwtService.extractJti(token), remaining);
     }
 }

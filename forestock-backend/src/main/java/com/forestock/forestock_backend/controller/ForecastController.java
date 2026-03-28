@@ -29,7 +29,7 @@ public class ForecastController {
         // Capture storeId here (request thread) — TenantContext is ThreadLocal
         // and would be null inside the @Async thread
         UUID storeId = TenantContext.getStoreId();
-        forecastOrchestrator.runFullCycleAsync("MANUAL", storeId);
+        forecastOrchestrator.runForecast(storeId, "MANUAL");
         return ResponseEntity.accepted()
                 .body(ApiResponse.success("Forecast started in background"));
     }

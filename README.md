@@ -22,13 +22,13 @@ Forestock/
 |---|---|
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
-| Database | PostgreSQL 17 (Neon serverless for dev, AWS RDS for prod) |
-| Migrations | Flyway (V1–V7) |
+| Database | PostgreSQL 17 (local Docker for dev, Neon for cloud profile, AWS RDS planned for prod) |
+| Migrations | Flyway (V1–V9) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 (sales data backup + forecast results) |
 | Notifications | AWS SNS (email on forecast complete / failed) |
-| Email | Spring Mail / SMTP (password reset) |
-| Security | Spring Security + JWT (JJWT 0.12.6), multi-role |
+| Email | Spring Mail / SMTP (password reset + email verification) |
+| Security | Spring Security + JWT (JJWT 0.12.6), Redis-backed token revocation, multi-role |
 | ORM | Spring Data JPA + Hibernate |
 | CSV parsing | Apache Commons CSV 1.12.0 |
 | Reports | Apache POI (Excel) + Apache PDFBox (PDF) |
@@ -41,7 +41,7 @@ Forestock/
 
 - Java 21 JDK ([Temurin](https://adoptium.net/))
 - Node.js 20+
-- Docker Desktop (for local PostgreSQL)
+- Docker Desktop (for local PostgreSQL + Redis)
 - AWS CLI configured (`~/.aws/credentials`) — needed for S3 + SNS
 
 ---
@@ -53,7 +53,7 @@ Forestock/
 **1. Start the database**
 ```bash
 cd forestock-backend
-docker compose up -d          # PostgreSQL 16 + Adminer on :8090
+docker compose up -d          # PostgreSQL 16 + Redis 7 + Adminer on :8090
 ```
 
 **2. Run the backend**
@@ -85,6 +85,7 @@ npm run dev
 | Backend API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | Adminer | http://localhost:8090 |
+| Redis | localhost:6379 |
 
 ---
 
@@ -105,8 +106,8 @@ Created automatically on first startup:
 
 | Field | Default value |
 |---|---|
-| Username | `superadmin` |
-| Password | `Admin@12345` |
+| Username | `davidbell` |
+| Password | `lionofJudah` |
 
 Override via environment variables: `SUPER_ADMIN_USERNAME`, `SUPER_ADMIN_PASSWORD`
 
@@ -129,9 +130,10 @@ POST /api/register   # requires Authorization: Bearer <super_admin_token>
   "storeName": "My Store",
   "storeSlug": "my-store",
   "username": "store_admin",
-  "password": "SecurePass1"
+  "password": "SecurePass1",
+  "email": "owner@example.com"
 }
-# Returns accessToken + refreshToken for the new store admin immediately
+# Creates the store admin and sends an email verification link
 ```
 
 ---
@@ -143,6 +145,8 @@ All `/api/**` endpoints require a JWT Bearer token.
 **Public endpoints (no auth required):**
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
+- `GET /api/auth/verify-email`
+- `POST /api/auth/resend-verification`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
 - `GET  /actuator/health`
@@ -161,6 +165,13 @@ curl http://localhost:8080/api/dashboard \
 
 Token expiry: access **8h** · refresh **30 days**
 Silent refresh: the frontend automatically retries with a refresh token on 401 before logging out.
+Server-side revocation: logout and password change blacklist the current JWT in Redis.
+
+### Email Verification
+
+- New store admins must verify their email before first login
+- Login returns `403` with `Email not verified. Check your inbox.` until verification is complete
+- In local dev, if SMTP is not configured, the verification URL is logged at WARN level as `Verification link (DEV ONLY): ...`
 
 ### Roles
 | Role | Permissions |
@@ -184,9 +195,12 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 |---|---|---|---|
 | POST | `/api/auth/login` | No | Get access + refresh tokens |
 | POST | `/api/auth/refresh` | No | Refresh expired access token |
+| POST | `/api/auth/logout` | Yes | Revoke current access token server-side |
+| GET | `/api/auth/verify-email?token=` | No | Verify new user email |
+| POST | `/api/auth/resend-verification` | No | Resend verification email |
 | POST | `/api/auth/forgot-password` | No | Send password reset link to email |
 | POST | `/api/auth/reset-password` | No | Reset password using token from email |
-| POST | `/api/register` | SUPER_ADMIN | Create new store + admin account |
+| POST | `/api/register` | SUPER_ADMIN | Create new store + unverified admin account |
 
 ### Platform Admin (SUPER_ADMIN only)
 | Method | Endpoint | Description |
@@ -232,7 +246,7 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 ### Sales
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/sales/import?overwriteExisting=false` | Import CSV (multipart) |
+| POST | `/api/sales/import?overwriteExisting=false` | Import CSV (multipart); triggers forecast automatically when rows are imported |
 | GET | `/api/sales?sku=&from=&to=&page=0&size=50` | Paginated transaction list |
 | GET | `/api/sales/summary?days=30` | Aggregated summary |
 | GET | `/api/sales/{sku}/daily` | Daily series for a product |
@@ -252,8 +266,9 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 ### Suggestions
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/suggestions?urgency=&category=` | Suggestions from latest run |
+| GET | `/api/suggestions?urgency=&category=&includeAcknowledged=false` | Suggestions from latest run |
 | GET | `/api/suggestions/{id}` | Suggestion detail |
+| PATCH | `/api/suggestions/{id}/acknowledge` | Acknowledge or dismiss a suggestion |
 | GET | `/api/suggestions/export/excel` | Download Excel report |
 | GET | `/api/suggestions/export/pdf` | Download PDF report |
 

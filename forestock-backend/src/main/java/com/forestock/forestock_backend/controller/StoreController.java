@@ -35,7 +35,8 @@ public class StoreController {
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         try {
             AuthResponse response = registerService.register(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Store created. Verification email sent to the store admin.", response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
         }

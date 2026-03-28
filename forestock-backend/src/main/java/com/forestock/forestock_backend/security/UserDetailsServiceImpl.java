@@ -4,6 +4,7 @@ import com.forestock.forestock_backend.domain.AppUser;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -25,6 +26,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         if (!user.getActive()) {
             throw new UsernameNotFoundException("User is deactivated: " + username);
+        }
+
+        if (user.getEmail() != null && !Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new DisabledException("Email not verified. Check your inbox.");
         }
 
         return new User(

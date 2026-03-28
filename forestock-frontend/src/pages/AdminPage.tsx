@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [storeSlug, setStoreSlug] = useState('')
   const [adminUsername, setAdminUsername] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
+  const [adminEmail, setAdminEmail] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [createSuccess, setCreateSuccess] = useState('')
@@ -60,12 +61,14 @@ export default function AdminPage() {
         storeSlug,
         username: adminUsername,
         password: adminPassword,
+        email: adminEmail,
       })
-      setCreateSuccess(`Store "${storeName}" created with admin "${adminUsername}"`)
+      setCreateSuccess(`Store "${storeName}" created with admin "${adminUsername}". Verification email sent to ${adminEmail}.`)
       setStoreName('')
       setStoreSlug('')
       setAdminUsername('')
       setAdminPassword('')
+      setAdminEmail('')
       loadStores()
     } catch (err) {
       setCreateError(extractErrorMessage(err, 'Failed to create store'))
@@ -142,6 +145,17 @@ export default function AdminPage() {
               required
               minLength={8}
               placeholder="Min. 8 characters"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
+            <input
+              type="email"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              required
+              placeholder="owner@myshop.com"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>

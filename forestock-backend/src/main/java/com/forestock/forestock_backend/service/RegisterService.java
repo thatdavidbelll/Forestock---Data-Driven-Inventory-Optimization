@@ -24,6 +24,7 @@ public class RegisterService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final EmailVerificationService emailVerificationService;
 
     /**
      * Creates a new store and its first admin user atomically.
@@ -55,21 +56,15 @@ public class RegisterService {
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role("ROLE_ADMIN")
+                .email(request.getEmail())
                 .store(store)
                 .active(true)
                 .build());
 
+        emailVerificationService.sendVerificationEmail(admin);
         log.info("New store registered: slug={}, owner={}", store.getSlug(), admin.getUsername());
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(admin.getUsername());
-        String accessToken = jwtService.generateAccessToken(userDetails, admin.getRole(), store.getId());
-        String refreshToken = jwtService.generateRefreshToken(userDetails, admin.getRole(), store.getId());
-
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresInSeconds(8 * 3600L)
                 .username(admin.getUsername())
                 .role(admin.getRole())
                 .build();

@@ -1,29 +1,55 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import api from '../lib/api'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [verificationMessage, setVerificationMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendingVerification, setResendingVerification] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
+    setVerificationMessage('')
     setLoading(true)
     try {
       const role = await login(username, password)
       // Super admins go to the platform admin panel; everyone else to dashboard
       navigate(role === 'ROLE_SUPER_ADMIN' ? '/admin' : '/dashboard')
-    } catch {
-      setError('Invalid username or password')
+    } catch (e: unknown) {
+      const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setError(message ?? 'Sign-in failed. Please try again.')
     } finally {
       setLoading(false)
     }
   }
+
+  async function handleResendVerification() {
+    if (!username) {
+      setError('Enter your username first so we know which verification email to resend.')
+      return
+    }
+
+    setResendingVerification(true)
+    setVerificationMessage('')
+    try {
+      const { data } = await api.post('/auth/resend-verification', { username })
+      setVerificationMessage(data.message ?? 'Verification email sent.')
+    } catch (e: unknown) {
+      const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setError(message ?? 'Unable to resend verification email.')
+    } finally {
+      setResendingVerification(false)
+    }
+  }
+
+  const canResendVerification = error.toLowerCase().includes('verify your email')
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -55,7 +81,22 @@ export default function LoginPage() {
             />
           </div>
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            <div className="space-y-3">
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+              {canResendVerification && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification}
+                  className="text-sm font-medium text-indigo-600 hover:underline disabled:opacity-50"
+                >
+                  {resendingVerification ? 'Resending verification email…' : 'Resend verification email'}
+                </button>
+              )}
+            </div>
+          )}
+          {verificationMessage && (
+            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">{verificationMessage}</p>
           )}
           <button
             type="submit"

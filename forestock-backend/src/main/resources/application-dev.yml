@@ -1,6 +1,9 @@
 forestock:
   jwt:
     secret: Zt2M/wQDzhhBHqm1ycZSRA2356j560TnBiVvvBf+sAZZHrDXuLRdOHOTgKHOUhVD
+  super-admin:
+    username: davidbell
+    password: lionofJudah
 
 spring:
   datasource:

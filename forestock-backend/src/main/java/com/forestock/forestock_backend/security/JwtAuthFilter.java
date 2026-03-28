@@ -1,6 +1,7 @@
 package com.forestock.forestock_backend.security;
 
 import com.forestock.forestock_backend.service.JwtService;
+import com.forestock.forestock_backend.service.TokenBlacklistService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,6 +13,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final UserDetailsServiceImpl userDetailsService;
 
     @Override
@@ -46,9 +49,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                         if (jwtService.isTokenValid(token, userDetails) && !jwtService.isRefreshToken(token)) {
+                            String jti = jwtService.extractJti(token);
+                            if (tokenBlacklistService.isBlacklisted(jti)) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                return;
+                            }
+
                             UsernamePasswordAuthenticationToken authToken =
                                     new UsernamePasswordAuthenticationToken(
-                                            userDetails, null, userDetails.getAuthorities());
+                                            userDetails, token, userDetails.getAuthorities());
                             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                             SecurityContextHolder.getContext().setAuthentication(authToken);
 
@@ -59,8 +68,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             }
                         }
                     }
-                } catch (JwtException e) {
-                    log.debug("Invalid JWT token: {}", e.getMessage());
+                } catch (JwtException | UsernameNotFoundException e) {
+                    log.debug("Rejected JWT token: {}", e.getMessage());
                 }
             }
 

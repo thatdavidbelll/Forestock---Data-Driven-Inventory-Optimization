@@ -10,18 +10,30 @@ import com.forestock.forestock_backend.dto.response.AuthResponse;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import com.forestock.forestock_backend.service.JwtService;
 import com.forestock.forestock_backend.service.PasswordResetService;
+import com.forestock.forestock_backend.service.TokenBlacklistService;
+import com.forestock.forestock_backend.service.EmailVerificationService;
 import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+import java.util.Map;
+
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -31,6 +43,8 @@ public class AuthController {
     private final UserDetailsService userDetailsService;
     private final AppUserRepository userRepository;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
 
     /** Authenticates a user and returns access + refresh tokens. */
@@ -39,27 +53,62 @@ public class AuthController {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (InternalAuthenticationServiceException e) {
+            if (isEmailVerificationFailure(e)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("Email not verified. Check your inbox."));
+            }
+            log.error("Authentication service unavailable for user '{}': {}", request.getUsername(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(ApiResponse.error("Authentication service unavailable. Please try again shortly."));
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid username or password"));
+        } catch (AuthenticationServiceException e) {
+            if (isEmailVerificationFailure(e)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("Email not verified. Check your inbox."));
+            }
+            log.error("Authentication service unavailable for user '{}': {}", request.getUsername(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(ApiResponse.error("Authentication service unavailable. Please try again shortly."));
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Unexpected login failure for user '{}': {}", request.getUsername(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(ApiResponse.error("Authentication service unavailable. Please try again shortly."));
         }
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
-        AppUser user = userRepository.findByUsername(request.getUsername()).orElseThrow();
-        String role = user.getRole();
-        UUID storeId = user.getStore() != null ? user.getStore().getId() : null;
+        try {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+            AppUser user = userRepository.findByUsername(request.getUsername()).orElseThrow();
+            String role = user.getRole();
+            UUID storeId = user.getStore() != null ? user.getStore().getId() : null;
 
-        String accessToken = jwtService.generateAccessToken(userDetails, role, storeId);
-        String refreshToken = jwtService.generateRefreshToken(userDetails, role, storeId);
+            String accessToken = jwtService.generateAccessToken(userDetails, role, storeId);
+            String refreshToken = jwtService.generateRefreshToken(userDetails, role, storeId);
 
-        return ResponseEntity.ok(ApiResponse.success(AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .tokenType("Bearer")
-                .expiresInSeconds(8 * 3600L)
-                .username(user.getUsername())
-                .role(role)
-                .build()));
+            return ResponseEntity.ok(ApiResponse.success(AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresInSeconds(8 * 3600L)
+                    .username(user.getUsername())
+                    .role(role)
+                    .build()));
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Failed to finalize login for user '{}': {}", request.getUsername(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(ApiResponse.error("Authentication service unavailable. Please try again shortly."));
+        }
     }
 
     /** Issues a new access token given a valid refresh token. */
@@ -99,10 +148,41 @@ public class AuthController {
                     .role(user.getRole())
                     .build()));
 
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error(e.getMessage()));
         } catch (JwtException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid token: " + e.getMessage()));
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
+        String token = extractBearer(request);
+        if (token != null) {
+            String jti = jwtService.extractJti(token);
+            Duration remaining = jwtService.getRemainingTtl(token);
+            tokenBlacklistService.blacklist(jti, remaining);
+        }
+        return ResponseEntity.ok(ApiResponse.success("Logged out", null));
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestParam String token) {
+        try {
+            emailVerificationService.verifyEmail(token);
+            return ResponseEntity.ok(ApiResponse.success("Email verified successfully.", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<Void>> resendVerification(@RequestBody Map<String, String> body) {
+        emailVerificationService.resendVerification(body);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If the account exists and still needs verification, a new email has been sent.", null));
     }
 
     /**
@@ -129,5 +209,24 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
         }
+    }
+
+    private String extractBearer(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        return authHeader.substring(7);
+    }
+
+    private boolean isEmailVerificationFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof DisabledException && "Email not verified. Check your inbox.".equals(current.getMessage())) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

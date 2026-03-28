@@ -3,6 +3,8 @@ package com.forestock.forestock_backend.controller;
 import com.forestock.forestock_backend.domain.SalesTransaction;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.SalesTransactionDto;
+import com.forestock.forestock_backend.security.TenantContext;
+import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import com.forestock.forestock_backend.service.SalesIngestionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +28,7 @@ import java.util.NoSuchElementException;
 public class SalesController {
 
     private final SalesIngestionService salesIngestionService;
+    private final ForecastOrchestrator forecastOrchestrator;
 
     // ── Import ────────────────────────────────────────────────────────────────
 
@@ -50,6 +53,9 @@ public class SalesController {
 
         try {
             SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, overwriteExisting);
+            if (result.imported() > 0) {
+                forecastOrchestrator.runForecast(TenantContext.getStoreId(), "auto-import");
+            }
             Map<String, Object> data = Map.of(
                     "imported", result.imported(),
                     "skipped",  result.skipped(),

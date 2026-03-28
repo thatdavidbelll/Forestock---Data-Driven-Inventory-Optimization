@@ -43,6 +43,7 @@ public class SalesIngestionService {
 
     private static final String[] EXPECTED_HEADERS = {"sku", "sale_date", "quantity_sold"};
     private static final int JDBC_BATCH_SIZE = 500;
+    private static final int MAX_CSV_ROWS = 100_000;
 
     private static final String UPSERT_SQL = """
             INSERT INTO sales_transactions (id, store_id, product_id, sale_date, quantity_sold)
@@ -69,6 +70,7 @@ public class SalesIngestionService {
     @Transactional
     public ImportResult importCsv(MultipartFile file, boolean overwriteExisting) throws IOException {
         List<String> errors = new ArrayList<>();
+        int skipped = 0;
         UUID storeId = TenantContext.getStoreId();
 
         // Cache products by SKU — one query instead of N lookups
@@ -86,27 +88,41 @@ public class SalesIngestionService {
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
              CSVParser parser = CSVFormat.DEFAULT
                      .builder()
-                     .setHeader(EXPECTED_HEADERS)
+                     .setHeader()
                      .setSkipHeaderRecord(true)
                      .setTrim(true)
                      .setIgnoreEmptyLines(true)
                      .build()
                      .parse(reader)) {
 
+            List<String> actualHeaders = parser.getHeaderNames();
+            List<String> expectedHeaders = List.of(EXPECTED_HEADERS);
+            if (!expectedHeaders.equals(actualHeaders)) {
+                return new ImportResult(0, 0, List.of(
+                        "Invalid CSV headers. Expected: sku,sale_date,quantity_sold"));
+            }
+
             for (CSVRecord record : parser) {
-                long lineNumber = record.getRecordNumber() + 1;
+                long rowNumber = record.getRecordNumber() + 1;
+                if (record.getRecordNumber() > MAX_CSV_ROWS) {
+                    return new ImportResult(0, 0, List.of(
+                            "CSV file exceeds maximum of 100000 rows"));
+                }
+
                 try {
                     String sku     = record.get("sku");
                     String dateStr = record.get("sale_date");
                     String qtyStr  = record.get("quantity_sold");
 
                     if (sku == null || sku.isBlank()) {
-                        errors.add("Line " + lineNumber + ": missing SKU");
+                        errors.add("Row " + rowNumber + ": SKU is required");
+                        skipped++;
                         continue;
                     }
                     Product product = productBySku.get(sku);
                     if (product == null) {
-                        errors.add("Line " + lineNumber + ": unknown SKU '" + sku + "'");
+                        errors.add("Row " + rowNumber + ": SKU '" + sku + "' not found in product catalogue");
+                        skipped++;
                         continue;
                     }
 
@@ -114,19 +130,22 @@ public class SalesIngestionService {
                     try {
                         saleDate = LocalDate.parse(dateStr);
                     } catch (DateTimeParseException e) {
-                        errors.add("Line " + lineNumber + ": invalid date '" + dateStr + "' (expected: yyyy-MM-dd)");
+                        errors.add("Row " + rowNumber + ": invalid sale_date format '" + dateStr + "' — expected yyyy-MM-dd");
+                        skipped++;
                         continue;
                     }
 
                     BigDecimal qty;
                     try {
                         qty = new BigDecimal(qtyStr);
-                        if (qty.compareTo(BigDecimal.ZERO) < 0) {
-                            errors.add("Line " + lineNumber + ": negative quantity");
+                        if (qty.compareTo(BigDecimal.ZERO) <= 0) {
+                            errors.add("Row " + rowNumber + ": quantity_sold must be a positive number (got " + qtyStr + ")");
+                            skipped++;
                             continue;
                         }
                     } catch (NumberFormatException e) {
-                        errors.add("Line " + lineNumber + ": invalid quantity '" + qtyStr + "'");
+                        errors.add("Row " + rowNumber + ": invalid quantity_sold value '" + qtyStr + "'");
+                        skipped++;
                         continue;
                     }
 
@@ -134,7 +153,8 @@ public class SalesIngestionService {
                     batch.add(new Object[]{productStoreId, product.getId(), Date.valueOf(saleDate), qty});
 
                 } catch (Exception e) {
-                    errors.add("Line " + lineNumber + ": unexpected error — " + e.getMessage());
+                    errors.add("Row " + rowNumber + ": unexpected error — " + e.getMessage());
+                    skipped++;
                 }
             }
         }
@@ -150,7 +170,6 @@ public class SalesIngestionService {
         // For UPSERT: all batched rows were processed (inserted or updated)
         // For DO NOTHING: we can't distinguish inserts from skips without extra queries — report all as imported
         int imported = batch.size();
-        int skipped  = 0;
 
         log.info("CSV import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.size());
         return new ImportResult(imported, skipped, errors);

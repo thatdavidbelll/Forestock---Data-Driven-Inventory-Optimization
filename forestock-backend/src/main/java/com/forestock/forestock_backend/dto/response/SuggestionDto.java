@@ -23,5 +23,7 @@ public class SuggestionDto {
     private BigDecimal currentStock;
     private BigDecimal daysOfStock;
     private Urgency urgency;
+    private boolean acknowledged;
+    private LocalDateTime acknowledgedAt;
     private LocalDateTime generatedAt;
 }

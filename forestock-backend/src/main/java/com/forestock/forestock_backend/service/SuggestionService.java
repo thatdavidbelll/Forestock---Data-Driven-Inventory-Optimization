@@ -8,11 +8,13 @@ import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
 import com.forestock.forestock_backend.security.TenantContext;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -25,6 +27,11 @@ public class SuggestionService {
 
     @Transactional(readOnly = true)
     public List<SuggestionDto> getSuggestions(String urgencyFilter, String categoryFilter) {
+        return getSuggestions(urgencyFilter, categoryFilter, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SuggestionDto> getSuggestions(String urgencyFilter, String categoryFilter, boolean includeAcknowledged) {
         UUID storeId = TenantContext.getStoreId();
 
         ForecastRun latestRun = (storeId != null
@@ -36,15 +43,21 @@ public class SuggestionService {
 
         if (urgencyFilter != null && !urgencyFilter.isBlank()) {
             Urgency urgency = Urgency.valueOf(urgencyFilter.toUpperCase());
-            suggestions = suggestionRepository
-                    .findByForecastRunIdAndUrgencyOrderByDaysOfStockAsc(latestRun.getId(), urgency);
+            suggestions = includeAcknowledged
+                    ? suggestionRepository.findByForecastRunIdAndUrgencyOrderByDaysOfStockAsc(latestRun.getId(), urgency)
+                    : suggestionRepository.findByForecastRunIdAndUrgencyAndAcknowledgedOrderByDaysOfStockAsc(
+                            latestRun.getId(), urgency, false);
         } else if (categoryFilter != null && !categoryFilter.isBlank()) {
-            suggestions = suggestionRepository
-                    .findByForecastRunIdAndProductCategoryOrderByUrgencyAscDaysOfStockAsc(
-                            latestRun.getId(), categoryFilter);
+            suggestions = includeAcknowledged
+                    ? suggestionRepository.findByForecastRunIdAndProductCategoryOrderByUrgencyAscDaysOfStockAsc(
+                            latestRun.getId(), categoryFilter)
+                    : suggestionRepository.findByForecastRunIdAndProductCategoryAndAcknowledgedOrderByUrgencyAscDaysOfStockAsc(
+                            latestRun.getId(), categoryFilter, false);
         } else {
-            suggestions = suggestionRepository
-                    .findByForecastRunIdOrderByUrgencyAscDaysOfStockAsc(latestRun.getId());
+            suggestions = includeAcknowledged
+                    ? suggestionRepository.findByForecastRunIdOrderByUrgencyAscDaysOfStockAsc(latestRun.getId())
+                    : suggestionRepository.findByForecastRunIdAndAcknowledgedOrderByUrgencyAscDaysOfStockAsc(
+                            latestRun.getId(), false);
         }
 
         return suggestions.stream().map(this::toDto).toList();
@@ -52,9 +65,23 @@ public class SuggestionService {
 
     @Transactional(readOnly = true)
     public SuggestionDto getSuggestionById(UUID id) {
-        return suggestionRepository.findById(id)
+        UUID storeId = TenantContext.getStoreId();
+
+        return suggestionRepository.findByIdAndStoreId(id, storeId)
                 .map(this::toDto)
                 .orElseThrow(() -> new NoSuchElementException("Suggestion not found: " + id));
+    }
+
+    @Transactional
+    public SuggestionDto acknowledge(UUID id) {
+        UUID storeId = TenantContext.getStoreId();
+        OrderSuggestion suggestion = suggestionRepository.findByIdAndStoreId(id, storeId)
+                .orElseThrow(() -> new EntityNotFoundException("Suggestion not found"));
+
+        suggestion.setAcknowledged(true);
+        suggestion.setAcknowledgedAt(LocalDateTime.now());
+
+        return toDto(suggestionRepository.save(suggestion));
     }
 
     private SuggestionDto toDto(OrderSuggestion s) {
@@ -71,6 +98,8 @@ public class SuggestionService {
                 .currentStock(s.getCurrentStock())
                 .daysOfStock(s.getDaysOfStock())
                 .urgency(s.getUrgency())
+                .acknowledged(Boolean.TRUE.equals(s.getAcknowledged()))
+                .acknowledgedAt(s.getAcknowledgedAt())
                 .generatedAt(s.getGeneratedAt())
                 .build();
     }

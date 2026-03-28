@@ -52,6 +52,13 @@ public class OrderSuggestion {
     @Column(length = 20)
     private Urgency urgency;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean acknowledged = false;
+
+    @Column(name = "acknowledged_at")
+    private LocalDateTime acknowledgedAt;
+
     @Column(name = "generated_at", updatable = false)
     @CreationTimestamp
     private LocalDateTime generatedAt;

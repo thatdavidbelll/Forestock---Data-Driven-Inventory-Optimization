@@ -13,6 +13,8 @@ interface Suggestion {
   currentStock: number | null
   daysOfStock: number | null
   urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  acknowledged: boolean
+  acknowledgedAt: string | null
 }
 
 const urgencyStyle: Record<string, string> = {
@@ -30,10 +32,12 @@ export default function SuggestionsPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [exportingExcel, setExportingExcel] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [showAcknowledged, setShowAcknowledged] = useState(false)
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSuggestions()
-  }, [urgencyFilter, categoryFilter])
+  }, [urgencyFilter, categoryFilter, showAcknowledged])
 
   async function fetchSuggestions() {
     setLoading(true)
@@ -42,6 +46,7 @@ export default function SuggestionsPage() {
       const params: Record<string, string> = {}
       if (urgencyFilter) params.urgency = urgencyFilter
       if (categoryFilter) params.category = categoryFilter
+      if (showAcknowledged) params.includeAcknowledged = 'true'
       const { data } = await api.get('/suggestions', { params })
       setSuggestions(data.data ?? [])
     } catch (e: unknown) {
@@ -49,6 +54,27 @@ export default function SuggestionsPage() {
       setError(msg ?? 'No completed forecast run found. Run a forecast first.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function acknowledgeSuggestion(id: string) {
+    setAcknowledgingId(id)
+    setError('')
+    try {
+      const { data } = await api.patch(`/suggestions/${id}/acknowledge`)
+      const updated = data.data as Suggestion
+
+      setSuggestions((current) => {
+        if (showAcknowledged) {
+          return current.map((suggestion) => (suggestion.id === id ? updated : suggestion))
+        }
+
+        return current.filter((suggestion) => suggestion.id !== id)
+      })
+    } catch {
+      setError('Failed to acknowledge suggestion.')
+    } finally {
+      setAcknowledgingId(null)
     }
   }
 
@@ -114,6 +140,15 @@ export default function SuggestionsPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-44"
           />
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={showAcknowledged}
+              onChange={(e) => setShowAcknowledged(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Show acknowledged
+          </label>
           <button
             onClick={exportExcel}
             disabled={exportingExcel}
@@ -139,7 +174,7 @@ export default function SuggestionsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['SKU', 'Product', 'Category', 'Current Stock', 'Days Left', 'P50 / P90 (14d)', 'Suggested Qty', 'Urgency'].map(
+                {['SKU', 'Product', 'Category', 'Current Stock', 'Days Left', 'P50 / P90 (14d)', 'Suggested Qty', 'Urgency', 'Status'].map(
                   (h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                       {h}
@@ -151,7 +186,7 @@ export default function SuggestionsPage() {
             <tbody className="divide-y divide-gray-100">
               {suggestions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                     No suggestions found.
                   </td>
                 </tr>
@@ -178,6 +213,21 @@ export default function SuggestionsPage() {
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${urgencyStyle[s.urgency]}`}>
                         {s.urgency}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.acknowledged ? (
+                        <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                          Acknowledged
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => acknowledgeSuggestion(s.id)}
+                          disabled={acknowledgingId === s.id}
+                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {acknowledgingId === s.id ? 'Saving…' : 'Acknowledge'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

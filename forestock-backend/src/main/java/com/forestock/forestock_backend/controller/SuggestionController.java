@@ -4,6 +4,7 @@ import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.service.ReportService;
 import com.forestock.forestock_backend.service.SuggestionService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ContentDisposition;
@@ -35,10 +36,11 @@ public class SuggestionController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<SuggestionDto>>> getSuggestions(
             @RequestParam(required = false) String urgency,
-            @RequestParam(required = false) String category) {
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "false") boolean includeAcknowledged) {
         try {
             return ResponseEntity.ok(ApiResponse.success(
-                    suggestionService.getSuggestions(urgency, category)));
+                    suggestionService.getSuggestions(urgency, category, includeAcknowledged)));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         } catch (IllegalArgumentException e) {
@@ -52,6 +54,15 @@ public class SuggestionController {
         try {
             return ResponseEntity.ok(ApiResponse.success(suggestionService.getSuggestionById(id)));
         } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{id}/acknowledge")
+    public ResponseEntity<ApiResponse<SuggestionDto>> acknowledge(@PathVariable UUID id) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(suggestionService.acknowledge(id)));
+        } catch (EntityNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         }
     }

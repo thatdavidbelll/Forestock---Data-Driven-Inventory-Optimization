@@ -12,11 +12,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Seeds the platform super-admin account on first startup if none exists.
+ * Ensures the configured platform super-admin account exists on startup.
  *
  * Configure via environment variables:
- *   SUPER_ADMIN_USERNAME  (default: superadmin)
- *   SUPER_ADMIN_PASSWORD  (default: Admin@12345 — CHANGE IN PRODUCTION)
+ *   SUPER_ADMIN_USERNAME  (default from active profile)
+ *   SUPER_ADMIN_PASSWORD  (default from active profile)
  */
 @Slf4j
 @Component
@@ -35,26 +35,29 @@ public class DataInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (userRepository.existsByRole("ROLE_SUPER_ADMIN")) {
-            log.debug("Super admin already exists — skipping seed.");
-            return;
-        }
+        AppUser superAdmin = userRepository.findByUsername(superAdminUsername)
+                .map(existing -> {
+                    existing.setPasswordHash(passwordEncoder.encode(superAdminPassword));
+                    existing.setRole("ROLE_SUPER_ADMIN");
+                    existing.setStore(null);
+                    existing.setActive(true);
+                    return existing;
+                })
+                .orElseGet(() -> AppUser.builder()
+                        .username(superAdminUsername)
+                        .passwordHash(passwordEncoder.encode(superAdminPassword))
+                        .role("ROLE_SUPER_ADMIN")
+                        .store(null)
+                        .active(true)
+                        .build());
 
-        AppUser superAdmin = AppUser.builder()
-                .username(superAdminUsername)
-                .passwordHash(passwordEncoder.encode(superAdminPassword))
-                .role("ROLE_SUPER_ADMIN")
-                .store(null)   // not tied to any store
-                .active(true)
-                .build();
-
+        boolean existingUser = superAdmin.getId() != null;
         userRepository.save(superAdmin);
 
-        log.warn("=============================================================");
-        log.warn("  Super admin created: username='{}' password='{}'",
-                superAdminUsername, superAdminPassword);
-        log.warn("  CHANGE THE PASSWORD IMMEDIATELY in production!");
-        log.warn("  Set SUPER_ADMIN_USERNAME and SUPER_ADMIN_PASSWORD env vars.");
-        log.warn("=============================================================");
+        if (existingUser) {
+            log.warn("Configured super admin refreshed: username='{}'", superAdminUsername);
+        } else {
+            log.warn("Configured super admin created: username='{}'", superAdminUsername);
+        }
     }
 }

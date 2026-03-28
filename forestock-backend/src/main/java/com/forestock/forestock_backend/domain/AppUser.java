@@ -51,9 +51,20 @@ public class AppUser {
     @Column(name = "password_reset_expires_at")
     private LocalDateTime passwordResetExpiresAt;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @Column(name = "email_verification_token", length = 255)
+    private String emailVerificationToken;
+
+    @Column(name = "email_verification_sent_at")
+    private LocalDateTime emailVerificationSentAt;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = LocalDateTime.now();
         if (active == null) active = true;
+        if (emailVerified == null) emailVerified = false;
     }
 }

@@ -12,6 +12,7 @@ export default function ImportPage() {
   const [overwrite, setOverwrite] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [forecastStarted, setForecastStarted] = useState(false)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -23,6 +24,7 @@ export default function ImportPage() {
       return
     }
     setError('')
+    setForecastStarted(false)
     setResult(null)
     setFile(f)
   }
@@ -41,6 +43,7 @@ export default function ImportPage() {
     if (!file) return
     setLoading(true)
     setError('')
+    setForecastStarted(false)
     setResult(null)
     const form = new FormData()
     form.append('file', file)
@@ -49,6 +52,7 @@ export default function ImportPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       setResult(data.data)
+      setForecastStarted((data.data?.imported ?? 0) > 0)
       setFile(null)
       if (inputRef.current) inputRef.current.value = ''
     } catch (e: unknown) {
@@ -119,6 +123,11 @@ export default function ImportPage() {
       {result && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-3">
           <h2 className="text-sm font-semibold text-gray-700">Import Result</h2>
+          {forecastStarted && (
+            <p className="text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              Import complete. A forecast is running in the background — check the Dashboard in a few seconds.
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
               <p className="text-2xl font-bold text-green-700">{result.imported}</p>

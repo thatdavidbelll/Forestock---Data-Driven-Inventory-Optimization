@@ -117,8 +117,9 @@ class SalesIngestionServiceTest {
         SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, false);
 
         assertThat(result.imported()).isEqualTo(0);
+        assertThat(result.skipped()).isEqualTo(1);
         assertThat(result.errors()).hasSize(1);
-        assertThat(result.errors().get(0)).contains("UNKNOWN-SKU");
+        assertThat(result.errors().get(0)).contains("Row 2").contains("UNKNOWN-SKU");
         verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
     }
 
@@ -132,8 +133,9 @@ class SalesIngestionServiceTest {
         SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, false);
 
         assertThat(result.imported()).isEqualTo(0);
+        assertThat(result.skipped()).isEqualTo(1);
         assertThat(result.errors()).hasSize(1);
-        assertThat(result.errors().get(0)).containsIgnoringCase("date");
+        assertThat(result.errors().get(0)).contains("Row 2").contains("sale_date format");
         verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
     }
 
@@ -147,8 +149,58 @@ class SalesIngestionServiceTest {
         SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, false);
 
         assertThat(result.imported()).isEqualTo(0);
+        assertThat(result.skipped()).isEqualTo(1);
         assertThat(result.errors()).hasSize(1);
-        assertThat(result.errors().get(0)).containsIgnoringCase("negative");
+        assertThat(result.errors().get(0)).contains("Row 2").contains("positive number").contains("-5");
+        verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
+    }
+
+    @Test
+    void importCsv_zero_quantity_adds_error() throws IOException {
+        String csv = "sku,sale_date,quantity_sold\nMILK-001,2026-03-01,0\n";
+        MockMultipartFile file = csvFile(csv);
+
+        when(productRepository.findByActiveTrue()).thenReturn(List.of(testProduct));
+
+        SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, false);
+
+        assertThat(result.imported()).isEqualTo(0);
+        assertThat(result.skipped()).isEqualTo(1);
+        assertThat(result.errors()).hasSize(1);
+        assertThat(result.errors().get(0)).contains("positive number").contains("0");
+        verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
+    }
+
+    @Test
+    void importCsv_invalid_headers_returns_single_error() throws IOException {
+        String csv = "sku,date,quantity\nMILK-001,2026-03-01,10\n";
+        MockMultipartFile file = csvFile(csv);
+
+        when(productRepository.findByActiveTrue()).thenReturn(List.of(testProduct));
+
+        SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, false);
+
+        assertThat(result.imported()).isEqualTo(0);
+        assertThat(result.skipped()).isEqualTo(0);
+        assertThat(result.errors()).containsExactly("Invalid CSV headers. Expected: sku,sale_date,quantity_sold");
+        verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
+    }
+
+    @Test
+    void importCsv_row_limit_returns_error_before_processing() throws IOException {
+        StringBuilder csv = new StringBuilder("sku,sale_date,quantity_sold\n");
+        for (int i = 0; i < 100_001; i++) {
+            csv.append("MILK-001,2026-03-01,10\n");
+        }
+        MockMultipartFile file = csvFile(csv.toString());
+
+        when(productRepository.findByActiveTrue()).thenReturn(List.of(testProduct));
+
+        SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, false);
+
+        assertThat(result.imported()).isEqualTo(0);
+        assertThat(result.skipped()).isEqualTo(0);
+        assertThat(result.errors()).containsExactly("CSV file exceeds maximum of 100000 rows");
         verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
     }
 

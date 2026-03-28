@@ -9,7 +9,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<string>  // returns role
-  logout: () => void
+  logout: () => Promise<void>
   updateAccessToken: (token: string) => void
 }
 
@@ -35,9 +35,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return role
   }
 
-  function logout() {
-    localStorage.clear()
-    setAuth({ isAuthenticated: false, username: null, role: null })
+  async function logout() {
+    try {
+      if (localStorage.getItem('accessToken')) {
+        await api.post('/auth/logout')
+      }
+    } catch {
+      // Client logout should still complete even if token revocation fails.
+    } finally {
+      localStorage.clear()
+      setAuth({ isAuthenticated: false, username: null, role: null })
+    }
   }
 
   /** Called by the api interceptor after a silent token refresh. */

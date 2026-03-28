@@ -34,8 +34,8 @@ export default function Layout() {
         ...(isAdmin ? adminNavItems : [{ to: '/settings', label: 'Settings' }]),
       ]
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     navigate('/login')
   }
 

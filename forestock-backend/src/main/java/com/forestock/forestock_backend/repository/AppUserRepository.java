@@ -25,6 +25,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     /** Find user by password reset token (for reset validation). */
     Optional<AppUser> findByPasswordResetToken(String token);
 
+    Optional<AppUser> findByEmailVerificationToken(String token);
+
     /** Check if a role exists in the system (used to seed super admin). */
     boolean existsByRole(String role);
 }

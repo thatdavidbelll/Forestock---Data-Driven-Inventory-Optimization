@@ -56,19 +56,18 @@ public class ForecastOrchestrator {
     private int horizonDays;
 
     /**
-     * Async entry point — used by ForecastController.
+     * Async entry point for store-scoped/manual triggers.
      * storeId must be captured from TenantContext BEFORE calling this method,
      * because @Async spawns a new thread where ThreadLocal is not inherited.
      */
     @Async
-    public void runFullCycleAsync(String triggeredBy, UUID storeId) {
+    @Transactional
+    public void runForecast(UUID storeId, String triggeredBy) {
         if (storeId != null) {
             Store store = storeRepository.findById(storeId).orElse(null);
             if (store != null) {
                 runFullCycle(triggeredBy, store);
             }
-        } else {
-            runForAllStores(triggeredBy);
         }
     }
 
