@@ -1,13 +1,21 @@
 package com.forestock.forestock_backend.service;
 
 import com.forestock.forestock_backend.domain.AppUser;
+import com.forestock.forestock_backend.domain.Inventory;
+import com.forestock.forestock_backend.domain.Product;
+import com.forestock.forestock_backend.domain.SalesTransaction;
 import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.dto.request.ChangePasswordRequest;
 import com.forestock.forestock_backend.dto.request.CreateUserRequest;
 import com.forestock.forestock_backend.dto.request.UpdateUserRequest;
 import com.forestock.forestock_backend.dto.response.UserDto;
 import com.forestock.forestock_backend.repository.AppUserRepository;
+import com.forestock.forestock_backend.repository.InventoryRepository;
+import com.forestock.forestock_backend.repository.ProductRepository;
+import com.forestock.forestock_backend.repository.SalesTransactionRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.forestock.forestock_backend.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,10 +25,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Slf4j
 @Service
@@ -29,10 +45,14 @@ public class UserManagementService {
 
     private final AppUserRepository userRepository;
     private final StoreRepository storeRepository;
+    private final ProductRepository productRepository;
+    private final SalesTransactionRepository salesTransactionRepository;
+    private final InventoryRepository inventoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
     private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     /** Returns all users for the current store. */
     @Transactional(readOnly = true)
@@ -139,6 +159,32 @@ public class UserManagementService {
         log.info("Password changed for user: {}", currentUsername);
     }
 
+    @Transactional(readOnly = true)
+    public byte[] exportMyData() {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        AppUser user = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new NoSuchElementException("User not found"));
+
+        UUID storeId = requireStoreContext();
+        List<Product> products = productRepository.findByStoreIdOrderByCreatedAtAsc(storeId);
+        List<SalesTransaction> sales = salesTransactionRepository.findAllByStoreIdOrderBySaleDateAsc(storeId);
+        List<Inventory> inventory = inventoryRepository.findLatestForAllProductsByStore(storeId);
+
+        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+             ZipOutputStream zipStream = new ZipOutputStream(byteStream)) {
+
+            addJsonEntry(zipStream, "profile.json", user);
+            addProductsCsv(zipStream, products);
+            addSalesCsv(zipStream, sales);
+            addInventoryCsv(zipStream, inventory);
+
+            zipStream.finish();
+            return byteStream.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to export account data", e);
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private UUID requireStoreContext() {
@@ -175,5 +221,88 @@ public class UserManagementService {
         }
 
         tokenBlacklistService.blacklist(jwtService.extractJti(token), remaining);
+    }
+
+    private void addJsonEntry(ZipOutputStream zipStream, String filename, AppUser user) throws IOException {
+        LinkedHashMap<String, Object> profile = new LinkedHashMap<>();
+        profile.put("id", user.getId());
+        profile.put("username", user.getUsername());
+        profile.put("email", user.getEmail());
+        profile.put("role", user.getRole());
+        profile.put("active", user.getActive());
+        profile.put("createdAt", user.getCreatedAt());
+
+        zipStream.putNextEntry(new ZipEntry(filename));
+        zipStream.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(profile));
+        zipStream.closeEntry();
+    }
+
+    private void addProductsCsv(ZipOutputStream zipStream, List<Product> products) throws IOException {
+        zipStream.putNextEntry(new ZipEntry("products.csv"));
+        PrintWriter writer = new PrintWriter(new OutputStreamWriter(zipStream, StandardCharsets.UTF_8), false);
+        writer.println("id,sku,name,category,unit,reorder_point,max_stock,active,created_at");
+        for (Product product : products) {
+            writer.println(csv(
+                    product.getId(),
+                    product.getSku(),
+                    product.getName(),
+                    product.getCategory(),
+                    product.getUnit(),
+                    product.getReorderPoint(),
+                    product.getMaxStock(),
+                    product.getActive(),
+                    product.getCreatedAt()
+            ));
+        }
+        writer.flush();
+        zipStream.closeEntry();
+    }
+
+    private void addSalesCsv(ZipOutputStream zipStream, List<SalesTransaction> sales) throws IOException {
+        zipStream.putNextEntry(new ZipEntry("sales.csv"));
+        PrintWriter writer = new PrintWriter(new OutputStreamWriter(zipStream, StandardCharsets.UTF_8), false);
+        writer.println("id,product_id,sku,product_name,sale_date,quantity_sold");
+        for (SalesTransaction sale : sales) {
+            writer.println(csv(
+                    sale.getId(),
+                    sale.getProduct().getId(),
+                    sale.getProduct().getSku(),
+                    sale.getProduct().getName(),
+                    sale.getSaleDate(),
+                    sale.getQuantitySold()
+            ));
+        }
+        writer.flush();
+        zipStream.closeEntry();
+    }
+
+    private void addInventoryCsv(ZipOutputStream zipStream, List<Inventory> inventory) throws IOException {
+        zipStream.putNextEntry(new ZipEntry("inventory.csv"));
+        PrintWriter writer = new PrintWriter(new OutputStreamWriter(zipStream, StandardCharsets.UTF_8), false);
+        writer.println("id,product_id,sku,product_name,quantity,recorded_at");
+        for (Inventory item : inventory) {
+            writer.println(csv(
+                    item.getId(),
+                    item.getProduct().getId(),
+                    item.getProduct().getSku(),
+                    item.getProduct().getName(),
+                    item.getQuantity(),
+                    item.getRecordedAt()
+            ));
+        }
+        writer.flush();
+        zipStream.closeEntry();
+    }
+
+    private String csv(Object... values) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            String value = values[i] == null ? "" : values[i].toString();
+            builder.append('"').append(value.replace("\"", "\"\"")).append('"');
+        }
+        return builder.toString();
     }
 }

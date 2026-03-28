@@ -57,9 +57,10 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error(e.getMessage()));
         } catch (InternalAuthenticationServiceException e) {
-            if (isEmailVerificationFailure(e)) {
+            String disabledMessage = extractDisabledMessage(e);
+            if (disabledMessage != null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error("Email not verified. Check your inbox."));
+                        .body(ApiResponse.error(disabledMessage));
             }
             log.error("Authentication service unavailable for user '{}': {}", request.getUsername(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -68,9 +69,10 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid username or password"));
         } catch (AuthenticationServiceException e) {
-            if (isEmailVerificationFailure(e)) {
+            String disabledMessage = extractDisabledMessage(e);
+            if (disabledMessage != null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error("Email not verified. Check your inbox."));
+                        .body(ApiResponse.error(disabledMessage));
             }
             log.error("Authentication service unavailable for user '{}': {}", request.getUsername(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -86,7 +88,7 @@ public class AuthController {
 
         try {
             UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
-            AppUser user = userRepository.findByUsername(request.getUsername()).orElseThrow();
+            AppUser user = userRepository.findWithStoreByUsername(request.getUsername()).orElseThrow();
             String role = user.getRole();
             UUID storeId = user.getStore() != null ? user.getStore().getId() : null;
 
@@ -135,7 +137,7 @@ public class AuthController {
                         .body(ApiResponse.error("Refresh token is expired or invalid"));
             }
 
-            AppUser user = userRepository.findByUsername(username).orElseThrow();
+            AppUser user = userRepository.findWithStoreByUsername(username).orElseThrow();
             UUID storeIdForRefresh = user.getStore() != null ? user.getStore().getId() : null;
             String newAccessToken = jwtService.generateAccessToken(userDetails, user.getRole(), storeIdForRefresh);
 
@@ -219,14 +221,14 @@ public class AuthController {
         return authHeader.substring(7);
     }
 
-    private boolean isEmailVerificationFailure(Throwable throwable) {
+    private String extractDisabledMessage(Throwable throwable) {
         Throwable current = throwable;
         while (current != null) {
-            if (current instanceof DisabledException && "Email not verified. Check your inbox.".equals(current.getMessage())) {
-                return true;
+            if (current instanceof DisabledException) {
+                return current.getMessage();
             }
             current = current.getCause();
         }
-        return false;
+        return null;
     }
 }

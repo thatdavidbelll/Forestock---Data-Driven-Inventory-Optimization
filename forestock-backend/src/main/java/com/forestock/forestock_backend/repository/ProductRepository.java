@@ -22,6 +22,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     /** Returns all products for a store, including inactive ones. */
     List<Product> findByStoreId(UUID storeId);
 
+    List<Product> findByStoreIdOrderByCreatedAtAsc(UUID storeId);
+
     // Legacy methods without storeId — kept for backward compatibility with existing services
     Optional<Product> findBySku(String sku);
 

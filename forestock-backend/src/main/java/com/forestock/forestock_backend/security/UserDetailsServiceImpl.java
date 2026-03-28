@@ -3,8 +3,8 @@ package com.forestock.forestock_backend.security;
 import com.forestock.forestock_backend.domain.AppUser;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -21,11 +21,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AppUser user = userRepository.findByUsername(username)
+        AppUser user = userRepository.findWithStoreByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        if (!user.getActive()) {
-            throw new UsernameNotFoundException("User is deactivated: " + username);
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new DisabledException("User account is deactivated.");
+        }
+
+        if (user.getStore() != null && !Boolean.TRUE.equals(user.getStore().getActive())) {
+            throw new DisabledException("Store is deactivated. Contact the platform administrator.");
         }
 
         if (user.getEmail() != null && !Boolean.TRUE.equals(user.getEmailVerified())) {

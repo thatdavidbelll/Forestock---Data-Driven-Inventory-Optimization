@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
+import { captureEvent } from '../lib/analytics'
 
 interface Suggestion {
   id: string
@@ -87,6 +88,10 @@ export default function SuggestionsPage() {
     try {
       const { data } = await api.patch(`/suggestions/${id}/acknowledge`)
       const updated = data.data as Suggestion
+      captureEvent('suggestion_acknowledged', {
+        urgency: updated.urgency,
+        productSku: updated.productSku,
+      })
 
       setSuggestions((current) => {
         if (showAcknowledged) {
@@ -118,6 +123,7 @@ export default function SuggestionsPage() {
       if (urgencyFilter) params.urgency = urgencyFilter
       if (categoryFilter) params.category = categoryFilter
       const response = await api.get('/suggestions/export/excel', { params, responseType: 'blob' })
+      captureEvent('report_exported', { format: 'excel' })
       downloadBlob(response.data, `forestock-suggestions-${new Date().toISOString().slice(0, 10)}.xlsx`)
     } catch {
       setError('Failed to export Excel report.')
@@ -133,6 +139,7 @@ export default function SuggestionsPage() {
       if (urgencyFilter) params.urgency = urgencyFilter
       if (categoryFilter) params.category = categoryFilter
       const response = await api.get('/suggestions/export/pdf', { params, responseType: 'blob' })
+      captureEvent('report_exported', { format: 'pdf' })
       downloadBlob(response.data, `forestock-suggestions-${new Date().toISOString().slice(0, 10)}.pdf`)
     } catch {
       setError('Failed to export PDF report.')

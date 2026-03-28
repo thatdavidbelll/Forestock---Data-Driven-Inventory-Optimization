@@ -1,6 +1,7 @@
 package com.forestock.forestock_backend.repository;
 
 import com.forestock.forestock_backend.domain.AppUser;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +12,9 @@ import java.util.UUID;
 @Repository
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     Optional<AppUser> findByUsername(String username);
+
+    @EntityGraph(attributePaths = "store")
+    Optional<AppUser> findWithStoreByUsername(String username);
     boolean existsByUsername(String username);
 
     /** All users belonging to a specific store (for user management). */

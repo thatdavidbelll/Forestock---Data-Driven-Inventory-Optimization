@@ -174,12 +174,13 @@ In the `cloud` profile, blacklist enforcement is disabled so the app can run dir
 
 - New store admins must verify their email before first login
 - Login returns `403` with `Email not verified. Check your inbox.` until verification is complete
+- Deactivated users or users in a deactivated store receive `403` with the actual disable reason
 - In local dev, if SMTP is not configured, the verification URL is logged at WARN level as `Verification link (DEV ONLY): ...`
 
 ### Roles
 | Role | Permissions |
 |---|---|
-| `ROLE_SUPER_ADMIN` | Platform management — create stores, list/deactivate all stores |
+| `ROLE_SUPER_ADMIN` | Platform management — create stores, activate/deactivate/delete stores |
 | `ROLE_ADMIN` | Full store access — products, inventory, sales, forecasts, user management |
 | `ROLE_MANAGER` | View, import, export, trigger forecast (no user management) |
 | `ROLE_VIEWER` | Read-only — dashboard, suggestions, export reports |
@@ -209,8 +210,9 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/admin/stores` | List all stores on the platform |
-| PUT | `/api/admin/stores/{id}/deactivate` | Deactivate a store |
+| PUT | `/api/admin/stores/{id}/deactivate` | Deactivate a store and block its users from accessing the API |
 | PUT | `/api/admin/stores/{id}/activate` | Reactivate a store |
+| DELETE | `/api/admin/stores/{id}` | Permanently delete a store and all tenant-scoped data |
 
 ### User Management (ROLE_ADMIN only, store-scoped)
 | Method | Endpoint | Description |
@@ -354,7 +356,7 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 ### Platform owner (super admin)
 | Page | Route | Description |
 |---|---|---|
-| Platform Admin | `/admin` | Create stores, list all stores, activate/deactivate |
+| Platform Admin | `/admin` | Create stores, list all stores, activate/deactivate, hard delete |
 
 ---
 

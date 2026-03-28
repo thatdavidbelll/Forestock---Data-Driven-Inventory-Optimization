@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
+import { captureEvent } from '../lib/analytics'
 
 interface Dashboard {
   totalActiveProducts: number
@@ -75,6 +76,7 @@ export default function DashboardPage() {
     setTriggerMsg('')
     try {
       await api.post('/forecast/run')
+      captureEvent('forecast_run_triggered')
       setForecastStatus('RUNNING')
       setForecastStatusAt(new Date().toISOString())
       setTriggerMsg('Forecast started in background.')

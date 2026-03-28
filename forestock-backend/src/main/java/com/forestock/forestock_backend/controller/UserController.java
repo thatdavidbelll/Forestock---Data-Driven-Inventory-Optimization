@@ -8,7 +8,9 @@ import com.forestock.forestock_backend.dto.response.UserDto;
 import com.forestock.forestock_backend.service.UserManagementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -82,6 +84,20 @@ public class UserController {
             return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Export the current authenticated user's profile and store data as a ZIP archive. */
+    @GetMapping("/me/export")
+    public ResponseEntity<byte[]> exportMyData() {
+        try {
+            byte[] zip = userManagementService.exportMyData();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"forestock-data-export.zip\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(zip);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
 }

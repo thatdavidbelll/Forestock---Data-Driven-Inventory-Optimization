@@ -58,6 +58,14 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
             @Param("to") LocalDate to,
             @Param("storeId") UUID storeId);
 
+    @Query("""
+           SELECT s FROM SalesTransaction s
+           JOIN FETCH s.product p
+           WHERE p.store.id = :storeId
+           ORDER BY s.saleDate ASC, p.sku ASC
+           """)
+    List<SalesTransaction> findAllByStoreIdOrderBySaleDateAsc(@Param("storeId") UUID storeId);
+
     // ── Paginated list (store-scoped, filterable) ────────────────────────────
     @Query(value = """
             SELECT s FROM SalesTransaction s

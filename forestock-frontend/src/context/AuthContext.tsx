@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import api from '../lib/api'
+import { identifyUser, resetAnalytics } from '../lib/analytics'
 
 interface AuthState {
   username: string | null
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('username', user)
     localStorage.setItem('role', role)
     setAuth({ isAuthenticated: true, username: user, role })
+    identifyUser(user, { role })
     return role
   }
 
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Client logout should still complete even if token revocation fails.
     } finally {
+      resetAnalytics()
       localStorage.clear()
       setAuth({ isAuthenticated: false, username: null, role: null })
     }

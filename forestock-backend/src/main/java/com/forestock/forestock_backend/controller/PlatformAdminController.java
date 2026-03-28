@@ -3,9 +3,9 @@ package com.forestock.forestock_backend.controller;
 import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.StoreDto;
-import com.forestock.forestock_backend.repository.StoreRepository;
-import com.forestock.forestock_backend.service.AuditLogService;
+import com.forestock.forestock_backend.service.StoreAdministrationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,52 +24,42 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PlatformAdminController {
 
-    private final StoreRepository storeRepository;
-    private final AuditLogService auditLogService;
+    private final StoreAdministrationService storeAdministrationService;
 
     /** List all stores on the platform. */
     @GetMapping("/stores")
     public ResponseEntity<ApiResponse<List<StoreDto>>> listAllStores() {
-        List<StoreDto> stores = storeRepository.findAll()
-                .stream()
-                .map(this::toDto)
-                .toList();
-        return ResponseEntity.ok(ApiResponse.success(stores));
+        return ResponseEntity.ok(ApiResponse.success(storeAdministrationService.listAllStores()));
     }
 
     /** Deactivate a store (soft delete — all data is preserved). */
     @PutMapping("/stores/{id}/deactivate")
     public ResponseEntity<ApiResponse<StoreDto>> deactivateStore(@PathVariable UUID id) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Store not found: " + id));
-        store.setActive(false);
-        Store saved = storeRepository.save(store);
-        auditLogService.log("STORE_DEACTIVATED", "Store", saved.getId().toString(),
-                "Deactivated store '" + saved.getName() + "'");
-        return ResponseEntity.ok(ApiResponse.success("Store deactivated", toDto(saved)));
+        try {
+            return ResponseEntity.ok(ApiResponse.success("Store deactivated", storeAdministrationService.deactivateStore(id)));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     /** Reactivate a previously deactivated store. */
     @PutMapping("/stores/{id}/activate")
     public ResponseEntity<ApiResponse<StoreDto>> activateStore(@PathVariable UUID id) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Store not found: " + id));
-        store.setActive(true);
-        Store saved = storeRepository.save(store);
-        auditLogService.log("STORE_ACTIVATED", "Store", saved.getId().toString(),
-                "Activated store '" + saved.getName() + "'");
-        return ResponseEntity.ok(ApiResponse.success("Store activated", toDto(saved)));
+        try {
+            return ResponseEntity.ok(ApiResponse.success("Store activated", storeAdministrationService.activateStore(id)));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
     }
 
-    // ── Mapping ───────────────────────────────────────────────────────────────
-
-    private StoreDto toDto(Store s) {
-        return StoreDto.builder()
-                .id(s.getId())
-                .name(s.getName())
-                .slug(s.getSlug())
-                .active(s.getActive())
-                .createdAt(s.getCreatedAt())
-                .build();
+    /** Permanently delete a store and all tenant-scoped data. */
+    @DeleteMapping("/stores/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteStore(@PathVariable UUID id) {
+        try {
+            storeAdministrationService.deleteStore(id);
+            return ResponseEntity.ok(ApiResponse.success("Store deleted", null));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
     }
 }

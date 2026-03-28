@@ -1,5 +1,6 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from 'react'
 import api from '../lib/api'
+import { captureEvent } from '../lib/analytics'
 
 interface ImportResult {
   imported: number
@@ -52,6 +53,11 @@ export default function ImportPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       setResult(data.data)
+      captureEvent('csv_imported', {
+        imported: data.data?.imported ?? 0,
+        skipped: data.data?.skipped ?? 0,
+        errorCount: data.data?.errors?.length ?? 0,
+      })
       setForecastStarted((data.data?.imported ?? 0) > 0)
       setFile(null)
       if (inputRef.current) inputRef.current.value = ''

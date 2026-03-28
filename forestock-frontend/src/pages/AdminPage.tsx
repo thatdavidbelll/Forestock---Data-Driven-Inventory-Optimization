@@ -89,9 +89,26 @@ export default function AdminPage() {
         ? `/admin/stores/${store.id}/deactivate`
         : `/admin/stores/${store.id}/activate`
       await api.put(endpoint)
-      loadStores()
+      await loadStores()
     } catch (err) {
       alert(extractErrorMessage(err, 'Failed to update store'))
+    }
+  }
+
+  async function deleteStore(store: Store) {
+    const confirmed = window.confirm(
+      `Permanently delete "${store.name}"?\n\nThis will remove the store, its users, products, sales, inventory, forecasts and suggestions. This cannot be undone.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await api.delete(`/admin/stores/${store.id}`)
+      await loadStores()
+    } catch (err) {
+      alert(extractErrorMessage(err, 'Failed to delete store'))
     }
   }
 
@@ -239,6 +256,12 @@ export default function AdminPage() {
                       }`}
                     >
                       {store.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => deleteStore(store)}
+                      className="ml-2 text-xs font-medium px-3 py-1.5 rounded-lg text-red-700 hover:bg-red-50 transition-colors"
+                    >
+                      Delete
                     </button>
                   </td>
                 </tr>

@@ -189,7 +189,7 @@ forestock-backend/src/main/java/com/forestock/forestock_backend/
 ├── controller/
 │   ├── AuthController.java                 POST /api/auth/login, /refresh, /forgot-password, /reset-password
 │   ├── UserController.java                 GET/POST/PUT/DELETE /api/users, PUT /api/users/me/password
-│   ├── PlatformAdminController.java        GET /api/admin/stores, PUT activate/deactivate
+│   ├── PlatformAdminController.java        GET /api/admin/stores, PUT activate/deactivate, DELETE store
 │   ├── ProductController.java              /api/products (CRUD + soft/hard delete + restore)
 │   ├── InventoryController.java            /api/inventory
 │   ├── SalesController.java                /api/sales (import, query, delete)
@@ -255,7 +255,7 @@ forestock-frontend/src/
     ├── ForgotPasswordPage.tsx      Email form → POST /api/auth/forgot-password
     ├── ResetPasswordPage.tsx       ?token=xxx → POST /api/auth/reset-password → redirect /login
     ├── VerifyEmailPage.tsx         ?token=xxx → GET /api/auth/verify-email
-    ├── AdminPage.tsx               ROLE_SUPER_ADMIN only — create stores, list/activate/deactivate
+    ├── AdminPage.tsx               ROLE_SUPER_ADMIN only — create stores, list/activate/deactivate/delete
     ├── DashboardPage.tsx           KPI cards + Run Forecast button
     ├── SuggestionsPage.tsx         Restock table, urgency/category filter, Excel/PDF export
     ├── ProductsPage.tsx            Products CRUD, soft/hard delete, restore
@@ -307,8 +307,9 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/admin/stores` | List all stores |
-| PUT | `/api/admin/stores/{id}/deactivate` | Deactivate store |
+| PUT | `/api/admin/stores/{id}/deactivate` | Deactivate store and block its users from API access |
 | PUT | `/api/admin/stores/{id}/activate` | Activate store |
+| DELETE | `/api/admin/stores/{id}` | Permanently delete store + tenant data |
 
 ### User Management (ROLE_ADMIN only, store-scoped)
 | Method | Endpoint | Description |

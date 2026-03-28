@@ -41,10 +41,14 @@
 - `IMPL-07` Audit Log
 - `IMPL-09` Empty State + Guided Onboarding
 - `IMPL-10` In-App Forecast Status Polling
+- `IMPL-11` GDPR — Privacy Policy, ToS, Data Export
+- `IMPL-12` PostHog Analytics
 
 ### Notes
 
 - `cloud` profile runs against Neon PostgreSQL and disables token-blacklist enforcement so local Docker Redis is not required during cloud development.
+- Super admin can now hard-delete stores from `/admin`.
+- Store deactivation is enforced during login and on authenticated requests that still carry an older JWT.
 
 ---
 
