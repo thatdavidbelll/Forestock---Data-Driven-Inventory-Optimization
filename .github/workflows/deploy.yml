@@ -84,10 +84,11 @@ jobs:
             # Pull latest compose file and config changes
             git -C ~/forestock pull origin main
 
-            # Ensure correct AWS CLI is installed
+            # Ensure correct AWS CLI v2 is installed
             sudo rm -f /usr/local/bin/aws /usr/local/bin/aws_completer
-            pip3 install --quiet awscli
-            export PATH=$PATH:$HOME/.local/bin
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -q -o /tmp/awscliv2.zip -d /tmp
+            sudo /tmp/aws/install --update
 
             # Login to ECR using credentials passed from GitHub secrets
             export AWS_DEFAULT_REGION=eu-central-1
