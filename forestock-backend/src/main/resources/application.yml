@@ -94,3 +94,4 @@ forestock:
   security:
     token-blacklist:
       enabled: true
+
