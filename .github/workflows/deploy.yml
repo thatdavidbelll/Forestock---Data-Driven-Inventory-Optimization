@@ -84,10 +84,9 @@ jobs:
             # Pull latest compose file and config changes
             git -C ~/forestock pull origin main
 
-            # Install AWS CLI if not present
-            if ! command -v aws &>/dev/null; then
-              sudo apt-get install -y awscli
-            fi
+            # Ensure correct AWS CLI is installed
+            sudo rm -f /usr/local/bin/aws /usr/local/bin/aws_completer
+            sudo apt-get install -y awscli
 
             # Login to ECR using credentials passed from GitHub secrets
             export AWS_DEFAULT_REGION=eu-central-1
