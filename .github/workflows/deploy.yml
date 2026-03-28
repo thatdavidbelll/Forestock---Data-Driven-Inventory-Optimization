@@ -1,0 +1,157 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: forestock-backend
+
+jobs:
+
+  # ── Detect which parts of the repo changed ──────────────────────────────────
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'forestock-backend/**'
+              - '.github/workflows/deploy.yml'
+            frontend:
+              - 'forestock-frontend/**'
+              - '.github/workflows/deploy.yml'
+
+  # ── Backend: build image → push ECR → restart on EC2 ───────────────────────
+  deploy-backend:
+    name: Deploy Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd forestock-backend
+          docker build --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        env:
+          NEW_IMAGE: ${{ steps.build.outputs.image }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: NEW_IMAGE
+          script: |
+            set -e
+            cd ~/forestock/forestock-backend
+
+            # Pull latest compose file and config changes
+            git -C ~/forestock pull origin main
+
+            # Login to ECR using EC2 instance role (no credentials needed)
+            aws ecr get-login-password --region eu-central-1 | \
+              docker login --username AWS --password-stdin \
+              $(echo $NEW_IMAGE | cut -d'/' -f1)
+
+            # Update BACKEND_IMAGE in .env
+            if grep -q "^BACKEND_IMAGE=" .env 2>/dev/null; then
+              sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=$NEW_IMAGE|" .env
+            else
+              echo "BACKEND_IMAGE=$NEW_IMAGE" >> .env
+            fi
+
+            # Pull new image and restart (no rebuild — image comes from ECR)
+            docker compose -f docker-compose.prod.yml pull app
+            docker compose -f docker-compose.prod.yml up -d --no-build
+
+            # Remove dangling images to save disk space
+            docker image prune -f
+
+            echo "✓ Backend deployed: $NEW_IMAGE"
+
+  # ── Frontend: build → S3 → CloudFront invalidation ─────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: forestock-frontend/package-lock.json
+
+      - name: Build
+        working-directory: forestock-frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync to S3
+        run: |
+          # Hashed assets (JS/CSS bundles) — cache forever
+          aws s3 sync forestock-frontend/dist/ \
+            s3://${{ secrets.S3_FRONTEND_BUCKET }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html"
+
+          # index.html — never cache (ensures users always get the latest version)
+          aws s3 cp forestock-frontend/dist/index.html \
+            s3://${{ secrets.S3_FRONTEND_BUCKET }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+          echo "✓ Frontend deployed"

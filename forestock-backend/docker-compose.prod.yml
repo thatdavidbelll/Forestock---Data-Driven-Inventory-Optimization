@@ -1,44 +1,61 @@
-# docker-compose.prod.yml — production: app + PostgreSQL
-# All secrets must be set as environment variables — never hardcode values here.
+# docker-compose.prod.yml — EC2 production: app + Redis only
+# Database = Neon (external). No local PostgreSQL.
+# All secrets must be set in .env file on the server — never hardcode values here.
 services:
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: forestock-db-prod
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-forestock}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-forestock}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
-    build: .
+    image: ${BACKEND_IMAGE}   # set by CI/CD pipeline — ECR image URL with commit SHA
     container_name: forestock-app
-    restart: always
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"   # localhost only — Nginx handles public HTTPS traffic
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-forestock}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Neon pooler URL (app connections via PgBouncer)
+      SPRING_DATASOURCE_URL: ${NEON_POOLER_URL}
+      SPRING_DATASOURCE_USERNAME: ${NEON_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${NEON_PASSWORD}
+      # Neon direct URL (Flyway only — bypasses PgBouncer advisory lock issue)
+      SPRING_FLYWAY_URL: ${NEON_DIRECT_URL}
+      SPRING_FLYWAY_USER: ${NEON_USERNAME}
+      SPRING_FLYWAY_PASSWORD: ${NEON_PASSWORD}
+      # Redis (runs as sibling container on same Docker network)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # AWS
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION:-eu-central-1}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
-      AWS_SNS_TOPIC_ARN: ${AWS_SNS_TOPIC_ARN}
+      AWS_SNS_TOPIC_ARN: ${AWS_SNS_TOPIC_ARN:-}
+      # App config
       JWT_SECRET: ${JWT_SECRET}
-      FORESTOCK_ALERT_EMAIL: ${FORESTOCK_ALERT_EMAIL}
+      FORESTOCK_FRONTEND_URL: ${FORESTOCK_FRONTEND_URL}
+      FORESTOCK_ALERT_EMAIL: ${FORESTOCK_ALERT_EMAIL:-}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      # Email (password reset)
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-noreply@forestock.app}
     depends_on:
-      postgres:
+      redis:
         condition: service_healthy
 
+  redis:
+    image: redis:7-alpine
+    container_name: forestock-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
-  postgres_data:
+  redis_data:

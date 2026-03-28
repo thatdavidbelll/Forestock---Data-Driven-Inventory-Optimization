@@ -3,6 +3,19 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 5        # Neon pooler (PgBouncer) — keep small
+      minimum-idle: 1
+      idle-timeout: 600000
+      keepalive-time: 30000
+
+  # Flyway uses a dedicated direct connection (non-pooler) to avoid PgBouncer advisory lock issues.
+  # SPRING_FLYWAY_URL must point to the Neon direct (non-pooler) host.
+  flyway:
+    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL}}
+    user: ${SPRING_FLYWAY_USER:${SPRING_DATASOURCE_USERNAME}}
+    password: ${SPRING_FLYWAY_PASSWORD:${SPRING_DATASOURCE_PASSWORD}}
 
   jpa:
     show-sql: false
