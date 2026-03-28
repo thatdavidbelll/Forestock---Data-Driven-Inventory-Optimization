@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import api from '../lib/api'
 import { captureEvent } from '../lib/analytics'
 
@@ -10,6 +11,15 @@ interface Dashboard {
   highCount: number
   lastRunStatus: string | null
   lastRunAt: string | null
+  accuracyScore?: {
+    lastRunMape: number | null
+    trend: string
+    evaluatedForecasts: number
+  } | null
+  alertTrend: Array<{ date: string; critical: number; high: number }>
+  topCritical: Array<{ productName: string; sku: string; daysOfStock: number | null; suggestedQty: number; estimatedOrderValue: number | null }>
+  salesVelocityTrend: Array<{ date: string; totalUnitsSold: number }>
+  dataQualityWarnings: string[]
 }
 
 interface KardProps {
@@ -120,6 +130,8 @@ export default function DashboardPage() {
         startedAt: string | null
         finishedAt: string | null
         errorMessage: string | null
+        durationSeconds: number | null
+        productsWithInsufficientData: number | null
       }>)?.[0]
 
       if (!latestRun) {
@@ -148,6 +160,13 @@ export default function DashboardPage() {
   if (!data) return <p className="text-red-500 text-sm">Failed to load dashboard.</p>
 
   const showOnboarding = data.lastRunStatus == null
+  const accuracy = data.accuracyScore
+  const accuracyValue = accuracy?.lastRunMape != null
+    ? `${Math.max(0, 100 - Number(accuracy.lastRunMape)).toFixed(1)}%`
+    : '—'
+  const accuracySub = accuracy?.lastRunMape != null
+    ? `Based on ${accuracy.evaluatedForecasts} forecast${accuracy.evaluatedForecasts !== 1 ? 's' : ''} evaluated`
+    : 'Accuracy calculated after the forecast window closes'
   const onboardingSteps = data.totalActiveProducts === 0
     ? [
         {
@@ -246,7 +265,7 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Kard label="Active Products" value={data.totalActiveProducts} />
           <Kard
             label="Low Stock Alerts"
@@ -265,22 +284,135 @@ export default function DashboardPage() {
             sub="restock soon"
             accent={data.highCount > 0 ? 'orange' : 'default'}
           />
+          <Kard
+            label="Forecast Accuracy"
+            value={accuracyValue}
+            sub={accuracySub}
+            accent={accuracy?.lastRunMape != null && accuracy.lastRunMape <= 10 ? 'green' : 'default'}
+          />
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="text-sm font-medium text-gray-700 mb-3">Last Forecast Run</h2>
-        {forecastStatus ? (
-          <div className="flex items-center gap-4">
-            <StatusBadge status={forecastStatus} />
-            <span className="text-sm text-gray-500">
-              {forecastStatusAt ? new Date(forecastStatusAt).toLocaleString() : '—'}
-            </span>
+      {!showOnboarding && (
+        <>
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">Alert History</h2>
+                  <p className="text-xs text-gray-500">Critical and high-priority alerts over the last 10 completed runs.</p>
+                </div>
+              </div>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.alertTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="critical" stackId="alerts" fill="#dc2626" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="high" stackId="alerts" fill="#f97316" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold text-gray-900">Top 5 Critical</h2>
+                <p className="text-xs text-gray-500">Products that need immediate attention from the latest run.</p>
+              </div>
+              {data.topCritical.length === 0 ? (
+                <p className="text-sm text-gray-400">No critical products right now.</p>
+              ) : (
+                <div className="space-y-3">
+                  {data.topCritical.map((item) => (
+                    <div key={item.sku} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-gray-900">{item.productName}</p>
+                          <p className="text-xs text-gray-500">{item.sku}</p>
+                        </div>
+                        <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+                          {item.daysOfStock != null ? `${Number(item.daysOfStock).toFixed(1)}d left` : 'No stock data'}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+                        <span>Suggested: {item.suggestedQty}</span>
+                        <span>{item.estimatedOrderValue != null ? `£${item.estimatedOrderValue.toFixed(2)}` : 'No cost set'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          <p className="text-sm text-gray-400">No forecast runs yet.</p>
-        )}
-      </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold text-gray-900">Sales Volume</h2>
+                <p className="text-xs text-gray-500">Total units sold per day across the last 30 days.</p>
+              </div>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.salesVelocityTrend}>
+                    <defs>
+                      <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="totalUnitsSold" stroke="#2563eb" fill="url(#salesFill)" strokeWidth={2.5} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <h2 className="text-sm font-semibold text-gray-900">Data Quality</h2>
+                <p className="mt-1 text-xs text-gray-500">Warnings that can reduce forecast quality.</p>
+                {data.dataQualityWarnings.length === 0 ? (
+                  <p className="mt-4 text-sm text-green-700">No data quality warnings.</p>
+                ) : (
+                  <div className="mt-4 space-y-2">
+                    {data.dataQualityWarnings.map((warning) => (
+                      <div key={warning} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        {warning}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <h2 className="text-sm font-semibold text-gray-900">Last Forecast Run</h2>
+                {forecastStatus ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-4">
+                      <StatusBadge status={forecastStatus} />
+                      <span className="text-sm text-gray-500">
+                        {forecastStatusAt ? new Date(forecastStatusAt).toLocaleString() : '—'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      <span>Forecast accuracy trend: {accuracy?.trend ?? 'pending'}</span>
+                      <span>Evaluated forecasts: {accuracy?.evaluatedForecasts ?? 0}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-gray-400">No forecast runs yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

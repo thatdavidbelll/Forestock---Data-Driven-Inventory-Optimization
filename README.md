@@ -23,7 +23,7 @@ Forestock/
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
 | Database | PostgreSQL 17 (local Docker for dev, Neon for cloud profile, AWS RDS planned for prod) |
-| Migrations | Flyway (V1–V10) |
+| Migrations | Flyway (V1–V16) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 (sales data backup + forecast results) |
 | Notifications | AWS SNS (email on forecast complete / failed) |
@@ -81,6 +81,8 @@ npm install
 npm run dev
 ```
 
+Open `http://localhost:5173` for the app UI. The Vite dev server proxies `/api` to the backend on `http://localhost:8080`.
+
 | Service | URL |
 |---|---|
 | Frontend | http://localhost:5173 |
@@ -106,10 +108,10 @@ ROLE_SUPER_ADMIN (you — the platform owner)
 
 Created automatically on first startup:
 
-| Field | Default value |
+| Field | Source |
 |---|---|
-| Username | `davidbell` |
-| Password | `lionofJudah` |
+| Username | `SUPER_ADMIN_USERNAME` or application profile default |
+| Password | `SUPER_ADMIN_PASSWORD` or application profile default |
 
 Override via environment variables: `SUPER_ADMIN_USERNAME`, `SUPER_ADMIN_PASSWORD`
 
@@ -148,6 +150,8 @@ All `/api/**` endpoints require a JWT Bearer token.
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `GET /api/auth/verify-email`
+- `GET /api/auth/invite/verify`
+- `POST /api/auth/invite/accept`
 - `POST /api/auth/resend-verification`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
@@ -218,7 +222,9 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/users` | List all users in current store |
-| POST | `/api/users` | Create new user (ROLE_MANAGER or ROLE_VIEWER) |
+| POST | `/api/users/invite` | Send an invite for a new store user |
+| GET | `/api/users/invites` | List pending invites for current store |
+| DELETE | `/api/users/invites/{id}` | Cancel a pending invite |
 | PUT | `/api/users/{id}` | Update user role or active status |
 | DELETE | `/api/users/{id}` | Soft-deactivate a user |
 | PUT | `/api/users/me/password` | Change own password (any authenticated user) |
@@ -233,14 +239,16 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 |---|---|---|
 | GET | `/api/store` | Current tenant's store info |
 | PUT | `/api/store` | Update store name (ROLE_ADMIN) |
+| GET | `/api/store/config` | Get forecast and restocking configuration for current store |
+| PUT | `/api/store/config` | Update forecast and restocking configuration (ROLE_ADMIN) |
 
 ### Products
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/products?includeInactive=false` | List products |
 | GET | `/api/products/{id}` | Get product by ID |
-| POST | `/api/products` | Create product |
-| PUT | `/api/products/{id}` | Update product fields |
+| POST | `/api/products` | Create product, including lead time, MOQ, supplier, cost, barcode, storage, and notes |
+| PUT | `/api/products/{id}` | Update product fields, including advanced enrichment fields |
 | PUT | `/api/products/{id}/restore` | Reactivate a deactivated product |
 | DELETE | `/api/products/{id}` | Soft delete — deactivates, preserves history |
 | DELETE | `/api/products/{id}/hard` | **Permanent delete** — removes product + all linked data |
@@ -256,6 +264,7 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 ### Sales
 | Method | Endpoint | Description |
 |---|---|---|
+| POST | `/api/sales/import/preview` | Preview CSV headers, sample rows, and SKU match summary without writing data |
 | POST | `/api/sales/import?overwriteExisting=false` | Import CSV (multipart); triggers forecast automatically when rows are imported |
 | GET | `/api/sales?sku=&from=&to=&page=0&size=50` | Paginated transaction list |
 | GET | `/api/sales/summary?days=30` | Aggregated summary |
@@ -270,7 +279,7 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 |---|---|---|
 | POST | `/api/forecast/run` | Trigger forecast manually (async) |
 | GET | `/api/forecast/runs` | Forecast run history |
-| GET | `/api/forecast/runs/{id}` | Specific run details |
+| GET | `/api/forecast/runs/{id}` | Specific run details, including MAPE, duration, and insufficient-data count |
 | GET | `/api/forecast/latest` | Latest completed run |
 
 ### Suggestions
@@ -278,14 +287,15 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 |---|---|---|
 | GET | `/api/suggestions?urgency=&category=&includeAcknowledged=false` | Suggestions from latest run |
 | GET | `/api/suggestions/{id}` | Suggestion detail |
-| PATCH | `/api/suggestions/{id}/acknowledge` | Acknowledge or dismiss a suggestion |
+| PATCH | `/api/suggestions/{id}/acknowledge` | Acknowledge or dismiss one suggestion with tracking details |
+| POST | `/api/suggestions/acknowledge-bulk` | Bulk acknowledge multiple suggestions |
 | GET | `/api/suggestions/export/excel` | Download Excel report |
 | GET | `/api/suggestions/export/pdf` | Download PDF report |
 
 ### Dashboard
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/dashboard` | KPIs: alerts, CRITICAL count, last run |
+| GET | `/api/dashboard` | KPIs, forecast accuracy, alert trend, top critical items, sales velocity, and data-quality warnings |
 | GET | `/api/dashboard/categories` | Product breakdown by category |
 
 ---
@@ -323,18 +333,21 @@ Forestock uses **Holt-Winters Triple Exponential Smoothing** (additive, weekly s
 
 ### Suggested quantity
 ```
-suggestedQty = max(0, P90_14days − currentStock)   [rounded up]
+effectiveTarget = P90_14days + (dailyDemand × leadTimeDays)
+suggestedQty = max(0, effectiveTarget − currentStock)   [rounded up to MOQ multiple when configured]
 ```
 
 ### Urgency
 | Days of stock remaining | Urgency |
 |---|---|
-| < 2 | 🔴 CRITICAL |
-| 2–5 | 🟠 HIGH |
-| 5–10 | 🟡 MEDIUM |
-| > 10 | 🟢 LOW |
+| `< critical threshold after lead-time adjustment` | 🔴 CRITICAL |
+| `< high threshold after lead-time adjustment` | 🟠 HIGH |
+| `< medium threshold after lead-time adjustment` | 🟡 MEDIUM |
+| otherwise | 🟢 LOW |
 
 Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock ascending.
+
+Urgency thresholds and the safety-stock multiplier are configurable per store through `/api/store/config`.
 
 ---
 
@@ -344,13 +357,13 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 | Page | Route | Who sees it | Description |
 |---|---|---|---|
 | Dashboard | `/dashboard` | All | KPI cards, forecast trigger button |
-| Suggestions | `/suggestions` | All | Restock table, urgency/category filters, Excel/PDF export |
-| Products | `/products` | All | Create, edit, deactivate, restore, hard delete |
+| Suggestions | `/suggestions` | All | Restock table, supplier and lead-time fields, bulk acknowledge, Excel/PDF export |
+| Products | `/products` | All | Create, edit, deactivate, restore, hard delete, advanced supplier fields |
 | Inventory | `/inventory` | All | Current stock, inline update, alerts filter |
 | Sales | `/sales` | All | Paginated transaction list, delete by SKU/range/all |
-| Import | `/import` | All | Drag-and-drop CSV upload |
-| Users | `/users` | ROLE_ADMIN | Invite team members, change roles, deactivate |
-| Settings | `/settings` | All | Store name (admin) + change own password |
+| Import | `/import` | All | Two-step CSV preview and confirm upload |
+| Users | `/users` | ROLE_ADMIN | Invite team members, review pending invites, change roles, deactivate |
+| Settings | `/settings` | All | Store profile, forecast/restocking config, account actions |
 | Audit Log | `/audit` | ROLE_ADMIN | Filterable audit trail for store activity |
 
 ### Platform owner (super admin)
@@ -374,6 +387,12 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 | `V8__suggestion_acknowledgement.sql` | Adds acknowledgement lifecycle to suggestions |
 | `V9__email_verification.sql` | Adds email verification fields and token index to users |
 | `V10__audit_log.sql` | Creates `audit_logs` table and indexes |
+| `V11__product_enrichment.sql` | Adds supplier, lead time, MOQ, cost, barcode, storage, and notes to products |
+| `V12__suggestion_enrichment.sql` | Adds lead-time, MOQ, and estimated-order-value tracking to suggestions |
+| `V13__store_config.sql` | Creates store-level forecast and restocking configuration |
+| `V14__suggestion_tracking.sql` | Adds acknowledgement reason, ordered quantity, ETA, and reference fields |
+| `V15__user_invites.sql` | Creates the pending invite workflow tables |
+| `V16__forecast_accuracy.sql` | Stores forecast-accuracy metrics per run |
 
 ---
 

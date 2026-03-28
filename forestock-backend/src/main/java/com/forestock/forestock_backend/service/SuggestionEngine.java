@@ -3,6 +3,8 @@ package com.forestock.forestock_backend.service;
 import com.forestock.forestock_backend.domain.ForecastRun;
 import com.forestock.forestock_backend.domain.OrderSuggestion;
 import com.forestock.forestock_backend.domain.Product;
+import com.forestock.forestock_backend.domain.StoreConfiguration;
+import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
 import com.forestock.forestock_backend.service.ForecastingEngine.ForecastResult;
@@ -22,8 +24,9 @@ import java.util.UUID;
 /**
  * Calculates restocking suggestions from forecast results.
  *
- * Quantity formula:  suggestedQty = max(0, p90 × 1.20 − currentStock), rounded up
- * Urgency formula:   daysOfStock  = currentStock / (p50 / horizonDays)
+ * Quantity formula:  suggestedQty = max(0, p90 + leadTimeBuffer - currentStock)
+ *                    rounded up to MOQ multiple when set, otherwise to integer
+ * Urgency formula:   adjustedDaysOfStock = daysOfStock - leadTimeDays
  *   < 2  days → CRITICAL
  *   2–5  days → HIGH
  *   5–10 days → MEDIUM
@@ -42,9 +45,11 @@ public class SuggestionEngine {
             Map<UUID, BigDecimal> currentStockMap,
             Map<UUID, ForecastResult> forecastMap,
             ForecastRun forecastRun,
-            int horizonDays) {
+            int horizonDays,
+            StoreConfiguration configuration) {
 
         List<OrderSuggestion> suggestions = new ArrayList<>();
+        BigDecimal safetyStockMultiplier = configuration.getSafetyStockMultiplier();
 
         for (Product product : products) {
             ForecastResult forecast = forecastMap.get(product.getId());
@@ -55,15 +60,31 @@ public class SuggestionEngine {
 
             BigDecimal currentStock = currentStockMap.getOrDefault(product.getId(), BigDecimal.ZERO);
             BigDecimal p50 = BigDecimal.valueOf(forecast.p50Total());
-            BigDecimal p90 = BigDecimal.valueOf(forecast.p90Total());
+            BigDecimal p90 = p50.multiply(safetyStockMultiplier).setScale(2, RoundingMode.HALF_UP);
+            int leadTimeDays = product.getLeadTimeDays() != null ? product.getLeadTimeDays() : 0;
 
-            // suggestedQty = max(0, p90 - currentStock), rounded up to integer
-            BigDecimal suggested = p90.subtract(currentStock);
-            if (suggested.compareTo(BigDecimal.ZERO) < 0) suggested = BigDecimal.ZERO;
-            suggested = suggested.setScale(0, RoundingMode.CEILING);
+            BigDecimal dailyDemand = p50.divide(BigDecimal.valueOf(horizonDays), 4, RoundingMode.HALF_UP);
+            BigDecimal leadTimeBuffer = dailyDemand.multiply(BigDecimal.valueOf(leadTimeDays));
+            BigDecimal effectiveTarget = p90.add(leadTimeBuffer);
+            BigDecimal rawSuggested = effectiveTarget.subtract(currentStock);
+            if (rawSuggested.compareTo(BigDecimal.ZERO) < 0) rawSuggested = BigDecimal.ZERO;
+
+            BigDecimal moqApplied = null;
+            BigDecimal suggested;
+            if (product.getMinimumOrderQty() != null
+                    && product.getMinimumOrderQty().compareTo(BigDecimal.ZERO) > 0
+                    && rawSuggested.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal moq = product.getMinimumOrderQty();
+                BigDecimal multiplier = rawSuggested.divide(moq, 0, RoundingMode.CEILING);
+                suggested = moq.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
+                if (suggested.compareTo(rawSuggested.setScale(2, RoundingMode.HALF_UP)) > 0) {
+                    moqApplied = moq.setScale(2, RoundingMode.HALF_UP);
+                }
+            } else {
+                suggested = rawSuggested.setScale(0, RoundingMode.CEILING).setScale(2, RoundingMode.HALF_UP);
+            }
 
             // daysOfStock = currentStock / dailyDemand
-            BigDecimal dailyDemand = p50.divide(BigDecimal.valueOf(horizonDays), 4, RoundingMode.HALF_UP);
             BigDecimal daysOfStock;
             if (dailyDemand.compareTo(BigDecimal.ZERO) == 0) {
                 daysOfStock = BigDecimal.valueOf(999);
@@ -71,7 +92,11 @@ public class SuggestionEngine {
                 daysOfStock = currentStock.divide(dailyDemand, 2, RoundingMode.HALF_UP);
             }
 
-            Urgency urgency = computeUrgency(daysOfStock);
+            BigDecimal adjustedDaysOfStock = daysOfStock.subtract(BigDecimal.valueOf(leadTimeDays));
+            Urgency urgency = computeUrgency(adjustedDaysOfStock, configuration);
+            BigDecimal estimatedOrderValue = product.getUnitCost() != null
+                    ? suggested.multiply(product.getUnitCost()).setScale(2, RoundingMode.HALF_UP)
+                    : null;
 
             OrderSuggestion suggestion = OrderSuggestion.builder()
                     .store(forecastRun.getStore())
@@ -82,6 +107,9 @@ public class SuggestionEngine {
                     .forecastP90(p90.setScale(2, RoundingMode.HALF_UP))
                     .currentStock(currentStock)
                     .daysOfStock(daysOfStock)
+                    .leadTimeDaysAtGeneration(leadTimeDays)
+                    .moqApplied(moqApplied)
+                    .estimatedOrderValue(estimatedOrderValue)
                     .urgency(urgency)
                     .build();
 
@@ -98,11 +126,24 @@ public class SuggestionEngine {
         return suggestions;
     }
 
-    private Urgency computeUrgency(BigDecimal daysOfStock) {
+    @Transactional
+    public List<OrderSuggestion> generate(
+            List<Product> products,
+            Map<UUID, BigDecimal> currentStockMap,
+            Map<UUID, ForecastResult> forecastMap,
+            ForecastRun forecastRun,
+            int horizonDays) {
+        StoreConfiguration fallbackConfiguration = StoreConfiguration.builder()
+                .store(forecastRun.getStore() != null ? forecastRun.getStore() : Store.builder().build())
+                .build();
+        return generate(products, currentStockMap, forecastMap, forecastRun, horizonDays, fallbackConfiguration);
+    }
+
+    private Urgency computeUrgency(BigDecimal daysOfStock, StoreConfiguration configuration) {
         double days = daysOfStock.doubleValue();
-        if (days < 2)  return Urgency.CRITICAL;
-        if (days < 5)  return Urgency.HIGH;
-        if (days < 10) return Urgency.MEDIUM;
+        if (days < configuration.getUrgencyCriticalDays()) return Urgency.CRITICAL;
+        if (days < configuration.getUrgencyHighDays()) return Urgency.HIGH;
+        if (days < configuration.getUrgencyMediumDays()) return Urgency.MEDIUM;
         return Urgency.LOW;
     }
 }

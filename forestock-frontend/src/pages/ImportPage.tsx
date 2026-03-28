@@ -1,6 +1,7 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from 'react'
 import api from '../lib/api'
 import { captureEvent } from '../lib/analytics'
+import { extractErrorMessage } from '../lib/errors'
 
 interface ImportResult {
   imported: number
@@ -8,40 +9,75 @@ interface ImportResult {
   errors: string[]
 }
 
+interface ImportPreview {
+  detectedColumns: string[]
+  expectedColumns: string[]
+  columnMatch: boolean
+  sample: Array<Record<string, string>>
+  totalRowsInFile: number
+  existingSkuMatches: number
+  newSkus: string[]
+  dateFormatDetected: string | null
+  errors: string[]
+}
+
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null)
   const [overwrite, setOverwrite] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [forecastStarted, setForecastStarted] = useState(false)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function handleFile(f: File | null) {
+  async function handleFile(f: File | null) {
     if (!f) return
     if (!f.name.endsWith('.csv')) {
       setError('Only .csv files are accepted.')
       return
     }
     setError('')
+    setPreview(null)
     setForecastStarted(false)
     setResult(null)
     setFile(f)
+    await loadPreview(f)
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault()
     setDragging(false)
-    handleFile(e.dataTransfer.files[0] ?? null)
+    void handleFile(e.dataTransfer.files[0] ?? null)
   }
 
   function onInputChange(e: ChangeEvent<HTMLInputElement>) {
-    handleFile(e.target.files?.[0] ?? null)
+    void handleFile(e.target.files?.[0] ?? null)
+  }
+
+  async function loadPreview(nextFile: File) {
+    setPreviewLoading(true)
+    setError('')
+    const form = new FormData()
+    form.append('file', nextFile)
+
+    try {
+      const { data } = await api.post('/sales/import/preview', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setPreview(data.data)
+    } catch (e: unknown) {
+      setPreview(null)
+      setError(extractErrorMessage(e, 'Failed to preview CSV.'))
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   async function handleSubmit() {
-    if (!file) return
+    if (!file || !preview || previewLoading || preview.errors.length > 0 || !preview.columnMatch) return
     setLoading(true)
     setError('')
     setForecastStarted(false)
@@ -117,12 +153,92 @@ export default function ImportPage() {
 
         {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
+        {previewLoading && (
+          <p className="text-sm text-gray-500 rounded-lg bg-gray-50 px-3 py-2">
+            Analyzing CSV structure and matching SKUs…
+          </p>
+        )}
+
+        {preview && (
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className={`rounded-lg px-3 py-2 text-sm ${
+              preview.columnMatch && preview.errors.length === 0
+                ? 'bg-green-50 text-green-700'
+                : 'bg-amber-50 text-amber-700'
+            }`}>
+              {preview.columnMatch
+                ? 'Columns match expected format.'
+                : `Column mismatch: found ${preview.detectedColumns.join(', ') || 'no headers'}, expected ${preview.expectedColumns.join(', ')}`}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Rows detected</p>
+                <p className="mt-1 font-semibold text-gray-900">{preview.totalRowsInFile}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Existing SKU matches</p>
+                <p className="mt-1 font-semibold text-gray-900">{preview.existingSkuMatches}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Date format</p>
+                <p className="mt-1 font-semibold text-gray-900">{preview.dateFormatDetected ?? '—'}</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-white p-3">
+              <p className="text-sm font-medium text-gray-800">
+                {preview.totalRowsInFile} rows detected — {preview.existingSkuMatches} SKUs match existing products, {preview.newSkus.length} SKUs are new
+              </p>
+              {preview.newSkus.length > 0 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  New SKUs: {preview.newSkus.slice(0, 8).join(', ')}{preview.newSkus.length > 8 ? '…' : ''}
+                </p>
+              )}
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+              <table className="min-w-full text-xs">
+                <thead className="bg-gray-100 text-gray-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left">SKU</th>
+                    <th className="px-3 py-2 text-left">Sale Date</th>
+                    <th className="px-3 py-2 text-left">Quantity</th>
+                    <th className="px-3 py-2 text-left">Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {preview.sample.map((row, index) => (
+                    <tr key={`${row.sku}-${index}`}>
+                      <td className="px-3 py-2 text-gray-700">{row.sku || '—'}</td>
+                      <td className="px-3 py-2 text-gray-700">{row.sale_date || '—'}</td>
+                      <td className="px-3 py-2 text-gray-700">{row.quantity_sold || '—'}</td>
+                      <td className="px-3 py-2 text-gray-500">{row.errors || 'OK'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {preview.errors.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Warnings</p>
+                <ul className="mt-2 space-y-1">
+                  {preview.errors.map((previewError, index) => (
+                    <li key={index} className="text-xs text-amber-700">{previewError}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           onClick={handleSubmit}
-          disabled={!file || loading}
+          disabled={!file || loading || previewLoading || !preview || preview.errors.length > 0 || !preview.columnMatch}
           className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Uploading…' : 'Upload CSV'}
+          {loading ? 'Importing…' : 'Confirm Import'}
         </button>
       </div>
 

@@ -1,7 +1,7 @@
 package com.forestock.forestock_backend.service;
 
+import com.forestock.forestock_backend.domain.StoreConfiguration;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -21,12 +21,6 @@ import java.util.*;
 @Service
 public class ForecastingEngine {
 
-    @Value("${forestock.forecast.min-history-days:30}")
-    private int minHistoryDays;
-
-    @Value("${forestock.forecast.seasonality-period:7}")
-    private int seasonalityPeriod;
-
     public record ForecastResult(double p50Total, double p90Total, List<Double> dailyValues) {}
 
     /**
@@ -35,26 +29,28 @@ public class ForecastingEngine {
      * @param history     daily sales values in chronological order (oldest first)
      * @param horizonDays number of days to forecast
      */
-    public ForecastResult forecast(List<Double> history, int horizonDays) {
+    public ForecastResult forecast(List<Double> history, int horizonDays, StoreConfiguration configuration) {
         if (history == null || history.isEmpty()) {
             return zeroResult(horizonDays);
         }
 
         double[] data = history.stream().mapToDouble(Double::doubleValue).toArray();
+        int minHistoryDays = configuration.getMinHistoryDays();
+        int seasonalityPeriod = configuration.getSeasonalityPeriod();
 
         if (data.length < minHistoryDays) {
             log.debug("Insufficient history ({} days), falling back to SMA", data.length);
             return simpleMovingAverage(data, horizonDays);
         }
 
-        return holtsWinters(data, horizonDays);
+        return holtsWinters(data, horizonDays, seasonalityPeriod);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Holt-Winters Additive
     // ──────────────────────────────────────────────────────────────────────────
 
-    private ForecastResult holtsWinters(double[] data, int horizon) {
+    private ForecastResult holtsWinters(double[] data, int horizon, int seasonalityPeriod) {
         int m = seasonalityPeriod;
 
         // Grid search for best alpha/beta/gamma

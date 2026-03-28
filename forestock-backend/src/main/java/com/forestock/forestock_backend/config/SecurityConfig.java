@@ -33,6 +33,8 @@ public class SecurityConfig {
             "/api/auth/login",
             "/api/auth/refresh",
             "/api/auth/verify-email",
+            "/api/auth/invite/verify",
+            "/api/auth/invite/accept",
             "/api/auth/resend-verification",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
@@ -56,6 +58,9 @@ public class SecurityConfig {
                     // Store-level user management: only store ADMIN
                     .requestMatchers(org.springframework.http.HttpMethod.GET,  "/api/users").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users/invite").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/users/invites").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/users/invites/{id}").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.PUT,  "/api/users/{id}").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/users/{id}").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/audit-logs").hasRole("ADMIN")

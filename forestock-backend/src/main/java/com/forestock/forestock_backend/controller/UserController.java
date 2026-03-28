@@ -1,10 +1,13 @@
 package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.dto.request.ChangePasswordRequest;
+import com.forestock.forestock_backend.dto.request.CreateUserInviteRequest;
 import com.forestock.forestock_backend.dto.request.CreateUserRequest;
 import com.forestock.forestock_backend.dto.request.UpdateUserRequest;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
+import com.forestock.forestock_backend.dto.response.UserInviteDto;
 import com.forestock.forestock_backend.dto.response.UserDto;
+import com.forestock.forestock_backend.service.UserInviteService;
 import com.forestock.forestock_backend.service.UserManagementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +33,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserManagementService userManagementService;
+    private final UserInviteService userInviteService;
 
     /** List all users in the current store. */
     @GetMapping
@@ -45,6 +49,31 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("User created", created));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/invite")
+    public ResponseEntity<ApiResponse<UserInviteDto>> inviteUser(@Valid @RequestBody CreateUserInviteRequest request) {
+        try {
+            UserInviteDto invite = userInviteService.createInvite(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Invite sent", invite));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/invites")
+    public ResponseEntity<ApiResponse<List<UserInviteDto>>> listInvites() {
+        return ResponseEntity.ok(ApiResponse.success(userInviteService.listInvites()));
+    }
+
+    @DeleteMapping("/invites/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteInvite(@PathVariable UUID id) {
+        try {
+            userInviteService.deleteInvite(id);
+            return ResponseEntity.ok(ApiResponse.success("Invite deleted", null));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         }
     }
 

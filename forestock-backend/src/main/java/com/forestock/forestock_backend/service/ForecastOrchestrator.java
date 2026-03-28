@@ -5,6 +5,7 @@ import com.forestock.forestock_backend.domain.OrderSuggestion;
 import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.SalesTransaction;
 import com.forestock.forestock_backend.domain.Store;
+import com.forestock.forestock_backend.domain.StoreConfiguration;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.repository.ForecastRunRepository;
@@ -15,12 +16,12 @@ import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.ForecastingEngine.ForecastResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,11 +50,9 @@ public class ForecastOrchestrator {
     private final InventoryService inventoryService;
     private final ForecastingEngine forecastingEngine;
     private final SuggestionEngine suggestionEngine;
+    private final StoreConfigurationService storeConfigurationService;
     private final S3DataExportService s3ExportService;
     private final NotificationService notificationService;
-
-    @Value("${forestock.forecast.horizon-days:14}")
-    private int horizonDays;
 
     /**
      * Async entry point for store-scoped/manual triggers.
@@ -95,6 +94,8 @@ public class ForecastOrchestrator {
             log.warn("Forecast already RUNNING for store {} — skipping run triggered by {}", store.getSlug(), triggeredBy);
             return null;
         }
+        StoreConfiguration configuration = storeConfigurationService.getConfigForStore(store.getId());
+        int horizonDays = configuration.getForecastHorizonDays();
 
         ForecastRun run = forecastRunRepository.save(ForecastRun.builder()
                 .store(store)
@@ -108,7 +109,7 @@ public class ForecastOrchestrator {
 
         try {
             // Load sales data scoped to this store
-            LocalDate from = LocalDate.now().minusDays(365);
+            LocalDate from = LocalDate.now().minusDays(configuration.getLookbackDays());
             List<SalesTransaction> allSales = salesRepository.findAllFromDateByStore(from, store.getId());
 
             Map<UUID, List<SalesTransaction>> salesByProduct = allSales.stream()
@@ -118,10 +119,14 @@ public class ForecastOrchestrator {
             log.info("Processing {} active products for store {}", products.size(), store.getSlug());
 
             Map<UUID, ForecastResult> forecastResults = new HashMap<>();
+            int productsWithInsufficientData = 0;
             for (Product product : products) {
                 List<SalesTransaction> productSales = salesByProduct.getOrDefault(product.getId(), List.of());
                 List<Double> timeSeries = buildTimeSeries(productSales, from, LocalDate.now());
-                ForecastResult result = forecastingEngine.forecast(timeSeries, horizonDays);
+                if (timeSeries.size() < configuration.getMinHistoryDays()) {
+                    productsWithInsufficientData++;
+                }
+                ForecastResult result = forecastingEngine.forecast(timeSeries, horizonDays, configuration);
                 forecastResults.put(product.getId(), result);
             }
 
@@ -135,7 +140,7 @@ public class ForecastOrchestrator {
             }
 
             List<OrderSuggestion> suggestions = suggestionEngine.generate(
-                    products, currentStock, forecastResults, run, horizonDays);
+                    products, currentStock, forecastResults, run, horizonDays, configuration);
 
             s3ExportService.backupSalesData(allSales, run.getId());
             s3ExportService.uploadForecastResults(forecastResults, run.getId());
@@ -143,6 +148,8 @@ public class ForecastOrchestrator {
             run.setStatus(ForecastStatus.COMPLETED);
             run.setFinishedAt(LocalDateTime.now());
             run.setProductsProcessed(products.size());
+            run.setProductsWithInsufficientData(productsWithInsufficientData);
+            run.setDurationSeconds((int) Duration.between(run.getStartedAt(), run.getFinishedAt()).getSeconds());
             forecastRunRepository.save(run);
 
             long criticalCount = suggestions.stream()
@@ -157,6 +164,9 @@ public class ForecastOrchestrator {
             log.error("Forecast run {} FAILED for store {}: {}", run.getId(), store.getSlug(), e.getMessage(), e);
             run.setStatus(ForecastStatus.FAILED);
             run.setFinishedAt(LocalDateTime.now());
+            if (run.getStartedAt() != null) {
+                run.setDurationSeconds((int) Duration.between(run.getStartedAt(), run.getFinishedAt()).getSeconds());
+            }
             run.setErrorMessage(e.getMessage());
             forecastRunRepository.save(run);
             notificationService.sendForecastFailed(run);

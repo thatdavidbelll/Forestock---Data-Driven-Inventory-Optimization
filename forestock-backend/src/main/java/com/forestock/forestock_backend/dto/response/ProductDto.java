@@ -17,6 +17,14 @@ public class ProductDto {
     private String unit;
     private BigDecimal reorderPoint;
     private BigDecimal maxStock;
+    private Integer leadTimeDays;
+    private BigDecimal minimumOrderQty;
+    private BigDecimal unitCost;
+    private String supplierName;
+    private String supplierContact;
+    private String barcode;
+    private String storageLocation;
+    private String notes;
     private Boolean active;
     private LocalDateTime createdAt;
 }

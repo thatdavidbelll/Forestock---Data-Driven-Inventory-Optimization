@@ -4,6 +4,7 @@ import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -40,6 +41,18 @@ public class ForecastRun {
     @Column(name = "products_processed")
     @Builder.Default
     private Integer productsProcessed = 0;
+
+    @Column(name = "products_with_insufficient_data")
+    private Integer productsWithInsufficientData;
+
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds;
+
+    @Column(precision = 6, scale = 2)
+    private BigDecimal mape;
+
+    @Column(precision = 10, scale = 4)
+    private BigDecimal rmse;
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;

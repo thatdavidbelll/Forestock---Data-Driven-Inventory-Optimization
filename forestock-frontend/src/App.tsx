@@ -17,6 +17,7 @@ import AuditLogPage from './pages/AuditLogPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import AcceptInvitePage from './pages/AcceptInvitePage'
 
 /** Root index redirect — super admins go to /admin, everyone else to /dashboard */
 function RootRedirect() {
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
           {/* Protected routes — wrapped in Layout */}
           <Route

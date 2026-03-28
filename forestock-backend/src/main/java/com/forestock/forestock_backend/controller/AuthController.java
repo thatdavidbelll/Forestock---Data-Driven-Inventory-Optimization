@@ -1,15 +1,18 @@
 package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.domain.AppUser;
+import com.forestock.forestock_backend.dto.request.AcceptInviteRequest;
 import com.forestock.forestock_backend.dto.request.ForgotPasswordRequest;
 import com.forestock.forestock_backend.dto.request.LoginRequest;
 import com.forestock.forestock_backend.dto.request.ResetPasswordRequest;
 import java.util.UUID;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.AuthResponse;
+import com.forestock.forestock_backend.dto.response.InviteVerificationDto;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import com.forestock.forestock_backend.service.JwtService;
 import com.forestock.forestock_backend.service.PasswordResetService;
+import com.forestock.forestock_backend.service.UserInviteService;
 import com.forestock.forestock_backend.service.TokenBlacklistService;
 import com.forestock.forestock_backend.service.EmailVerificationService;
 import io.jsonwebtoken.JwtException;
@@ -46,6 +49,7 @@ public class AuthController {
     private final TokenBlacklistService tokenBlacklistService;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
+    private final UserInviteService userInviteService;
 
     /** Authenticates a user and returns access + refresh tokens. */
     @PostMapping("/login")
@@ -208,6 +212,25 @@ public class AuthController {
         try {
             passwordResetService.resetPassword(request);
             return ResponseEntity.ok(ApiResponse.success("Password reset successfully.", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/invite/verify")
+    public ResponseEntity<ApiResponse<InviteVerificationDto>> verifyInvite(@RequestParam String token) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(userInviteService.verifyInvite(token)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/invite/accept")
+    public ResponseEntity<ApiResponse<Void>> acceptInvite(@Valid @RequestBody AcceptInviteRequest request) {
+        try {
+            userInviteService.acceptInvite(request);
+            return ResponseEntity.ok(ApiResponse.success("Invite accepted. You can now sign in.", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
         }

@@ -2,8 +2,6 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
-import { isStrongPassword } from '../lib/passwordStrength'
-import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
 interface User {
   id: string
@@ -11,6 +9,16 @@ interface User {
   email: string | null
   role: string
   active: boolean
+  createdAt: string
+}
+
+interface Invite {
+  id: string
+  email: string
+  role: string
+  invitedBy: string | null
+  expiresAt: string
+  acceptedAt: string | null
   createdAt: string
 }
 
@@ -25,17 +33,16 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [invites, setInvites] = useState<Invite[]>([])
 
-  // Add user modal
+  // Invite modal
   const [showModal, setShowModal] = useState(false)
-  const [newUsername, setNewUsername] = useState('')
-  const [newPassword, setNewPassword] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState('ROLE_MANAGER')
   const [modalError, setModalError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { loadUsers() }, [])
+  useEffect(() => { void Promise.all([loadUsers(), loadInvites()]) }, [])
 
   async function loadUsers() {
     try {
@@ -49,31 +56,42 @@ export default function UsersPage() {
     }
   }
 
-  async function handleAddUser(e: FormEvent) {
+  async function loadInvites() {
+    try {
+      const { data } = await api.get('/users/invites')
+      setInvites(data.data)
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Failed to load invites'))
+    }
+  }
+
+  async function handleInviteUser(e: FormEvent) {
     e.preventDefault()
     setModalError('')
-    if (!isStrongPassword(newPassword)) {
-      setModalError('Password must include uppercase, lowercase, number, and special character.')
-      return
-    }
     setSaving(true)
     try {
-      await api.post('/users', {
-        username: newUsername,
-        password: newPassword,
+      await api.post('/users/invite', {
         email: newEmail || undefined,
         role: newRole,
       })
       setShowModal(false)
-      setNewUsername('')
-      setNewPassword('')
       setNewEmail('')
       setNewRole('ROLE_MANAGER')
-      loadUsers()
+      await loadInvites()
     } catch (err) {
-      setModalError(extractErrorMessage(err, 'Failed to create user'))
+      setModalError(extractErrorMessage(err, 'Failed to send invite'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDeleteInvite(invite: Invite) {
+    if (!confirm(`Delete invite for "${invite.email}"?`)) return
+    try {
+      await api.delete(`/users/invites/${invite.id}`)
+      await loadInvites()
+    } catch (err) {
+      alert(extractErrorMessage(err, 'Failed to delete invite'))
     }
   }
 
@@ -114,7 +132,7 @@ export default function UsersPage() {
           onClick={() => setShowModal(true)}
           className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors"
         >
-          + Add User
+          Invite Team Member
         </button>
       </div>
 
@@ -198,45 +216,66 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Add User Modal */}
+      <div className="bg-white rounded-xl border border-gray-200">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">Pending Invites</h2>
+          <p className="mt-1 text-sm text-gray-500">Invited team members who have not accepted yet.</p>
+        </div>
+        {invites.length === 0 ? (
+          <div className="px-6 py-8 text-sm text-gray-500">No pending invites.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-3 text-left font-medium text-gray-500">Email</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500">Role</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500">Invited</th>
+                <th className="px-6 py-3 text-left font-medium text-gray-500">Expires</th>
+                <th className="px-6 py-3 text-right font-medium text-gray-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {invites.map((invite) => {
+                const { label, color } = roleInfo(invite.role)
+                return (
+                  <tr key={invite.id}>
+                    <td className="px-6 py-3 text-gray-900">{invite.email}</td>
+                    <td className="px-6 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+                        {label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3 text-gray-500">{new Date(invite.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-3 text-gray-500">{new Date(invite.expiresAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-3 text-right">
+                      <button
+                        onClick={() => handleDeleteInvite(invite)}
+                        className="text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg px-3 py-1.5"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Invite User Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Add User</h2>
-            <form onSubmit={handleAddUser} className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invite Team Member</h2>
+            <form onSubmit={handleInviteUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  required
-                  minLength={3}
-                  autoFocus
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  placeholder="Min. 8 characters"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <PasswordStrengthIndicator password={newPassword} />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
+                  required
                   placeholder="user@example.com"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
@@ -261,7 +300,7 @@ export default function UsersPage() {
                   disabled={saving}
                   className="flex-1 bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                 >
-                  {saving ? 'Adding…' : 'Add User'}
+                  {saving ? 'Sending…' : 'Send Invite'}
                 </button>
                 <button
                   type="button"

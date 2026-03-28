@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -22,8 +23,16 @@ public class SuggestionDto {
     private BigDecimal forecastP90;
     private BigDecimal currentStock;
     private BigDecimal daysOfStock;
+    private Integer leadTimeDaysAtGeneration;
+    private BigDecimal moqApplied;
+    private BigDecimal estimatedOrderValue;
+    private String supplierName;
     private Urgency urgency;
     private boolean acknowledged;
     private LocalDateTime acknowledgedAt;
+    private String acknowledgedReason;
+    private BigDecimal quantityOrdered;
+    private LocalDate expectedDelivery;
+    private String orderReference;
     private LocalDateTime generatedAt;
 }

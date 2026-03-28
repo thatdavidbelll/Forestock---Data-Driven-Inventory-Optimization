@@ -43,6 +43,30 @@ public class Product {
     @Column(name = "max_stock", precision = 10, scale = 2)
     private BigDecimal maxStock;
 
+    @Column(name = "lead_time_days")
+    private Integer leadTimeDays;
+
+    @Column(name = "minimum_order_qty", precision = 12, scale = 2)
+    private BigDecimal minimumOrderQty;
+
+    @Column(name = "unit_cost", precision = 12, scale = 4)
+    private BigDecimal unitCost;
+
+    @Column(name = "supplier_name", length = 255)
+    private String supplierName;
+
+    @Column(name = "supplier_contact", length = 255)
+    private String supplierContact;
+
+    @Column(length = 100)
+    private String barcode;
+
+    @Column(name = "storage_location", length = 100)
+    private String storageLocation;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean active = true;

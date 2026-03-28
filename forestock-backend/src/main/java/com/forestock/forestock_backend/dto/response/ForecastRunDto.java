@@ -4,6 +4,7 @@ import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -18,4 +19,7 @@ public class ForecastRunDto {
     private String triggeredBy;
     private String errorMessage;
     private Long durationSeconds;
+    private Integer productsWithInsufficientData;
+    private BigDecimal mape;
+    private BigDecimal rmse;
 }

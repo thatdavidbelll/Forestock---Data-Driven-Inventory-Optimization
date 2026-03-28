@@ -1,5 +1,7 @@
 package com.forestock.forestock_backend.controller;
 
+import com.forestock.forestock_backend.dto.request.AcknowledgeSuggestionRequest;
+import com.forestock.forestock_backend.dto.request.BulkAcknowledgeSuggestionsRequest;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.service.ReportService;
@@ -59,9 +61,24 @@ public class SuggestionController {
     }
 
     @PatchMapping("/{id}/acknowledge")
-    public ResponseEntity<ApiResponse<SuggestionDto>> acknowledge(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<SuggestionDto>> acknowledge(
+            @PathVariable UUID id,
+            @RequestBody(required = false) AcknowledgeSuggestionRequest request) {
         try {
-            return ResponseEntity.ok(ApiResponse.success(suggestionService.acknowledge(id)));
+            return ResponseEntity.ok(ApiResponse.success(suggestionService.acknowledge(
+                    id,
+                    request != null ? request : new AcknowledgeSuggestionRequest()
+            )));
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/acknowledge-bulk")
+    public ResponseEntity<ApiResponse<List<SuggestionDto>>> acknowledgeBulk(
+            @RequestBody BulkAcknowledgeSuggestionsRequest request) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(suggestionService.acknowledgeBulk(request)));
         } catch (EntityNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         }

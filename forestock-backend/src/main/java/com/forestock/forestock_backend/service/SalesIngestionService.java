@@ -2,6 +2,7 @@ package com.forestock.forestock_backend.service;
 
 import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.SalesTransaction;
+import com.forestock.forestock_backend.dto.response.SalesImportPreviewDto;
 import com.forestock.forestock_backend.dto.response.SalesTransactionDto;
 import com.forestock.forestock_backend.repository.ProductRepository;
 import com.forestock.forestock_backend.repository.SalesTransactionRepository;
@@ -64,6 +65,144 @@ public class SalesIngestionService {
     private final AuditLogService auditLogService;
 
     public record ImportResult(int imported, int skipped, List<String> errors) {}
+    public record ParsedCsvRow(long rowNumber, String sku, String saleDate, String quantitySold, List<String> errors) {}
+    public record ParsedCsvResult(
+            List<String> detectedColumns,
+            boolean columnMatch,
+            List<ParsedCsvRow> rows,
+            long totalRowsInFile,
+            List<String> structuralErrors,
+            String dateFormatDetected) {}
+
+    public ParsedCsvResult parseCsvRows(java.io.InputStream inputStream, int limit) throws IOException {
+        List<ParsedCsvRow> rows = new ArrayList<>();
+        List<String> structuralErrors = new ArrayList<>();
+        List<String> detectedColumns = List.of();
+        long totalRows = 0;
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+             CSVParser parser = CSVFormat.DEFAULT
+                     .builder()
+                     .setHeader()
+                     .setSkipHeaderRecord(true)
+                     .setTrim(true)
+                     .setIgnoreEmptyLines(true)
+                     .build()
+                     .parse(reader)) {
+
+            detectedColumns = parser.getHeaderNames();
+            boolean columnMatch = List.of(EXPECTED_HEADERS).equals(detectedColumns);
+            if (!columnMatch) {
+                structuralErrors.add("Column mismatch: expected sku,sale_date,quantity_sold");
+            }
+
+            for (CSVRecord record : parser) {
+                totalRows++;
+                if (record.getRecordNumber() > MAX_CSV_ROWS) {
+                    structuralErrors.add("CSV file exceeds maximum of 100000 rows");
+                    break;
+                }
+
+                if (rows.size() >= limit) {
+                    continue;
+                }
+
+                List<String> rowErrors = new ArrayList<>();
+                String sku = read(record, "sku");
+                String saleDate = read(record, "sale_date");
+                String quantitySold = read(record, "quantity_sold");
+
+                if (sku == null || sku.isBlank()) {
+                    rowErrors.add("SKU is required");
+                }
+                if (saleDate != null && !saleDate.isBlank()) {
+                    try {
+                        LocalDate.parse(saleDate);
+                    } catch (DateTimeParseException e) {
+                        rowErrors.add("Invalid sale_date format, expected yyyy-MM-dd");
+                    }
+                }
+                if (quantitySold != null && !quantitySold.isBlank()) {
+                    try {
+                        BigDecimal quantity = new BigDecimal(quantitySold);
+                        if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
+                            rowErrors.add("quantity_sold must be a positive number (got " + quantitySold + ")");
+                        }
+                    } catch (NumberFormatException e) {
+                        rowErrors.add("Invalid quantity_sold value");
+                    }
+                }
+
+                rows.add(new ParsedCsvRow(
+                        record.getRecordNumber() + 1,
+                        sku,
+                        saleDate,
+                        quantitySold,
+                        rowErrors
+                ));
+            }
+
+            return new ParsedCsvResult(
+                    detectedColumns,
+                    columnMatch,
+                    rows,
+                    totalRows,
+                    structuralErrors,
+                    "yyyy-MM-dd"
+            );
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public SalesImportPreviewDto previewCsv(MultipartFile file) throws IOException {
+        UUID storeId = TenantContext.getStoreId();
+        List<Product> allProducts = storeId != null
+                ? productRepository.findByStoreIdAndActiveTrue(storeId)
+                : productRepository.findByActiveTrue();
+        Set<String> knownSkus = new HashSet<>();
+        for (Product product : allProducts) {
+            knownSkus.add(product.getSku());
+        }
+
+        ParsedCsvResult parsed = parseCsvRows(file.getInputStream(), 20);
+        Set<String> newSkus = new LinkedHashSet<>();
+        int existingSkuMatches = 0;
+        List<Map<String, String>> sample = new ArrayList<>();
+        List<String> errors = new ArrayList<>(parsed.structuralErrors());
+
+        for (ParsedCsvRow row : parsed.rows()) {
+            if (row.sku() != null && !row.sku().isBlank()) {
+                if (knownSkus.contains(row.sku())) {
+                    existingSkuMatches++;
+                } else {
+                    newSkus.add(row.sku());
+                }
+            }
+
+            Map<String, String> sampleRow = new LinkedHashMap<>();
+            sampleRow.put("sku", defaultString(row.sku()));
+            sampleRow.put("sale_date", defaultString(row.saleDate()));
+            sampleRow.put("quantity_sold", defaultString(row.quantitySold()));
+            sampleRow.put("errors", String.join("; ", row.errors()));
+            sample.add(sampleRow);
+
+            for (String rowError : row.errors()) {
+                errors.add("Row " + row.rowNumber() + ": " + rowError);
+            }
+        }
+
+        return SalesImportPreviewDto.builder()
+                .detectedColumns(parsed.detectedColumns())
+                .expectedColumns(List.of(EXPECTED_HEADERS))
+                .columnMatch(parsed.columnMatch())
+                .sample(sample.stream().limit(10).toList())
+                .totalRowsInFile(parsed.totalRowsInFile())
+                .existingSkuMatches(existingSkuMatches)
+                .newSkus(new ArrayList<>(newSkus))
+                .dateFormatDetected(parsed.dateFormatDetected())
+                .errors(errors)
+                .build();
+    }
 
     /**
      * Parses and imports a CSV file using JDBC batch UPSERT for performance.
@@ -85,79 +224,34 @@ public class SalesIngestionService {
         List<Object[]> batch = new ArrayList<>();
         String sql = overwriteExisting ? UPSERT_SQL : INSERT_ONLY_SQL;
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
-             CSVParser parser = CSVFormat.DEFAULT
-                     .builder()
-                     .setHeader()
-                     .setSkipHeaderRecord(true)
-                     .setTrim(true)
-                     .setIgnoreEmptyLines(true)
-                     .build()
-                     .parse(reader)) {
+        ParsedCsvResult parsed = parseCsvRows(file.getInputStream(), MAX_CSV_ROWS);
+        if (!parsed.columnMatch()) {
+            return new ImportResult(0, 0, List.of("Invalid CSV headers. Expected: sku,sale_date,quantity_sold"));
+        }
+        if (!parsed.structuralErrors().isEmpty()) {
+            return new ImportResult(0, 0, parsed.structuralErrors());
+        }
 
-            List<String> actualHeaders = parser.getHeaderNames();
-            List<String> expectedHeaders = List.of(EXPECTED_HEADERS);
-            if (!expectedHeaders.equals(actualHeaders)) {
-                return new ImportResult(0, 0, List.of(
-                        "Invalid CSV headers. Expected: sku,sale_date,quantity_sold"));
+        for (ParsedCsvRow row : parsed.rows()) {
+            long rowNumber = row.rowNumber();
+            if (!row.errors().isEmpty()) {
+                errors.addAll(row.errors().stream().map(err -> "Row " + rowNumber + ": " + err).toList());
+                skipped++;
+                continue;
             }
 
-            for (CSVRecord record : parser) {
-                long rowNumber = record.getRecordNumber() + 1;
-                if (record.getRecordNumber() > MAX_CSV_ROWS) {
-                    return new ImportResult(0, 0, List.of(
-                            "CSV file exceeds maximum of 100000 rows"));
-                }
-
-                try {
-                    String sku     = record.get("sku");
-                    String dateStr = record.get("sale_date");
-                    String qtyStr  = record.get("quantity_sold");
-
-                    if (sku == null || sku.isBlank()) {
-                        errors.add("Row " + rowNumber + ": SKU is required");
-                        skipped++;
-                        continue;
-                    }
-                    Product product = productBySku.get(sku);
-                    if (product == null) {
-                        errors.add("Row " + rowNumber + ": SKU '" + sku + "' not found in product catalogue");
-                        skipped++;
-                        continue;
-                    }
-
-                    LocalDate saleDate;
-                    try {
-                        saleDate = LocalDate.parse(dateStr);
-                    } catch (DateTimeParseException e) {
-                        errors.add("Row " + rowNumber + ": invalid sale_date format '" + dateStr + "' — expected yyyy-MM-dd");
-                        skipped++;
-                        continue;
-                    }
-
-                    BigDecimal qty;
-                    try {
-                        qty = new BigDecimal(qtyStr);
-                        if (qty.compareTo(BigDecimal.ZERO) <= 0) {
-                            errors.add("Row " + rowNumber + ": quantity_sold must be a positive number (got " + qtyStr + ")");
-                            skipped++;
-                            continue;
-                        }
-                    } catch (NumberFormatException e) {
-                        errors.add("Row " + rowNumber + ": invalid quantity_sold value '" + qtyStr + "'");
-                        skipped++;
-                        continue;
-                    }
-
-                    UUID productStoreId = product.getStore() != null ? product.getStore().getId() : storeId;
-                    batch.add(new Object[]{productStoreId, product.getId(), Date.valueOf(saleDate), qty});
-
-                } catch (Exception e) {
-                    errors.add("Row " + rowNumber + ": unexpected error — " + e.getMessage());
-                    skipped++;
-                }
+            String sku = row.sku();
+            Product product = productBySku.get(sku);
+            if (product == null) {
+                errors.add("Row " + rowNumber + ": SKU '" + sku + "' not found in product catalogue");
+                skipped++;
+                continue;
             }
+
+            LocalDate saleDate = LocalDate.parse(row.saleDate());
+            BigDecimal qty = new BigDecimal(row.quantitySold());
+            UUID productStoreId = product.getStore() != null ? product.getStore().getId() : storeId;
+            batch.add(new Object[]{productStoreId, product.getId(), Date.valueOf(saleDate), qty});
         }
 
         // Execute JDBC batch in chunks
@@ -177,6 +271,18 @@ public class SalesIngestionService {
                         + ", overwriteExisting=" + overwriteExisting);
         log.info("CSV import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.size());
         return new ImportResult(imported, skipped, errors);
+    }
+
+    private String read(CSVRecord record, String column) {
+        try {
+            return record.isMapped(column) ? record.get(column) : "";
+        } catch (IllegalArgumentException ex) {
+            return "";
+        }
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
     }
 
     /**

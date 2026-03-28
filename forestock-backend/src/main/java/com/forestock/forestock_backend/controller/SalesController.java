@@ -2,10 +2,12 @@ package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.domain.SalesTransaction;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
+import com.forestock.forestock_backend.dto.response.SalesImportPreviewDto;
 import com.forestock.forestock_backend.dto.response.SalesTransactionDto;
 import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import com.forestock.forestock_backend.service.SalesIngestionService;
+import com.forestock.forestock_backend.service.StoreConfigurationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +31,7 @@ public class SalesController {
 
     private final SalesIngestionService salesIngestionService;
     private final ForecastOrchestrator forecastOrchestrator;
+    private final StoreConfigurationService storeConfigurationService;
 
     // ── Import ────────────────────────────────────────────────────────────────
 
@@ -53,7 +56,7 @@ public class SalesController {
 
         try {
             SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, overwriteExisting);
-            if (result.imported() > 0) {
+            if (result.imported() > 0 && Boolean.TRUE.equals(storeConfigurationService.getCurrentConfig().getAutoForecastOnImport())) {
                 forecastOrchestrator.runForecast(TenantContext.getStoreId(), "auto-import");
             }
             Map<String, Object> data = Map.of(
@@ -64,6 +67,27 @@ public class SalesController {
             String message = String.format("Import complete: %d imported, %d skipped, %d errors",
                     result.imported(), result.skipped(), result.errors().size());
             return ResponseEntity.ok(ApiResponse.success(message, data));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error reading file: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/import/preview")
+    public ResponseEntity<ApiResponse<SalesImportPreviewDto>> previewImport(
+            @RequestParam("file") MultipartFile file) {
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("CSV file is empty"));
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".csv")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("File must be a CSV"));
+        }
+
+        try {
+            return ResponseEntity.ok(ApiResponse.success(salesIngestionService.previewCsv(file)));
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error reading file: " + e.getMessage()));

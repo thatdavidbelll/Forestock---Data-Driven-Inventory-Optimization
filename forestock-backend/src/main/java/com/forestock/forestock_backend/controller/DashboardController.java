@@ -24,6 +24,24 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(dashboardService.getDashboard()));
     }
 
+    @GetMapping("/alert-trend")
+    public ResponseEntity<ApiResponse<List<DashboardDto.AlertTrendPoint>>> getAlertTrend() {
+        return ResponseEntity.ok(ApiResponse.success(
+                dashboardService.getAlertTrend(com.forestock.forestock_backend.security.TenantContext.getStoreId())));
+    }
+
+    @GetMapping("/sales-velocity")
+    public ResponseEntity<ApiResponse<List<DashboardDto.SalesVelocityPoint>>> getSalesVelocityTrend() {
+        return ResponseEntity.ok(ApiResponse.success(
+                dashboardService.getSalesVelocityTrend(com.forestock.forestock_backend.security.TenantContext.getStoreId())));
+    }
+
+    @GetMapping("/data-quality-warnings")
+    public ResponseEntity<ApiResponse<List<String>>> getDataQualityWarnings() {
+        return ResponseEntity.ok(ApiResponse.success(
+                dashboardService.getDataQualityWarnings(com.forestock.forestock_backend.security.TenantContext.getStoreId())));
+    }
+
     /** Breakdown pe categorii de produse. */
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<DashboardDto.CategorySummary>>> getCategories() {

@@ -76,7 +76,7 @@ public class ProductController {
      * POST /api/products
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<ProductDto>> create(@RequestBody Product product) {
+    public ResponseEntity<ApiResponse<ProductDto>> create(@RequestBody ProductDto request) {
         UUID storeId = TenantContext.getStoreId();
         if (storeId == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -86,12 +86,29 @@ public class ProductController {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new NoSuchElementException("Store not found"));
 
-        if (productRepository.existsByStoreIdAndSku(storeId, product.getSku())) {
+        if (productRepository.existsByStoreIdAndSku(storeId, request.getSku())) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("SKU already exists: " + product.getSku()));
+                    .body(ApiResponse.error("SKU already exists: " + request.getSku()));
         }
 
-        product.setStore(store);
+        Product product = Product.builder()
+                .store(store)
+                .sku(request.getSku())
+                .name(request.getName())
+                .category(request.getCategory())
+                .unit(request.getUnit())
+                .reorderPoint(request.getReorderPoint())
+                .maxStock(request.getMaxStock())
+                .leadTimeDays(request.getLeadTimeDays())
+                .minimumOrderQty(request.getMinimumOrderQty())
+                .unitCost(request.getUnitCost())
+                .supplierName(request.getSupplierName())
+                .supplierContact(request.getSupplierContact())
+                .barcode(request.getBarcode())
+                .storageLocation(request.getStorageLocation())
+                .notes(request.getNotes())
+                .active(request.getActive())
+                .build();
         Product saved = productRepository.save(product);
         auditLogService.log("PRODUCT_CREATED", "Product", saved.getId().toString(),
                 "Created product '" + saved.getSku() + "' (" + saved.getName() + ")");
@@ -108,7 +125,7 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductDto>> update(
             @PathVariable UUID id,
-            @RequestBody Product updates) {
+            @RequestBody ProductDto updates) {
         return productRepository.findById(id)
                 .map(existing -> {
                     if (isAccessDenied(existing)) return FORBIDDEN;
@@ -117,6 +134,14 @@ public class ProductController {
                     existing.setUnit(updates.getUnit());
                     existing.setReorderPoint(updates.getReorderPoint());
                     existing.setMaxStock(updates.getMaxStock());
+                    existing.setLeadTimeDays(updates.getLeadTimeDays());
+                    existing.setMinimumOrderQty(updates.getMinimumOrderQty());
+                    existing.setUnitCost(updates.getUnitCost());
+                    existing.setSupplierName(updates.getSupplierName());
+                    existing.setSupplierContact(updates.getSupplierContact());
+                    existing.setBarcode(updates.getBarcode());
+                    existing.setStorageLocation(updates.getStorageLocation());
+                    existing.setNotes(updates.getNotes());
                     existing.setActive(updates.getActive());
                     Product saved = productRepository.save(existing);
                     auditLogService.log("PRODUCT_UPDATED", "Product", saved.getId().toString(),
@@ -232,6 +257,14 @@ public class ProductController {
                 .unit(p.getUnit())
                 .reorderPoint(p.getReorderPoint())
                 .maxStock(p.getMaxStock())
+                .leadTimeDays(p.getLeadTimeDays())
+                .minimumOrderQty(p.getMinimumOrderQty())
+                .unitCost(p.getUnitCost())
+                .supplierName(p.getSupplierName())
+                .supplierContact(p.getSupplierContact())
+                .barcode(p.getBarcode())
+                .storageLocation(p.getStorageLocation())
+                .notes(p.getNotes())
                 .active(p.getActive())
                 .createdAt(p.getCreatedAt())
                 .build();

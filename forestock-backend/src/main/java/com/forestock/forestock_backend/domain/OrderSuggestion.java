@@ -6,6 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,6 +49,15 @@ public class OrderSuggestion {
     @Column(name = "days_of_stock", precision = 6, scale = 2)
     private BigDecimal daysOfStock;
 
+    @Column(name = "lead_time_days_at_generation")
+    private Integer leadTimeDaysAtGeneration;
+
+    @Column(name = "moq_applied", precision = 12, scale = 2)
+    private BigDecimal moqApplied;
+
+    @Column(name = "estimated_order_value", precision = 14, scale = 2)
+    private BigDecimal estimatedOrderValue;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private Urgency urgency;
@@ -58,6 +68,18 @@ public class OrderSuggestion {
 
     @Column(name = "acknowledged_at")
     private LocalDateTime acknowledgedAt;
+
+    @Column(name = "acknowledged_reason", length = 255)
+    private String acknowledgedReason;
+
+    @Column(name = "quantity_ordered", precision = 12, scale = 2)
+    private BigDecimal quantityOrdered;
+
+    @Column(name = "expected_delivery")
+    private LocalDate expectedDelivery;
+
+    @Column(name = "order_reference", length = 100)
+    private String orderReference;
 
     @Column(name = "generated_at", updatable = false)
     @CreationTimestamp

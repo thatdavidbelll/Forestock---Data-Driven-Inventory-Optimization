@@ -25,6 +25,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     /** Find user by email (for password reset lookup). */
     Optional<AppUser> findByEmail(String email);
+    boolean existsByEmail(String email);
 
     /** Find user by password reset token (for reset validation). */
     Optional<AppUser> findByPasswordResetToken(String token);

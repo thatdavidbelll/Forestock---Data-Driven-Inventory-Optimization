@@ -60,6 +60,9 @@ public class ForecastService {
                 .triggeredBy(run.getTriggeredBy())
                 .errorMessage(run.getErrorMessage())
                 .durationSeconds(durationSeconds)
+                .productsWithInsufficientData(run.getProductsWithInsufficientData())
+                .mape(run.getMape())
+                .rmse(run.getRmse())
                 .build();
     }
 }

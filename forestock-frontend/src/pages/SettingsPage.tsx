@@ -6,6 +6,31 @@ import { extractErrorMessage } from '../lib/errors'
 import { isStrongPassword } from '../lib/passwordStrength'
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
+const commonTimezones = [
+  'UTC',
+  'Europe/Bucharest',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+]
+
+interface StoreConfig {
+  timezone: string
+  currencySymbol: string
+  forecastHorizonDays: number
+  lookbackDays: number
+  minHistoryDays: number
+  seasonalityPeriod: number
+  safetyStockMultiplier: number
+  urgencyCriticalDays: number
+  urgencyHighDays: number
+  urgencyMediumDays: number
+  autoForecastOnImport: boolean
+}
+
 export default function SettingsPage() {
   const { username, role } = useAuth()
 
@@ -16,6 +41,11 @@ export default function SettingsPage() {
   const [storeSaving, setStoreSaving] = useState(false)
   const [storeSuccess, setStoreSuccess] = useState('')
   const [storeError, setStoreError] = useState('')
+  const [config, setConfig] = useState<StoreConfig | null>(null)
+  const [configLoading, setConfigLoading] = useState(false)
+  const [configSaving, setConfigSaving] = useState(false)
+  const [configSuccess, setConfigSuccess] = useState('')
+  const [configError, setConfigError] = useState('')
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState('')
@@ -38,13 +68,20 @@ export default function SettingsPage() {
   async function loadStore() {
     try {
       setStoreLoading(true)
-      const { data } = await api.get('/store')
-      setStoreName(data.data.name ?? '')
-      setStoreSlug(data.data.slug ?? '')
+      setConfigLoading(true)
+      const [{ data: storeData }, { data: configData }] = await Promise.all([
+        api.get('/store'),
+        api.get('/store/config'),
+      ])
+      setStoreName(storeData.data.name ?? '')
+      setStoreSlug(storeData.data.slug ?? '')
+      setConfig(configData.data ?? null)
     } catch (err) {
       setStoreError(extractErrorMessage(err, 'Failed to load store info'))
+      setConfigError(extractErrorMessage(err, 'Failed to load store configuration'))
     } finally {
       setStoreLoading(false)
+      setConfigLoading(false)
     }
   }
 
@@ -86,6 +123,29 @@ export default function SettingsPage() {
       setPasswordError(extractErrorMessage(err, 'Failed to change password'))
     } finally {
       setPasswordSaving(false)
+    }
+  }
+
+  async function handleSaveConfig(e: FormEvent) {
+    e.preventDefault()
+    if (!config) return
+
+    setConfigError('')
+    setConfigSuccess('')
+
+    if (!(config.urgencyCriticalDays < config.urgencyHighDays && config.urgencyHighDays < config.urgencyMediumDays)) {
+      setConfigError('Urgency thresholds must be in ascending order.')
+      return
+    }
+
+    setConfigSaving(true)
+    try {
+      await api.put('/store/config', config)
+      setConfigSuccess('Forecast & restocking settings updated.')
+    } catch (err) {
+      setConfigError(extractErrorMessage(err, 'Failed to update store configuration'))
+    } finally {
+      setConfigSaving(false)
     }
   }
 
@@ -151,6 +211,129 @@ export default function SettingsPage() {
                 className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
                 {storeSaving ? 'Saving…' : 'Save Store Name'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Forecast & Restocking</h2>
+          {configLoading || !config ? (
+            <p className="text-sm text-gray-400">Loading…</p>
+          ) : (
+            <form onSubmit={handleSaveConfig} className="space-y-5">
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Forecast Horizon</label>
+                  <span className="text-sm text-gray-500">{config.forecastHorizonDays} days</span>
+                </div>
+                <input
+                  type="range"
+                  min="7"
+                  max="90"
+                  value={config.forecastHorizonDays}
+                  onChange={(e) => setConfig({ ...config, forecastHorizonDays: Number(e.target.value) })}
+                  className="w-full accent-indigo-600"
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">Safety Stock Buffer</label>
+                  <span className="text-sm text-gray-500">{Math.round(config.safetyStockMultiplier * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="100"
+                  max="200"
+                  value={Math.round(config.safetyStockMultiplier * 100)}
+                  onChange={(e) => setConfig({ ...config, safetyStockMultiplier: Number(e.target.value) / 100 })}
+                  className="w-full accent-indigo-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Critical &lt; days</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={config.urgencyCriticalDays}
+                    onChange={(e) => setConfig({ ...config, urgencyCriticalDays: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">High &lt; days</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={config.urgencyHighDays}
+                    onChange={(e) => setConfig({ ...config, urgencyHighDays: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Medium &lt; days</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={config.urgencyMediumDays}
+                    onChange={(e) => setConfig({ ...config, urgencyMediumDays: Number(e.target.value) })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">Thresholds must be ascending: Critical &lt; High &lt; Medium.</p>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+                  <select
+                    value={config.timezone}
+                    onChange={(e) => setConfig({ ...config, timezone: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {commonTimezones.map((timezone) => (
+                      <option key={timezone} value={timezone}>
+                        {timezone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    value={config.currencySymbol}
+                    onChange={(e) => setConfig({ ...config, currencySymbol: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={config.autoForecastOnImport}
+                  onChange={(e) => setConfig({ ...config, autoForecastOnImport: e.target.checked })}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Run a forecast automatically after a successful sales import.
+              </label>
+
+              {configError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{configError}</p>}
+              {configSuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {configSuccess}</p>}
+
+              <button
+                type="submit"
+                disabled={configSaving}
+                className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {configSaving ? 'Saving…' : 'Save Forecast Settings'}
               </button>
             </form>
           )}
