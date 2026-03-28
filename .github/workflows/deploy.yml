@@ -86,7 +86,8 @@ jobs:
 
             # Ensure correct AWS CLI is installed
             sudo rm -f /usr/local/bin/aws /usr/local/bin/aws_completer
-            sudo apt-get install -y awscli
+            pip3 install --quiet awscli
+            export PATH=$PATH:$HOME/.local/bin
 
             # Login to ECR using credentials passed from GitHub secrets
             export AWS_DEFAULT_REGION=eu-central-1
