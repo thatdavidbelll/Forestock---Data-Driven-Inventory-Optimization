@@ -43,11 +43,19 @@ npm run lint
 
 ### Production (on EC2)
 ```bash
+ssh -i /tmp/ec2key.pem ubuntu@52.29.169.63                 # SSH into EC2
 cd ~/forestock/forestock-backend
-docker compose -f docker-compose.prod.yml up -d --build    # first-time only
 docker compose -f docker-compose.prod.yml logs -f app      # watch logs
 docker compose -f docker-compose.prod.yml up -d --no-build # restart after image pull
 ```
+
+**EC2 key:** `"/Users/davidbell/Downloads/folder/EC2 Key Pair.pem"` — copy to `/tmp/ec2key.pem` with `chmod 400` before use.
+
+**Pending EC2 `.env` fixes** (SSH in and edit `~/forestock/forestock-backend/.env`):
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — still set to placeholder values; needed for S3 backups
+- `MAIL_USERNAME` and `MAIL_PASSWORD` — needed for password reset emails to work
+
+**CORS:** Handled in Nginx (`/etc/nginx/sites-available/forestock`) — OPTIONS preflight returns 204 with correct headers. Spring Boot also has CORS config in `SecurityConfig` reading `FORESTOCK_FRONTEND_URL`.
 
 ---
 
