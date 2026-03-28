@@ -1,6 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
+import { isStrongPassword } from '../lib/passwordStrength'
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
 interface Store {
   id: string
@@ -54,6 +56,10 @@ export default function AdminPage() {
     e.preventDefault()
     setCreateError('')
     setCreateSuccess('')
+    if (!isStrongPassword(adminPassword)) {
+      setCreateError('Password must include uppercase, lowercase, number, and special character.')
+      return
+    }
     setCreating(true)
     try {
       await api.post('/register', {
@@ -147,6 +153,9 @@ export default function AdminPage() {
               placeholder="Min. 8 characters"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+          <div className="sm:col-span-2">
+            <PasswordStrengthIndicator password={adminPassword} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>

@@ -2,7 +2,7 @@
 
 > **Purpose:** Precise, copy-paste-ready instructions for GPT (or any AI agent) to continue implementing the Forestock MVP. Every item references exact file paths, class names, method signatures, and database migration numbering as they exist after IMPL-05.
 >
-> **Codebase state:** Spring Boot 4.0.4 · Java 21 · React 19 · Vite · TailwindCSS 4 · PostgreSQL 17 · Flyway V1–V9 · JJWT 0.12.6
+> **Codebase state:** Spring Boot 4.0.4 · Java 21 · React 19 · Vite · TailwindCSS 4 · PostgreSQL 17 · Flyway V1–V10 · JJWT 0.12.6
 >
 > **Package root:** `com.forestock.forestock_backend`
 > **Frontend root:** `forestock-frontend/src/`
@@ -37,6 +37,12 @@
 - `IMPL-03` CSV Import Row-Level Validation & Structured Error Response
 - `IMPL-04` Server-Side Token Revocation (Redis Blacklist)
 - `IMPL-05` Email Verification on First Login
+- `IMPL-06` Password Strength Enforcement
+- `IMPL-07` Audit Log
+
+### Notes
+
+- `cloud` profile runs against Neon PostgreSQL and disables token-blacklist enforcement so local Docker Redis is not required during cloud development.
 
 ---
 

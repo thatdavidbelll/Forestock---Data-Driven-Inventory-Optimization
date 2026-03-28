@@ -91,3 +91,6 @@ forestock:
   frontend-url: ${FORESTOCK_FRONTEND_URL:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:noreply@forestock.app}
+  security:
+    token-blacklist:
+      enabled: true

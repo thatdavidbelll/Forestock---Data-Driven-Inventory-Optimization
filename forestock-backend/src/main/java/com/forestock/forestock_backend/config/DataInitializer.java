@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class DataInitializer implements ApplicationRunner {
 
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
 
     @Value("${forestock.super-admin.username:superadmin}")
     private String superAdminUsername;
@@ -32,9 +34,16 @@ public class DataInitializer implements ApplicationRunner {
     @Value("${forestock.super-admin.password:Admin@12345}")
     private String superAdminPassword;
 
+    @Value("${SUPER_ADMIN_PASSWORD:}")
+    private String rawSuperAdminPasswordEnv;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        if (isNonDevProfile() && rawSuperAdminPasswordEnv.isBlank()) {
+            log.warn("SUPER_ADMIN_PASSWORD env var is not set. A profile default password is in use for the super admin.");
+        }
+
         AppUser superAdmin = userRepository.findByUsername(superAdminUsername)
                 .map(existing -> {
                     existing.setPasswordHash(passwordEncoder.encode(superAdminPassword));
@@ -59,5 +68,14 @@ public class DataInitializer implements ApplicationRunner {
         } else {
             log.warn("Configured super admin created: username='{}'", superAdminUsername);
         }
+    }
+
+    private boolean isNonDevProfile() {
+        for (String profile : environment.getActiveProfiles()) {
+            if ("dev".equalsIgnoreCase(profile)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import axios from 'axios'
+import api from '../lib/api'
+import { extractErrorMessage } from '../lib/errors'
+import { isStrongPassword } from '../lib/passwordStrength'
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -33,17 +36,17 @@ export default function ResetPasswordPage() {
       setError('Passwords do not match.')
       return
     }
+    if (!isStrongPassword(newPassword)) {
+      setError('Password must include uppercase, lowercase, number, and special character.')
+      return
+    }
     setLoading(true)
     try {
-      await axios.post('/api/auth/reset-password', { token, newPassword })
+      await api.post('/auth/reset-password', { token, newPassword })
       setSuccess(true)
       setTimeout(() => navigate('/login'), 3000)
     } catch (err: unknown) {
-      const msg =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : 'Reset failed. The link may have expired.'
-      setError(msg)
+      setError(extractErrorMessage(err, 'Reset failed. The link may have expired.'))
     } finally {
       setLoading(false)
     }
@@ -92,6 +95,7 @@ export default function ResetPasswordPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
+            <PasswordStrengthIndicator password={newPassword} />
             {error && (
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}

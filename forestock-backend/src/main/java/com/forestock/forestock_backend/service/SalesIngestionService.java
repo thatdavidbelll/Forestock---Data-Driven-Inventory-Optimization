@@ -61,6 +61,7 @@ public class SalesIngestionService {
     private final SalesTransactionRepository salesTransactionRepository;
     private final ProductRepository productRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final AuditLogService auditLogService;
 
     public record ImportResult(int imported, int skipped, List<String> errors) {}
 
@@ -171,6 +172,9 @@ public class SalesIngestionService {
         // For DO NOTHING: we can't distinguish inserts from skips without extra queries — report all as imported
         int imported = batch.size();
 
+        auditLogService.log("SALES_IMPORTED", "SalesTransaction", null,
+                "Imported " + imported + " rows, skipped " + skipped + ", errors=" + errors.size()
+                        + ", overwriteExisting=" + overwriteExisting);
         log.info("CSV import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.size());
         return new ImportResult(imported, skipped, errors);
     }
@@ -228,6 +232,8 @@ public class SalesIngestionService {
                 : productRepository.findBySku(sku))
                 .orElseThrow(() -> new NoSuchElementException("Unknown SKU: " + sku));
         int deleted = salesTransactionRepository.deleteByProductId(product.getId());
+        auditLogService.log("SALES_DELETED_BY_SKU", "SalesTransaction", product.getId().toString(),
+                "Deleted " + deleted + " transactions for SKU '" + sku + "'");
         log.info("Deleted {} transactions for SKU '{}' (store={})", deleted, sku, storeId);
         return new DeleteResult(deleted);
     }
@@ -240,6 +246,8 @@ public class SalesIngestionService {
         UUID storeId = TenantContext.getStoreId();
         if (storeId == null) throw new IllegalStateException("No store context");
         int deleted = salesTransactionRepository.deleteByStoreAndDateRange(storeId, from, to);
+        auditLogService.log("SALES_DELETED_BY_RANGE", "SalesTransaction", storeId.toString(),
+                "Deleted " + deleted + " transactions between " + from + " and " + to);
         log.info("Deleted {} transactions in range [{} – {}] for store={}", deleted, from, to, storeId);
         return new DeleteResult(deleted);
     }
@@ -255,6 +263,8 @@ public class SalesIngestionService {
                 : productRepository.findBySku(sku))
                 .orElseThrow(() -> new NoSuchElementException("Unknown SKU: " + sku));
         int deleted = salesTransactionRepository.deleteByProductIdAndDateRange(product.getId(), from, to);
+        auditLogService.log("SALES_DELETED_BY_SKU_RANGE", "SalesTransaction", product.getId().toString(),
+                "Deleted " + deleted + " transactions for SKU '" + sku + "' between " + from + " and " + to);
         log.info("Deleted {} transactions for SKU '{}' in range [{} – {}]", deleted, sku, from, to);
         return new DeleteResult(deleted);
     }
@@ -267,6 +277,8 @@ public class SalesIngestionService {
         UUID storeId = TenantContext.getStoreId();
         if (storeId == null) throw new IllegalStateException("No store context");
         int deleted = salesTransactionRepository.deleteAllByStore(storeId);
+        auditLogService.log("SALES_DELETED_ALL", "SalesTransaction", storeId.toString(),
+                "Deleted all " + deleted + " transactions for store");
         log.warn("Deleted ALL {} transactions for store={}", deleted, storeId);
         return new DeleteResult(deleted);
     }

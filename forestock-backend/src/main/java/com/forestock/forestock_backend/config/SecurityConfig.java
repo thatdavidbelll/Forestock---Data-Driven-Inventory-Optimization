@@ -58,6 +58,7 @@ public class SecurityConfig {
                     .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/users").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.PUT,  "/api/users/{id}").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/users/{id}").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/audit-logs").hasRole("ADMIN")
                     // Password change: any authenticated user for their own account
                     .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/users/me/password").authenticated()
                     .anyRequest().authenticated())

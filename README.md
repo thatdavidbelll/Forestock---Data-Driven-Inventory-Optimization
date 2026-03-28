@@ -23,12 +23,12 @@ Forestock/
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
 | Database | PostgreSQL 17 (local Docker for dev, Neon for cloud profile, AWS RDS planned for prod) |
-| Migrations | Flyway (V1–V9) |
+| Migrations | Flyway (V1–V10) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 (sales data backup + forecast results) |
 | Notifications | AWS SNS (email on forecast complete / failed) |
 | Email | Spring Mail / SMTP (password reset + email verification) |
-| Security | Spring Security + JWT (JJWT 0.12.6), Redis-backed token revocation, multi-role |
+| Security | Spring Security + JWT (JJWT 0.12.6), Redis-backed token revocation, multi-role, password-strength validation, audit log |
 | ORM | Spring Data JPA + Hibernate |
 | CSV parsing | Apache Commons CSV 1.12.0 |
 | Reports | Apache POI (Excel) + Apache PDFBox (PDF) |
@@ -71,6 +71,8 @@ export AWS_S3_BUCKET=forestock-forecast-data-{accountId}
 ./mvnw spring-boot:run
 ```
 
+Cloud profile note: PostgreSQL runs against Neon. Token blacklist enforcement is disabled in `cloud`, so local Docker Redis is not required for authenticated requests in cloud development.
+
 ### Frontend
 
 ```bash
@@ -85,7 +87,7 @@ npm run dev
 | Backend API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | Adminer | http://localhost:8090 |
-| Redis | localhost:6379 |
+| Redis | localhost:6379 (dev profile only) |
 
 ---
 
@@ -166,6 +168,7 @@ curl http://localhost:8080/api/dashboard \
 Token expiry: access **8h** · refresh **30 days**
 Silent refresh: the frontend automatically retries with a refresh token on 401 before logging out.
 Server-side revocation: logout and password change blacklist the current JWT in Redis.
+In the `cloud` profile, blacklist enforcement is disabled so the app can run directly against Neon without local Redis.
 
 ### Email Verification
 
@@ -217,6 +220,11 @@ All responses: `{ "status": "success"|"error", "message": "...", "data": ... }`
 | PUT | `/api/users/{id}` | Update user role or active status |
 | DELETE | `/api/users/{id}` | Soft-deactivate a user |
 | PUT | `/api/users/me/password` | Change own password (any authenticated user) |
+
+### Audit Log
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/audit-logs?action=&from=&to=&page=0&size=25` | Paginated store-scoped audit events (ROLE_ADMIN only) |
 
 ### Store
 | Method | Endpoint | Description |
@@ -341,6 +349,7 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 | Import | `/import` | All | Drag-and-drop CSV upload |
 | Users | `/users` | ROLE_ADMIN | Invite team members, change roles, deactivate |
 | Settings | `/settings` | All | Store name (admin) + change own password |
+| Audit Log | `/audit` | ROLE_ADMIN | Filterable audit trail for store activity |
 
 ### Platform owner (super admin)
 | Page | Route | Description |
@@ -360,6 +369,9 @@ Suggestions sorted: CRITICAL → HIGH → MEDIUM → LOW, then by days of stock 
 | `V5__multi_tenant.sql` | Creates `stores` table, adds `store_id` FK to all 6 entities |
 | `V6__backfill_store_id.sql` | Backfills `store_id = NULL` rows to the default store |
 | `V7__user_email_and_reset.sql` | Adds `email`, `password_reset_token`, `password_reset_expires_at` to users |
+| `V8__suggestion_acknowledgement.sql` | Adds acknowledgement lifecycle to suggestions |
+| `V9__email_verification.sql` | Adds email verification fields and token index to users |
+| `V10__audit_log.sql` | Creates `audit_logs` table and indexes |
 
 ---
 
@@ -381,6 +393,13 @@ DB_PASSWORD=...
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 AWS_S3_BUCKET=forestock-forecast-data-{accountId}
+```
+
+Optional in cloud dev:
+```
+SUPER_ADMIN_USERNAME=...
+SUPER_ADMIN_PASSWORD=<strong-password>
+FORESTOCK_FRONTEND_URL=http://localhost:5173
 ```
 
 ### Production

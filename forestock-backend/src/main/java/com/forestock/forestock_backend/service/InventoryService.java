@@ -27,6 +27,7 @@ public class InventoryService {
     private final InventoryRepository inventoryRepository;
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
+    private final AuditLogService auditLogService;
 
     /**
      * Returns current stock for all active products in the current tenant's store.
@@ -72,6 +73,8 @@ public class InventoryService {
                 .build();
 
         Inventory saved = inventoryRepository.save(snapshot);
+        auditLogService.log("INVENTORY_UPDATED", "Product", product.getId().toString(),
+                "Updated stock for SKU '" + product.getSku() + "' to " + quantity);
         log.info("Stock updated: product={}, qty={}", product.getSku(), quantity);
         return toDto(saved);
     }

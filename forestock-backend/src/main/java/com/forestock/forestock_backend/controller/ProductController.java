@@ -10,6 +10,7 @@ import com.forestock.forestock_backend.repository.ProductRepository;
 import com.forestock.forestock_backend.repository.SalesTransactionRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
+import com.forestock.forestock_backend.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,7 @@ public class ProductController {
     private final SalesTransactionRepository salesTransactionRepository;
     private final InventoryRepository inventoryRepository;
     private final OrderSuggestionRepository orderSuggestionRepository;
+    private final AuditLogService auditLogService;
 
     // ── Read ─────────────────────────────────────────────────────────────────
 
@@ -91,6 +93,8 @@ public class ProductController {
 
         product.setStore(store);
         Product saved = productRepository.save(product);
+        auditLogService.log("PRODUCT_CREATED", "Product", saved.getId().toString(),
+                "Created product '" + saved.getSku() + "' (" + saved.getName() + ")");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Product created", toDto(saved)));
     }
@@ -115,6 +119,8 @@ public class ProductController {
                     existing.setMaxStock(updates.getMaxStock());
                     existing.setActive(updates.getActive());
                     Product saved = productRepository.save(existing);
+                    auditLogService.log("PRODUCT_UPDATED", "Product", saved.getId().toString(),
+                            "Updated product '" + saved.getSku() + "' (" + saved.getName() + "), active=" + saved.getActive());
                     return ResponseEntity.ok(ApiResponse.success(toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -136,6 +142,8 @@ public class ProductController {
                     }
                     p.setActive(true);
                     Product saved = productRepository.save(p);
+                    auditLogService.log("PRODUCT_RESTORED", "Product", saved.getId().toString(),
+                            "Restored product '" + saved.getSku() + "'");
                     return ResponseEntity.ok(ApiResponse.success("Product restored", toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -158,6 +166,8 @@ public class ProductController {
                                 .body(ApiResponse.<Void>error("Access denied"));
                     p.setActive(false);
                     productRepository.save(p);
+                    auditLogService.log("PRODUCT_DEACTIVATED", "Product", p.getId().toString(),
+                            "Deactivated product '" + p.getSku() + "'");
                     return ResponseEntity.ok(ApiResponse.<Void>success("Product deactivated", null));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -189,6 +199,9 @@ public class ProductController {
                             "transactions", transactions,
                             "inventory",    inventory
                     );
+                    auditLogService.log("PRODUCT_HARD_DELETED", "Product", p.getId().toString(),
+                            "Hard-deleted product '" + p.getSku() + "' with " + transactions
+                                    + " transactions, " + inventory + " inventory rows, " + suggestions + " suggestions removed");
                     return ResponseEntity.ok(ApiResponse.success(
                             "Product '" + p.getSku() + "' permanently deleted", summary));
                 })

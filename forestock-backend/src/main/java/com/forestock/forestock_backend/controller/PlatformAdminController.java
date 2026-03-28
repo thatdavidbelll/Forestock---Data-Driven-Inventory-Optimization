@@ -4,6 +4,7 @@ import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.StoreDto;
 import com.forestock.forestock_backend.repository.StoreRepository;
+import com.forestock.forestock_backend.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class PlatformAdminController {
 
     private final StoreRepository storeRepository;
+    private final AuditLogService auditLogService;
 
     /** List all stores on the platform. */
     @GetMapping("/stores")
@@ -41,7 +43,10 @@ public class PlatformAdminController {
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Store not found: " + id));
         store.setActive(false);
-        return ResponseEntity.ok(ApiResponse.success("Store deactivated", toDto(storeRepository.save(store))));
+        Store saved = storeRepository.save(store);
+        auditLogService.log("STORE_DEACTIVATED", "Store", saved.getId().toString(),
+                "Deactivated store '" + saved.getName() + "'");
+        return ResponseEntity.ok(ApiResponse.success("Store deactivated", toDto(saved)));
     }
 
     /** Reactivate a previously deactivated store. */
@@ -50,7 +55,10 @@ public class PlatformAdminController {
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Store not found: " + id));
         store.setActive(true);
-        return ResponseEntity.ok(ApiResponse.success("Store activated", toDto(storeRepository.save(store))));
+        Store saved = storeRepository.save(store);
+        auditLogService.log("STORE_ACTIVATED", "Store", saved.getId().toString(),
+                "Activated store '" + saved.getName() + "'");
+        return ResponseEntity.ok(ApiResponse.success("Store activated", toDto(saved)));
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

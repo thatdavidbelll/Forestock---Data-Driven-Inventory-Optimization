@@ -99,11 +99,15 @@ forestock-backend/
 │   │   └── resources/
 │   │       ├── application.yml                      common config (all envs)
 │   │       ├── application-dev.yml                  dev overrides (localhost DB)
+│   │       ├── application-cloud.yml                cloud dev overrides (Neon PostgreSQL, Redis blacklist disabled)
 │   │       ├── application-prod.yml                 prod overrides (env vars, no Swagger)
 │   │       └── db/
 │   │           └── migration/
 │   │               ├── V1__init_schema.sql          products, inventory, sales, forecast_runs, order_suggestions
-│   │               └── V2__indexes_and_views.sql    indexes + current_inventory view
+│   │               ├── V2__indexes_and_views.sql    indexes + current_inventory view
+│   │               ├── V8__suggestion_acknowledgement.sql
+│   │               ├── V9__email_verification.sql
+│   │               └── V10__audit_log.sql
 │   │
 │   └── test/
 │       └── java/com/previzo/

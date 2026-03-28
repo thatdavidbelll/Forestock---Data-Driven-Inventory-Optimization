@@ -32,6 +32,7 @@ public class UserManagementService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final AuditLogService auditLogService;
 
     /** Returns all users for the current store. */
     @Transactional(readOnly = true)
@@ -64,6 +65,8 @@ public class UserManagementService {
                 .active(true)
                 .build());
 
+        auditLogService.log("USER_CREATED", "AppUser", user.getId().toString(),
+                "Created user '" + user.getUsername() + "' with role " + user.getRole());
         log.info("New user created: username={}, role={}, storeId={}", user.getUsername(), user.getRole(), storeId);
         return toDto(user);
     }
@@ -91,7 +94,10 @@ public class UserManagementService {
             user.setActive(request.getActive());
         }
 
-        return toDto(userRepository.save(user));
+        AppUser saved = userRepository.save(user);
+        auditLogService.log("USER_UPDATED", "AppUser", saved.getId().toString(),
+                "Updated user '" + saved.getUsername() + "' to role " + saved.getRole() + ", active=" + saved.getActive());
+        return toDto(saved);
     }
 
     /** Soft-deactivates a user in the current store. */
@@ -109,6 +115,8 @@ public class UserManagementService {
 
         user.setActive(false);
         userRepository.save(user);
+        auditLogService.log("USER_DEACTIVATED", "AppUser", user.getId().toString(),
+                "Deactivated user '" + user.getUsername() + "'");
         log.info("User deactivated: username={}, storeId={}", user.getUsername(), storeId);
     }
 
@@ -126,6 +134,8 @@ public class UserManagementService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         revokeCurrentToken();
+        auditLogService.log("PASSWORD_CHANGED", "AppUser", user.getId().toString(),
+                "Changed password for user '" + currentUsername + "'");
         log.info("Password changed for user: {}", currentUsername);
     }
 

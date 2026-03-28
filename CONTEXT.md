@@ -1,6 +1,6 @@
 # Forestock — Context Document for Cursor
 
-> This file captures the full state of the project as of **2026-03-27** (end of Sprint 6).
+> This file captures the full state of the project as of **2026-03-28**.
 > Use it to onboard a new AI session with complete context.
 
 ---
@@ -38,12 +38,12 @@ Forestock/                          ← monorepo root
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
 | Database | PostgreSQL 17 (Docker locally, Neon serverless for cloud dev, AWS RDS for prod) |
-| Migrations | Flyway (V1–V7) |
+| Migrations | Flyway (V1–V10) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 |
 | Notifications | AWS SNS |
-| Email | Spring Mail / SMTP (password reset) |
-| Security | Spring Security + JWT (JJWT 0.12.6), multi-role |
+| Email | Spring Mail / SMTP (password reset + email verification) |
+| Security | Spring Security + JWT (JJWT 0.12.6), multi-role, Redis-backed token revocation, password-strength validation, audit log |
 | ORM | Spring Data JPA + Hibernate |
 | CSV parsing | Apache Commons CSV 1.12.0 |
 | Reports | Apache POI (Excel) + Apache PDFBox (PDF) |
@@ -62,6 +62,7 @@ Forestock/                          ← monorepo root
 | Sprint 4 | JWT security, React frontend, Dockerfile, GitHub Actions CI |
 | Sprint 5 | Multi-tenant SaaS, Neon PostgreSQL, JDBC batch import, data management API |
 | Sprint 6 | Commercial launch: ROLE_SUPER_ADMIN, user management, password reset, rate limiting, auth bug fixes |
+| Sprint 7 (partial) | Suggestion acknowledgement, auto-forecast after import, CSV validation, token revocation, email verification, password strength, audit log |
 
 ---
 
@@ -79,8 +80,8 @@ ROLE_SUPER_ADMIN  (you — the platform owner)
 ### Super Admin account (auto-seeded on first startup)
 | Field | Default |
 |---|---|
-| Username | `superadmin` |
-| Password | `Admin@12345` |
+| Username | `davidbell` |
+| Password | `lionofJudah` |
 
 Override via env vars: `SUPER_ADMIN_USERNAME`, `SUPER_ADMIN_PASSWORD`
 
@@ -97,11 +98,22 @@ Override via env vars: `SUPER_ADMIN_USERNAME`, `SUPER_ADMIN_PASSWORD`
 ### Start backend
 ```bash
 cd forestock-backend
-docker compose up -d                           # PostgreSQL + Adminer on :8090
+docker compose up -d                           # PostgreSQL + Redis + Adminer on :8090
 export SPRING_PROFILES_ACTIVE=dev
 export AWS_S3_BUCKET=forestock-forecast-data-104091534682
 ./mvnw spring-boot:run
 ```
+
+### Start backend against Neon
+```bash
+cd forestock-backend
+export SPRING_PROFILES_ACTIVE=cloud
+export DB_PASSWORD=<neon-password>
+export AWS_S3_BUCKET=forestock-forecast-data-104091534682
+./mvnw spring-boot:run
+```
+
+Cloud profile note: PostgreSQL runs against Neon. Token blacklist enforcement is disabled in `cloud`, so authenticated requests do not depend on local Docker Redis.
 
 ### Start frontend
 ```bash
@@ -116,6 +128,7 @@ npm run dev
 | Backend API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | Adminer | http://localhost:8090 |
+| Redis | localhost:6379 (dev profile only) |
 
 Vite proxies `/api/*` → `http://localhost:8080` (configured in `vite.config.ts`).
 
@@ -241,6 +254,7 @@ forestock-frontend/src/
     ├── LoginPage.tsx               Login form → redirects SUPER_ADMIN to /admin, others to /dashboard
     ├── ForgotPasswordPage.tsx      Email form → POST /api/auth/forgot-password
     ├── ResetPasswordPage.tsx       ?token=xxx → POST /api/auth/reset-password → redirect /login
+    ├── VerifyEmailPage.tsx         ?token=xxx → GET /api/auth/verify-email
     ├── AdminPage.tsx               ROLE_SUPER_ADMIN only — create stores, list/activate/deactivate
     ├── DashboardPage.tsx           KPI cards + Run Forecast button
     ├── SuggestionsPage.tsx         Restock table, urgency/category filter, Excel/PDF export
@@ -249,7 +263,9 @@ forestock-frontend/src/
     ├── SalesPage.tsx               Paginated transactions, delete by SKU/range/all
     ├── ImportPage.tsx              Drag-and-drop CSV upload
     ├── UsersPage.tsx               ROLE_ADMIN only — invite team, change roles, deactivate
-    └── SettingsPage.tsx            Store name (ROLE_ADMIN) + change own password (all)
+    ├── SettingsPage.tsx            Store name (ROLE_ADMIN) + change own password (all) + audit entry point
+    ├── AuditLogPage.tsx            ROLE_ADMIN only — filterable store audit trail
+    └── components/PasswordStrengthIndicator.tsx
 ```
 
 ---

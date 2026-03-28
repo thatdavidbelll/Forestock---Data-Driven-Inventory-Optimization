@@ -2,6 +2,8 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
+import { isStrongPassword } from '../lib/passwordStrength'
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
 interface User {
   id: string
@@ -50,6 +52,10 @@ export default function UsersPage() {
   async function handleAddUser(e: FormEvent) {
     e.preventDefault()
     setModalError('')
+    if (!isStrongPassword(newPassword)) {
+      setModalError('Password must include uppercase, lowercase, number, and special character.')
+      return
+    }
     setSaving(true)
     try {
       await api.post('/users', {
@@ -222,6 +228,7 @@ export default function UsersPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+              <PasswordStrengthIndicator password={newPassword} />
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email <span className="text-gray-400 font-normal">(optional)</span>

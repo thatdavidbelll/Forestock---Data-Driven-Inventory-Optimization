@@ -1,7 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
+import { isStrongPassword } from '../lib/passwordStrength'
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
 
 export default function SettingsPage() {
   const { username, role } = useAuth()
@@ -64,6 +67,10 @@ export default function SettingsPage() {
     setPasswordSuccess('')
     if (newPassword !== confirmPassword) {
       setPasswordError('New passwords do not match.')
+      return
+    }
+    if (!isStrongPassword(newPassword)) {
+      setPasswordError('Password must include uppercase, lowercase, number, and special character.')
       return
     }
     setPasswordSaving(true)
@@ -130,6 +137,21 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {isAdmin && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Audit Log</h2>
+            <p className="text-sm text-gray-500 mt-1">Review changes made by your team across the store.</p>
+          </div>
+          <Link
+            to="/audit"
+            className="shrink-0 bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            View Audit Log
+          </Link>
+        </div>
+      )}
+
       {/* My Account */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-1">My Account</h2>
@@ -175,6 +197,7 @@ export default function SettingsPage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
+          <PasswordStrengthIndicator password={newPassword} />
           {passwordError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{passwordError}</p>}
           {passwordSuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {passwordSuccess}</p>}
           <button

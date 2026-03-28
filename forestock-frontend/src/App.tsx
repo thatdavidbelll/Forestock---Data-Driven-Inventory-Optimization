@@ -13,6 +13,7 @@ import ImportPage from './pages/ImportPage'
 import AdminPage from './pages/AdminPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
+import AuditLogPage from './pages/AuditLogPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="sales" element={<SalesPage />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="users" element={<AdminOnlyRoute><UsersPage /></AdminOnlyRoute>} />
+            <Route path="audit" element={<AdminOnlyRoute><AuditLogPage /></AdminOnlyRoute>} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

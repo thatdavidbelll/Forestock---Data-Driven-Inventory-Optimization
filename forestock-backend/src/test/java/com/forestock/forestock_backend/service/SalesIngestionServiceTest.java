@@ -37,6 +37,7 @@ class SalesIngestionServiceTest {
     @Mock private SalesTransactionRepository salesTransactionRepository;
     @Mock private ProductRepository productRepository;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private AuditLogService auditLogService;
 
     @InjectMocks
     private SalesIngestionService salesIngestionService;
