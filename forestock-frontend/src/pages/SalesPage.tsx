@@ -55,6 +55,10 @@ export default function SalesPage() {
     setLoading(true)
     setError('')
     try {
+      if (fromDate && toDate && fromDate > toDate) {
+        setError('Start date must be before end date.')
+        return
+      }
       const params: Record<string, string | number> = { page: currentPage, size: PAGE_SIZE }
       if (skuFilter.trim()) params.sku = skuFilter.trim()
       if (fromDate) params.from = fromDate

@@ -2,9 +2,11 @@ package com.forestock.forestock_backend.service;
 
 import com.forestock.forestock_backend.domain.AppUser;
 import com.forestock.forestock_backend.domain.Store;
+import com.forestock.forestock_backend.domain.StoreConfiguration;
 import com.forestock.forestock_backend.dto.request.RegisterRequest;
 import com.forestock.forestock_backend.dto.response.AuthResponse;
 import com.forestock.forestock_backend.repository.AppUserRepository;
+import com.forestock.forestock_backend.repository.StoreConfigurationRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RegisterService {
 
     private final StoreRepository storeRepository;
+    private final StoreConfigurationRepository storeConfigurationRepository;
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -51,6 +54,7 @@ public class RegisterService {
                 .slug(request.getStoreSlug())
                 .active(true)
                 .build());
+        storeConfigurationRepository.save(StoreConfiguration.builder().store(store).build());
 
         AppUser admin = userRepository.save(AppUser.builder()
                 .username(request.getUsername())

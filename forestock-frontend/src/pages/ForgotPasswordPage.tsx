@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import api from '../lib/api'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
     setError('')
     setLoading(true)
     try {
-      await axios.post('/api/auth/forgot-password', { email })
+      await api.post('/auth/forgot-password', { email })
       setSubmitted(true)
     } catch {
       // Always show success to prevent email enumeration

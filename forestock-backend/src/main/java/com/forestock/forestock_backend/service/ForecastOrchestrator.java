@@ -16,6 +16,7 @@ import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.ForecastingEngine.ForecastResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,13 +98,19 @@ public class ForecastOrchestrator {
         StoreConfiguration configuration = storeConfigurationService.getConfigForStore(store.getId());
         int horizonDays = configuration.getForecastHorizonDays();
 
-        ForecastRun run = forecastRunRepository.save(ForecastRun.builder()
-                .store(store)
-                .status(ForecastStatus.RUNNING)
-                .startedAt(LocalDateTime.now())
-                .horizonDays(horizonDays)
-                .triggeredBy(triggeredBy)
-                .build());
+        ForecastRun run;
+        try {
+            run = forecastRunRepository.save(ForecastRun.builder()
+                    .store(store)
+                    .status(ForecastStatus.RUNNING)
+                    .startedAt(LocalDateTime.now())
+                    .horizonDays(horizonDays)
+                    .triggeredBy(triggeredBy)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Forecast already RUNNING for store {} — concurrent insert blocked", store.getSlug());
+            return null;
+        }
 
         log.info("Forecast run {} started for store {} (triggered by {})", run.getId(), store.getSlug(), triggeredBy);
 
@@ -170,6 +177,11 @@ public class ForecastOrchestrator {
             run.setErrorMessage(e.getMessage());
             forecastRunRepository.save(run);
             notificationService.sendForecastFailed(run);
+        } finally {
+            if (run != null && run.getStatus() == ForecastStatus.RUNNING) {
+                run.setStatus(ForecastStatus.FAILED);
+                forecastRunRepository.save(run);
+            }
         }
 
         return run;

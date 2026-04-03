@@ -64,22 +64,33 @@ export default function DashboardPage() {
   const pollTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
-    void loadDashboard()
+    const controller = new AbortController()
+    void loadDashboard(controller.signal)
 
     return () => {
+      controller.abort()
       stopPolling()
     }
   }, [])
 
-  async function loadDashboard() {
+  async function loadDashboard(signal?: AbortSignal) {
     try {
-      const response = await api.get('/dashboard')
+      const response = await api.get('/dashboard', { signal })
       const nextData = response.data.data as Dashboard
       setData(nextData)
       setForecastStatus(nextData.lastRunStatus)
       setForecastStatusAt(nextData.lastRunAt)
+    } catch (e) {
+      if (
+        (e as { name?: string; code?: string }).name === 'AbortError' ||
+        (e as { name?: string; code?: string }).code === 'ERR_CANCELED'
+      ) {
+        return
+      }
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) {
+        setLoading(false)
+      }
     }
   }
 

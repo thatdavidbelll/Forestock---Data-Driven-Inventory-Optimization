@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -29,6 +30,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final int MAX_REQUESTS  = 10;
     private static final long WINDOW_MS    = 60_000L; // 1 minute
+    private static final Set<String> TRUSTED_PROXIES = Set.of("127.0.0.1", "::1", "0:0:0:0:0:0:0:1");
 
     private static final String[] RATE_LIMITED_PATHS = {
             "/api/auth/login",
@@ -51,16 +53,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String ip = extractClientIp(request);
         long now = Instant.now().toEpochMilli();
 
-        boolean allowed;
-        synchronized (this) {
-            Deque<Long> timestamps = requestLog.computeIfAbsent(ip, k -> new ArrayDeque<>());
-            // Drop timestamps older than the window
-            while (!timestamps.isEmpty() && (now - timestamps.peekFirst()) > WINDOW_MS) {
-                timestamps.pollFirst();
+        final boolean[] allowedRef = {false};
+        requestLog.compute(ip, (key, existing) -> {
+            Deque<Long> queue = existing != null ? existing : new ArrayDeque<>();
+            while (!queue.isEmpty() && (now - queue.peekFirst()) > WINDOW_MS) {
+                queue.pollFirst();
             }
-            allowed = timestamps.size() < MAX_REQUESTS;
-            if (allowed) timestamps.addLast(now);
-        }
+            if (queue.size() >= MAX_REQUESTS) {
+                return queue;
+            }
+            queue.addLast(now);
+            allowedRef[0] = true;
+            return queue;
+        });
+        boolean allowed = allowedRef[0];
 
         if (allowed) {
             filterChain.doFilter(request, response);
@@ -82,6 +88,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String extractClientIp(HttpServletRequest request) {
+        if (!TRUSTED_PROXIES.contains(request.getRemoteAddr())) {
+            return request.getRemoteAddr();
+        }
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             return forwarded.split(",")[0].trim();

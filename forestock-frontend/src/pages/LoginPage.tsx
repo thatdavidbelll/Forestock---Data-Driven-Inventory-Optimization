@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
+import { extractErrorMessage } from '../lib/errors'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -23,8 +24,7 @@ export default function LoginPage() {
       // Super admins go to the platform admin panel; everyone else to dashboard
       navigate(role === 'ROLE_SUPER_ADMIN' ? '/admin' : '/dashboard')
     } catch (e: unknown) {
-      const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(message ?? 'Sign-in failed. Please try again.')
+      setError(extractErrorMessage(e, 'Sign-in failed. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -42,8 +42,7 @@ export default function LoginPage() {
       const { data } = await api.post('/auth/resend-verification', { username })
       setVerificationMessage(data.message ?? 'Verification email sent.')
     } catch (e: unknown) {
-      const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(message ?? 'Unable to resend verification email.')
+      setError(extractErrorMessage(e, 'Unable to resend verification email.'))
     } finally {
       setResendingVerification(false)
     }

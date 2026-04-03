@@ -236,6 +236,10 @@ public class SalesIngestionService {
             long rowNumber = row.rowNumber();
             if (!row.errors().isEmpty()) {
                 errors.addAll(row.errors().stream().map(err -> "Row " + rowNumber + ": " + err).toList());
+                if (errors.size() >= 1000) {
+                    errors.add("Report truncated — too many errors. Fix your file and re-import.");
+                    break;
+                }
                 skipped++;
                 continue;
             }
@@ -244,6 +248,10 @@ public class SalesIngestionService {
             Product product = productBySku.get(sku);
             if (product == null) {
                 errors.add("Row " + rowNumber + ": SKU '" + sku + "' not found in product catalogue");
+                if (errors.size() >= 1000) {
+                    errors.add("Report truncated — too many errors. Fix your file and re-import.");
+                    break;
+                }
                 skipped++;
                 continue;
             }

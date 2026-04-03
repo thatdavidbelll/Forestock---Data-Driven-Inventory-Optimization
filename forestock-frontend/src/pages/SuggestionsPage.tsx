@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
 import { captureEvent } from '../lib/analytics'
+import { extractErrorMessage } from '../lib/errors'
 
 interface Suggestion {
   id: string
@@ -96,7 +97,7 @@ export default function SuggestionsPage() {
       setSuggestions(data.data ?? [])
       setSelectedIds([])
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+      const msg = extractErrorMessage(e, 'No completed forecast run found. Run a forecast first.')
       if ((msg ?? '').toLowerCase().includes('no completed forecast run')) {
         setSuggestions([])
         setMissingForecast(true)

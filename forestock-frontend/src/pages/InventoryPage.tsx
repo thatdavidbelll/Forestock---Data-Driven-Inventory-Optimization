@@ -97,12 +97,17 @@ export default function InventoryPage() {
 
   async function saveStock(productId: string) {
     const qty = Number(editValue)
+    if (Number(editValue) < 0) {
+      setError('Stock quantity cannot be negative.')
+      return
+    }
     if (isNaN(qty) || qty < 0) {
       setSaveError('Enter a valid non-negative number.')
       return
     }
     setSaving(true)
     setSaveError('')
+    setError('')
     try {
       await api.put(`/inventory/${productId}`, {
         quantity: qty,

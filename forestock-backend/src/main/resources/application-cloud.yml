@@ -10,10 +10,10 @@
 
 forestock:
   jwt:
-    secret: Zt2M/wQDzhhBHqm1ycZSRA2356j560TnBiVvvBf+sAZZHrDXuLRdOHOTgKHOUhVD
+    secret: ${JWT_SECRET}
   super-admin:
-    username: davidbell
-    password: lionofJudah
+    username: ${SUPER_ADMIN_USERNAME}
+    password: ${SUPER_ADMIN_PASSWORD}
   security:
     token-blacklist:
       enabled: false

@@ -1,0 +1,56 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: ECR image tag / commit SHA to roll back to
+        required: true
+        type: string
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: forestock-backend
+
+jobs:
+  rollback-backend:
+    name: Roll Back Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Roll back on EC2
+        uses: appleboy/ssh-action@v1
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG
+          script: |
+            set -e
+            cd ~/forestock/forestock-backend
+
+            ROLLBACK_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            if grep -q "^BACKEND_IMAGE=" .env 2>/dev/null; then
+              sed -i "s|^BACKEND_IMAGE=.*|BACKEND_IMAGE=$ROLLBACK_IMAGE|" .env
+            else
+              echo "BACKEND_IMAGE=$ROLLBACK_IMAGE" >> .env
+            fi
+
+            docker compose -f docker-compose.prod.yml pull app
+            docker compose -f docker-compose.prod.yml up -d --no-build

@@ -38,10 +38,16 @@ public class UpdateStoreConfigRequest {
     @DecimalMax("2.00")
     private BigDecimal safetyStockMultiplier;
 
+    @Min(1)
+    @Max(365)
     private Integer urgencyCriticalDays;
 
+    @Min(1)
+    @Max(365)
     private Integer urgencyHighDays;
 
+    @Min(1)
+    @Max(365)
     private Integer urgencyMediumDays;
 
     private Boolean autoForecastOnImport;

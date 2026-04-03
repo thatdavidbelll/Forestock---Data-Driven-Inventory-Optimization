@@ -5,7 +5,26 @@ interface RetryConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
 }
 
-const api = axios.create({ baseURL: `${import.meta.env.VITE_API_BASE_URL ?? ''}/api` })
+let refreshPromise: Promise<string> | null = null
+let authHandlers: {
+  logout: (() => Promise<void>) | null
+  updateAccessToken: ((token: string) => void) | null
+} = {
+  logout: null,
+  updateAccessToken: null,
+}
+
+export function setApiAuthHandlers(handlers: {
+  logout: () => Promise<void>
+  updateAccessToken: (token: string) => void
+}) {
+  authHandlers = handlers
+}
+
+const api = axios.create({
+  baseURL: `${import.meta.env.VITE_API_BASE_URL ?? ''}/api`,
+  timeout: 30000,
+})
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken')
@@ -31,16 +50,23 @@ api.interceptors.response.use(
       if (refreshToken) {
         originalRequest._retry = true
         try {
-          const { data } = await axios.post(`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/auth/refresh`, null, {
-            headers: { Authorization: `Bearer ${refreshToken}` },
-          })
-          const newAccessToken = data.data.accessToken
-          localStorage.setItem('accessToken', newAccessToken)
-          // Retry the original request with the new token
+          if (!refreshPromise) {
+            refreshPromise = axios
+              .post(`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/auth/refresh`, null, {
+                headers: { Authorization: `Bearer ${refreshToken}` },
+              })
+              .then((response) => response.data.data.accessToken as string)
+              .finally(() => {
+                refreshPromise = null
+              })
+          }
+
+          const newAccessToken = await refreshPromise
+          authHandlers.updateAccessToken?.(newAccessToken)
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
           return api(originalRequest)
         } catch {
-          // Refresh failed — clear everything and go to login
+          await authHandlers.logout?.()
           localStorage.clear()
           window.location.href = '/login'
           return Promise.reject(error)

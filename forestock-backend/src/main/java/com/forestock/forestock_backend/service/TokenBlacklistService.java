@@ -27,7 +27,7 @@ public class TokenBlacklistService {
         try {
         redisTemplate.opsForValue().set(PREFIX + jti, "1", ttl);
         } catch (RuntimeException e) {
-            log.warn("Token blacklist write skipped because Redis is unavailable: {}", e.getMessage());
+            log.error("Token blacklist write skipped because Redis is unavailable: {}", e.getMessage());
         }
     }
 
@@ -39,7 +39,7 @@ public class TokenBlacklistService {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(PREFIX + jti));
         } catch (RuntimeException e) {
-            log.warn("Token blacklist check skipped because Redis is unavailable: {}", e.getMessage());
+            log.error("Token blacklist check skipped because Redis is unavailable: {}", e.getMessage());
             return false;
         }
     }

@@ -19,9 +19,8 @@ import java.util.UUID;
 /**
  * Handles the forgot-password / reset-password flow.
  *
- * Email sending is best-effort: if mail is not configured, the reset token is
- * logged at WARN level so developers can still test the flow locally without
- * setting up an SMTP server.
+ * Email sending is best-effort: if mail is not configured, the failure is
+ * logged at WARN level so developers can diagnose local setup issues.
  */
 @Slf4j
 @Service
@@ -104,8 +103,8 @@ public class PasswordResetService {
             mailSender.send(message);
             log.info("Password reset email sent to: {}", toEmail);
         } catch (Exception e) {
-            // Mail not configured or send failed — log the token so dev can test manually
-            log.warn("Failed to send reset email to {}. Reset link (DEV ONLY): {}", toEmail, resetLink);
+            // Mail not configured or send failed — log enough detail for diagnosis without exposing the token
+            log.warn("Failed to send reset email to {}: {}", toEmail, e.getMessage());
             log.warn("Email error: {}", e.getMessage());
         }
     }

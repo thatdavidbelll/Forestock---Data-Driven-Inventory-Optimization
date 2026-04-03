@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
-import api from '../lib/api'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import api, { setApiAuthHandlers } from '../lib/api'
 import { identifyUser, resetAnalytics } from '../lib/analytics'
 
 interface AuthState {
@@ -56,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('accessToken', token)
     // username and role don't change on refresh — no state update needed
   }
+
+  useEffect(() => {
+    setApiAuthHandlers({ logout, updateAccessToken })
+  }, [])
 
   return (
     <AuthContext.Provider value={{ ...auth, login, logout, updateAccessToken }}>

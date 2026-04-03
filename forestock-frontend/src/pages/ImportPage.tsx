@@ -98,8 +98,7 @@ export default function ImportPage() {
       setFile(null)
       if (inputRef.current) inputRef.current.value = ''
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Upload failed.')
+      setError(extractErrorMessage(e, 'Upload failed.'))
     } finally {
       setLoading(false)
     }
