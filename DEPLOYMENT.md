@@ -8,9 +8,9 @@
 ```
 Browser
   │
-  ├── app.forestock.app  ──→  CloudFront ──→  S3  (React frontend, ~$1/mo)
+  ├── app.forestock.ro  ──→  CloudFront ──→  S3  (React frontend, ~$1/mo)
   │
-  └── api.forestock.app  ──→  EC2 t4g.micro  (Nginx → Spring Boot + Redis)
+  └── api.forestock.ro  ──→  EC2 t4g.micro  (Nginx → Spring Boot + Redis)
                                     │
                                     └──→  Neon PostgreSQL  (free tier, auto-suspends)
 ```
@@ -58,12 +58,12 @@ AWS Console → EC2 → Launch Instance:
 In your DNS provider (or Route 53), before getting SSL:
 
 ```
-A  api.forestock.app  →  YOUR_ELASTIC_IP
+A  api.forestock.ro  →  YOUR_ELASTIC_IP
 ```
 
 Verify propagation:
 ```bash
-nslookup api.forestock.app
+nslookup api.forestock.ro
 ```
 
 ---
@@ -108,7 +108,7 @@ Paste:
 ```nginx
 server {
     listen 80;
-    server_name api.forestock.app;
+    server_name api.forestock.ro;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -127,10 +127,14 @@ Enable and get SSL certificate:
 sudo ln -s /etc/nginx/sites-available/forestock /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
-sudo certbot --nginx -d api.forestock.app
+sudo certbot --nginx -d api.forestock.ro
 ```
 
 Certbot updates the Nginx config automatically and sets up auto-renewal.
+
+Cloudflare note:
+- Set SSL/TLS mode to `Full` or `Full (strict)`.
+- Do not use `Flexible`, or Cloudflare will connect to the origin over HTTP and trigger the Nginx `80 -> 443` redirect loop that breaks CORS preflight requests.
 
 ---
 
@@ -165,7 +169,7 @@ AWS_SNS_TOPIC_ARN=
 
 # App
 JWT_SECRET=generate-a-64-char-random-string-here
-FORESTOCK_FRONTEND_URL=https://app.forestock.app
+FORESTOCK_FRONTEND_URL=https://app.forestock.ro
 FORESTOCK_ALERT_EMAIL=
 SUPER_ADMIN_USERNAME=your_admin_username
 SUPER_ADMIN_PASSWORD=your_strong_password
@@ -175,7 +179,7 @@ MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your@gmail.com
 MAIL_PASSWORD=your_gmail_app_password
-MAIL_FROM=noreply@forestock.app
+MAIL_FROM=noreply@forestock.ro
 ```
 
 Generate a JWT secret (run this locally, paste the result into .env):
@@ -206,7 +210,7 @@ Look for:
 
 Test the health endpoint:
 ```bash
-curl https://api.forestock.app/actuator/health
+curl https://api.forestock.ro/actuator/health
 # Expected: {"status":"UP"}
 ```
 
@@ -218,7 +222,7 @@ Run locally on your machine:
 
 ```bash
 cd forestock-frontend
-echo "VITE_API_BASE_URL=https://api.forestock.app" > .env.production
+echo "VITE_API_BASE_URL=https://api.forestock.ro" > .env.production
 npm run build
 ```
 
@@ -238,12 +242,12 @@ aws s3 sync dist/ s3://forestock-app-frontend --delete
 Create a CloudFront distribution in the AWS Console:
 - **Origin:** your S3 bucket
 - **Default root object:** `index.html`
-- **Custom error response:** 404 → `/index.html`, HTTP 200 (required for React Router)
+- **Custom error responses:** 403 → `/index.html`, HTTP 200 and 404 → `/index.html`, HTTP 200 (required for React Router refreshes on S3/CloudFront)
 - **HTTPS:** Use CloudFront's default cert, or add your domain + ACM certificate
 
 Point DNS:
 ```
-CNAME  app.forestock.app  →  your-cloudfront-id.cloudfront.net
+CNAME  app.forestock.ro  →  your-cloudfront-id.cloudfront.net
 ```
 
 ---
@@ -318,6 +322,18 @@ GitHub Actions detects what changed (backend vs frontend) and only deploys what'
 
 **CSV upload fails (413 error):**
 - Nginx `client_max_body_size` must be at least 55M — already set in the config above
+
+**Login fails with a browser CORS error and preflight redirect:**
+- Run:
+  `curl -i -X OPTIONS 'https://api.forestock.ro/api/auth/login' -H 'Origin: https://app.forestock.ro' -H 'Access-Control-Request-Method: POST'`
+- Expected: `200` or `204`, with no `Location` header
+- If you get `301` or `308`, check Cloudflare SSL mode first and make sure the Nginx `443` block proxies to Spring Boot instead of redirecting
+
+**Refreshing `/login`, `/dashboard`, or `/admin` shows an S3/XML AccessDenied page:**
+- CloudFront is forwarding the route to S3 as an object key
+- Add both custom error responses on the distribution:
+  - `403 -> /index.html -> 200`
+  - `404 -> /index.html -> 200`
 
 **Containers don't restart after EC2 start:**
 - Check they have `restart: unless-stopped` in docker-compose.prod.yml (they do)
@@ -457,7 +473,7 @@ GitHub → your repo → Settings → Secrets and variables → Actions → New 
 | `AWS_SECRET_ACCESS_KEY` | Secret key from the `forestock-github-actions` IAM user |
 | `EC2_HOST` | Your Elastic IP address |
 | `EC2_SSH_KEY` | Contents of your `.pem` key file (the whole file including `-----BEGIN RSA PRIVATE KEY-----`) |
-| `VITE_API_BASE_URL` | `https://api.forestock.app` |
+| `VITE_API_BASE_URL` | `https://api.forestock.ro` |
 | `S3_FRONTEND_BUCKET` | `forestock-app-frontend` |
 | `CLOUDFRONT_DISTRIBUTION_ID` | Your CloudFront distribution ID (e.g. `E1ABCDEF123456`) |
 

@@ -438,14 +438,14 @@ JWT_SECRET=<base64-random-48-bytes>
 FORESTOCK_ALERT_EMAIL=manager@example.com
 SUPER_ADMIN_USERNAME=superadmin
 SUPER_ADMIN_PASSWORD=<strong-password>
-FORESTOCK_FRONTEND_URL=https://app.forestock.app
+FORESTOCK_FRONTEND_URL=https://app.forestock.ro
 
 # Optional — enables password reset emails
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your@gmail.com
 MAIL_PASSWORD=<app-password>
-MAIL_FROM=noreply@forestock.app
+MAIL_FROM=noreply@forestock.ro
 ```
 
 Generate a JWT secret:

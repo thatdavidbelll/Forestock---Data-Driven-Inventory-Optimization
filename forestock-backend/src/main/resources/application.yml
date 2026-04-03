@@ -87,11 +87,12 @@ forestock:
   super-admin:
     username: ${SUPER_ADMIN_USERNAME:superadmin}
     password: ${SUPER_ADMIN_PASSWORD:Admin@12345}
-  # Base URL of the frontend — used in password-reset email links
+  # Base URL of the frontend — used in password-reset email links and CORS.
+  # In production this may be a comma-separated list, e.g.
+  # https://app.forestock.ro,https://app.forestock.app
   frontend-url: ${FORESTOCK_FRONTEND_URL:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:noreply@forestock.app}
   security:
     token-blacklist:
       enabled: true
-
