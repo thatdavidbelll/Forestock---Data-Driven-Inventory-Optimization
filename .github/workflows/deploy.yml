@@ -84,11 +84,18 @@ jobs:
             # Pull latest compose file and config changes
             git -C ~/forestock pull origin main
 
-            # Ensure correct AWS CLI v2 is installed
-            sudo rm -f /usr/local/bin/aws /usr/local/bin/aws_completer
-            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-            unzip -q -o /tmp/awscliv2.zip -d /tmp
-            sudo /tmp/aws/install --update
+            # Ensure AWS CLI is available without redownloading it on every deploy.
+            if ! command -v aws >/dev/null 2>&1; then
+              tmpdir=$(mktemp -d)
+              trap 'rm -rf "$tmpdir"' EXIT
+              curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$tmpdir/awscliv2.zip"
+              unzip -q -o "$tmpdir/awscliv2.zip" -d "$tmpdir"
+              sudo "$tmpdir/aws/install" --update
+            fi
+
+            # Free disk space before pulling the next image.
+            docker image prune -af || true
+            docker builder prune -af || true
 
             # Login to ECR using credentials passed from GitHub secrets
             export AWS_DEFAULT_REGION=eu-central-1
