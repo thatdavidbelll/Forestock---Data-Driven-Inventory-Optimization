@@ -31,9 +31,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             WHERE p.store.id = :storeId
             AND (:includeInactive = true OR p.active = true)
             AND (
-                :search IS NULL
-                OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%'))
+                COALESCE(:search, '') = ''
+                OR LOWER(p.name) LIKE LOWER(CONCAT('%', COALESCE(:search, ''), '%'))
+                OR LOWER(p.sku) LIKE LOWER(CONCAT('%', COALESCE(:search, ''), '%'))
             )
             ORDER BY p.createdAt DESC
             """)
