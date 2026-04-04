@@ -48,16 +48,29 @@ public class InventoryService {
     @Transactional(readOnly = true)
     public List<InventoryDto> getCurrentStock() {
         UUID storeId = TenantContext.getStoreId();
-        List<Inventory> inventories = storeId != null
+        List<Product> products = storeId != null
+                ? productRepository.findByStoreIdAndActiveTrue(storeId)
+                : productRepository.findByActiveTrue();
+        Map<UUID, Inventory> latestInventoryByProductId = (storeId != null
                 ? inventoryRepository.findLatestForAllProductsByStore(storeId)
-                : inventoryRepository.findLatestForAllProducts();
+                : inventoryRepository.findLatestForAllProducts())
+                .stream()
+                .collect(Collectors.toMap(
+                        inventory -> inventory.getProduct().getId(),
+                        inventory -> inventory
+                ));
 
         Map<UUID, BigDecimal> p50DailyByProductId = storeId != null
                 ? getP50DailyByProductId(storeId)
                 : Map.of();
 
-        return inventories.stream()
-                .map(inventory -> toDto(inventory, p50DailyByProductId.get(inventory.getProduct().getId())))
+        return products.stream()
+                .map(product -> {
+                    Inventory inventory = latestInventoryByProductId.get(product.getId());
+                    return inventory != null
+                            ? toDto(inventory, p50DailyByProductId.get(product.getId()))
+                            : toDto(product, BigDecimal.ZERO, p50DailyByProductId.get(product.getId()), null);
+                })
                 .toList();
     }
 
@@ -259,25 +272,28 @@ public class InventoryService {
     }
 
     private InventoryDto toDto(Inventory inv, BigDecimal p50Daily) {
-        Product p = inv.getProduct();
-        boolean below = p.getReorderPoint() != null
-                && inv.getQuantity().compareTo(p.getReorderPoint()) < 0;
+        return toDto(inv.getProduct(), inv.getQuantity(), p50Daily, inv);
+    }
+
+    private InventoryDto toDto(Product product, BigDecimal quantity, BigDecimal p50Daily, Inventory inventory) {
+        boolean below = product.getReorderPoint() != null
+                && quantity.compareTo(product.getReorderPoint()) < 0;
 
         return InventoryDto.builder()
-                .id(inv.getId())
-                .productId(p.getId())
-                .productSku(p.getSku())
-                .productName(p.getName())
-                .productCategory(p.getCategory())
-                .unit(p.getUnit())
-                .quantity(inv.getQuantity())
-                .reorderPoint(p.getReorderPoint())
+                .id(inventory != null ? inventory.getId() : null)
+                .productId(product.getId())
+                .productSku(product.getSku())
+                .productName(product.getName())
+                .productCategory(product.getCategory())
+                .unit(product.getUnit())
+                .quantity(quantity)
+                .reorderPoint(product.getReorderPoint())
                 .belowReorderPoint(below)
                 .p50Daily(p50Daily)
-                .adjustmentReason(inv.getAdjustmentReason())
-                .adjustmentNote(inv.getAdjustmentNote())
-                .adjustedBy(inv.getAdjustedBy())
-                .recordedAt(inv.getRecordedAt())
+                .adjustmentReason(inventory != null ? inventory.getAdjustmentReason() : null)
+                .adjustmentNote(inventory != null ? inventory.getAdjustmentNote() : null)
+                .adjustedBy(inventory != null ? inventory.getAdjustedBy() : null)
+                .recordedAt(inventory != null ? inventory.getRecordedAt() : null)
                 .build();
     }
 }
