@@ -40,6 +40,10 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-noreply@forestock.app}
+      # Shopify
+      SHOPIFY_WEBHOOK_SECRET: ${SHOPIFY_WEBHOOK_SECRET:-}
+      SHOPIFY_ENABLED: ${SHOPIFY_ENABLED:-false}
+      SHOPIFY_AUTO_FORECAST: ${SHOPIFY_AUTO_FORECAST:-true}
     depends_on:
       redis:
         condition: service_healthy

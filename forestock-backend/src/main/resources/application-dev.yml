@@ -4,6 +4,9 @@ forestock:
   super-admin:
     username: ${SUPER_ADMIN_USERNAME}
     password: ${SUPER_ADMIN_PASSWORD}
+  shopify:
+    enabled: true
+    webhook-secret: "dev-test-secret"
 
 spring:
   datasource:

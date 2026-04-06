@@ -20,3 +20,9 @@ springdoc:
     enabled: false
   api-docs:
     enabled: false
+
+forestock:
+  shopify:
+    enabled: true
+    webhook-secret: "dev-test-secret"
+    auto-forecast-on-webhook: false

@@ -47,3 +47,7 @@ springdoc:
     enabled: false
   api-docs:
     enabled: false
+
+forestock:
+  shopify:
+    enabled: true

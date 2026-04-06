@@ -180,6 +180,11 @@ MAIL_PORT=587
 MAIL_USERNAME=your@gmail.com
 MAIL_PASSWORD=your_gmail_app_password
 MAIL_FROM=noreply@forestock.ro
+
+# Shopify Integration
+SHOPIFY_WEBHOOK_SECRET=your_shopify_webhook_secret
+SHOPIFY_ENABLED=true
+SHOPIFY_AUTO_FORECAST=true
 ```
 
 Generate a JWT secret (run this locally, paste the result into .env):

@@ -49,6 +49,7 @@ public class SecurityConfig {
             "/api/auth/resend-verification",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
+            "/api/webhooks/shopify/**",
             "/actuator/health",
             "/actuator/health/**",
             "/error",               // Spring error dispatch
@@ -78,6 +79,10 @@ public class SecurityConfig {
                     .requestMatchers(org.springframework.http.HttpMethod.PUT,  "/api/users/{id}").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/users/{id}").hasRole("ADMIN")
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/audit-logs").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/store/shopify").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/store/shopify").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/store/shopify/toggle").hasRole("ADMIN")
+                    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/store/shopify").hasAnyRole("ADMIN", "MANAGER")
                     // Password change: any authenticated user for their own account
                     .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/users/me/password").authenticated()
                     .anyRequest().authenticated())

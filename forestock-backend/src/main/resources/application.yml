@@ -93,6 +93,11 @@ forestock:
   frontend-url: ${FORESTOCK_FRONTEND_URL:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:noreply@forestock.app}
+  shopify:
+    webhook-secret: ${SHOPIFY_WEBHOOK_SECRET:}
+    enabled: ${SHOPIFY_ENABLED:false}
+    auto-forecast-on-webhook: ${SHOPIFY_AUTO_FORECAST:true}
+    daily-aggregation: true
   security:
     token-blacklist:
       enabled: true
