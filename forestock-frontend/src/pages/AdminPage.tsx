@@ -130,6 +130,7 @@ export default function AdminPage() {
               value={storeName}
               onChange={(e) => handleStoreName(e.target.value)}
               required
+              aria-required="true"
               placeholder="My Shop"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -144,6 +145,7 @@ export default function AdminPage() {
               value={storeSlug}
               onChange={(e) => setStoreSlug(e.target.value)}
               required
+              aria-required="true"
               placeholder="my-shop"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
             />
@@ -155,6 +157,7 @@ export default function AdminPage() {
               value={adminUsername}
               onChange={(e) => setAdminUsername(e.target.value)}
               required
+              aria-required="true"
               placeholder="store_admin"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -166,6 +169,7 @@ export default function AdminPage() {
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               required
+              aria-required="true"
               minLength={8}
               placeholder="Min. 8 characters"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -181,13 +185,14 @@ export default function AdminPage() {
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
               required
+              aria-required="true"
               placeholder="owner@myshop.com"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           {createError && (
             <div className="sm:col-span-2">
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{createError}</p>
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{createError}</p>
             </div>
           )}
           {createSuccess && (
@@ -213,9 +218,9 @@ export default function AdminPage() {
           <h2 className="text-lg font-semibold text-gray-900">All Stores ({stores.length})</h2>
         </div>
         {loading ? (
-          <div className="px-6 py-8 text-center text-sm text-gray-400">Loading…</div>
+          <div className="px-6 py-8 text-center text-sm text-gray-400" role="status" aria-label="Loading">Loading…</div>
         ) : error ? (
-          <div className="px-6 py-4 text-sm text-red-600">{error}</div>
+          <div className="px-6 py-4 text-sm text-red-600" role="alert">{error}</div>
         ) : stores.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-gray-400">No stores yet.</div>
         ) : (

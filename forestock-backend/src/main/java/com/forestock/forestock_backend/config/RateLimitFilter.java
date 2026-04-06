@@ -34,7 +34,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String[] RATE_LIMITED_PATHS = {
             "/api/auth/login",
-            "/api/auth/forgot-password"
+            "/api/auth/forgot-password",
+            "/api/auth/refresh",
+            "/api/auth/verify-email",
+            "/api/auth/resend-verification",
+            "/api/auth/reset-password"
     };
 
     /** Per-IP sliding window of request timestamps. */

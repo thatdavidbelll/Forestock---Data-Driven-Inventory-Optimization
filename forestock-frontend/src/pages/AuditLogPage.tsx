@@ -201,9 +201,9 @@ export default function AuditLogPage() {
         </div>
 
         {loading ? (
-          <div className="px-6 py-8 text-sm text-gray-400 text-center">Loading…</div>
+          <div className="px-6 py-8 text-sm text-gray-400 text-center" role="status" aria-label="Loading">Loading…</div>
         ) : error ? (
-          <div className="px-6 py-4 text-sm text-red-600">{error}</div>
+          <div className="px-6 py-4 text-sm text-red-600" role="alert">{error}</div>
         ) : logs.length === 0 ? (
           <div className="px-6 py-8 text-sm text-gray-400 text-center">No audit events found.</div>
         ) : (

@@ -63,11 +63,18 @@ public class ForecastOrchestrator {
     @Async
     @Transactional
     public void runForecast(UUID storeId, String triggeredBy) {
-        if (storeId != null) {
+        if (storeId == null) {
+            return;
+        }
+
+        TenantContext.setStoreId(storeId);
+        try {
             Store store = storeRepository.findById(storeId).orElse(null);
             if (store != null) {
                 runFullCycle(triggeredBy, store);
             }
+        } finally {
+            TenantContext.clear();
         }
     }
 

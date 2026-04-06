@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -110,6 +111,7 @@ public class UserManagementService {
         Map<String, Object> before = new HashMap<>();
         before.put("role", user.getRole());
         before.put("active", user.getActive());
+        Boolean previousActive = user.getActive();
 
         if (request.getRole() != null) {
             if ("ROLE_SUPER_ADMIN".equals(request.getRole())) {
@@ -130,6 +132,14 @@ public class UserManagementService {
                 Map.of("role", saved.getRole(), "active", saved.getActive()),
                 Map.of("username", saved.getUsername())
         );
+        if (request.getActive() != null && !Objects.equals(previousActive, saved.getActive())) {
+            auditLogService.log(
+                    Boolean.TRUE.equals(saved.getActive()) ? "USER_ACTIVATED" : "USER_DEACTIVATED",
+                    "AppUser",
+                    saved.getId().toString(),
+                    "Updated active status for user '" + saved.getUsername() + "' to " + saved.getActive()
+            );
+        }
         return toDto(saved);
     }
 

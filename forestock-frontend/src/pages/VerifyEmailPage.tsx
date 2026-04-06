@@ -5,14 +5,12 @@ import { extractErrorMessage } from '../lib/errors'
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [message, setMessage] = useState('Verifying your email...')
+  const token = searchParams.get('token')
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(token ? 'loading' : 'error')
+  const [message, setMessage] = useState(token ? 'Verifying your email...' : 'Missing verification token.')
 
   useEffect(() => {
-    const token = searchParams.get('token')
     if (!token) {
-      setStatus('error')
-      setMessage('Missing verification token.')
       return
     }
 
@@ -32,7 +30,7 @@ export default function VerifyEmailPage() {
     return () => {
       cancelled = true
     }
-  }, [searchParams])
+  }, [token])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

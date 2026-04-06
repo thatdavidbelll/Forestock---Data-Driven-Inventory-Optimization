@@ -161,8 +161,8 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {loading && <p className="text-gray-400 text-sm">Loading…</p>}
-      {error && <p className="text-sm text-red-700 bg-red-50 rounded-lg px-4 py-3">{error}</p>}
+      {loading && <p className="text-gray-400 text-sm" role="status" aria-label="Loading">Loading…</p>}
+      {error && <p className="text-sm text-red-700 bg-red-50 rounded-lg px-4 py-3" role="alert">{error}</p>}
 
       {!loading && items.length === 0 && !error ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
@@ -244,7 +244,7 @@ export default function InventoryPage() {
                               placeholder="e.g. PO #4521 received"
                               className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
-                            {saveError && <p className="text-xs text-red-600">{saveError}</p>}
+                            {saveError && <p className="text-xs text-red-600" role="alert">{saveError}</p>}
                           </div>
                         ) : (
                           <button

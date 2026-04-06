@@ -34,8 +34,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 10MB
+      max-request-size: 10MB
 
   jackson:
     default-property-inclusion: non_null
@@ -78,7 +78,7 @@ forestock:
   scheduler:
     cron: "0 0 2 * * *"
   jwt:
-    secret: ${JWT_SECRET:change-me-in-production-use-a-long-random-string}
+    secret: ${JWT_SECRET}
     access-token-expiry-hours: 8
     refresh-token-expiry-days: 30
   notifications:
@@ -86,7 +86,7 @@ forestock:
   # Super admin seeded on first startup — configure via env vars in production
   super-admin:
     username: ${SUPER_ADMIN_USERNAME:superadmin}
-    password: ${SUPER_ADMIN_PASSWORD:Admin@12345}
+    password: ${SUPER_ADMIN_PASSWORD}
   # Base URL of the frontend — used in password-reset email links and CORS.
   # In production this may be a comma-separated list, e.g.
   # https://app.forestock.ro,https://app.forestock.app

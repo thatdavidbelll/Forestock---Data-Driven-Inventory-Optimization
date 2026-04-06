@@ -134,8 +134,8 @@ export default function SlowMoversPage() {
         </div>
       </div>
 
-      {loading && <p className="text-sm text-gray-500">Loading slow movers…</p>}
-      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {loading && <p className="text-sm text-gray-500" role="status" aria-label="Loading">Loading slow movers…</p>}
+      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
 
       {!loading && !error && sortedItems.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">

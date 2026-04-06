@@ -247,7 +247,7 @@ export default function SalesPage() {
       )}
 
       {/* Table */}
-      {loading && <p className="text-gray-400 text-sm">Loading…</p>}
+      {loading && <p className="text-gray-400 text-sm" role="status" aria-label="Loading">Loading…</p>}
 
       {!loading && page && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">

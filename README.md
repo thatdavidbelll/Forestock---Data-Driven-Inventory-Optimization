@@ -23,7 +23,7 @@ Forestock/
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
 | Database | PostgreSQL 17 (local Docker for dev, Neon for cloud profile, AWS RDS planned for prod) |
-| Migrations | Flyway (V1–V16) |
+| Migrations | Flyway (V1–V20) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 (sales data backup + forecast results) |
 | Notifications | AWS SNS (email on forecast complete / failed) |
@@ -90,6 +90,22 @@ Open `http://localhost:5173` for the app UI. The Vite dev server proxies `/api` 
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | Adminer | http://localhost:8090 |
 | Redis | localhost:6379 (dev profile only) |
+
+## Testing
+
+### Backend
+```bash
+cd forestock-backend
+./mvnw test
+./mvnw test -Dtest=SuggestionEngineTest
+```
+
+### Frontend
+```bash
+cd forestock-frontend
+npm run lint
+npx tsc --noEmit
+```
 
 ---
 
@@ -191,6 +207,14 @@ In the `cloud` profile, blacklist enforcement is disabled so the app can run dir
 
 ### Rate limiting
 Login and forgot-password endpoints: **10 requests/minute per IP**. Returns HTTP 429 when exceeded.
+
+## Security
+
+- JWT authentication with Redis-backed token blacklist
+- Rate limiting on all auth endpoints (10 req/min per IP)
+- Security headers: X-Frame-Options, HSTS, X-Content-Type-Options
+- CORS restricted to configured frontend origin
+- See [SECURITY.md](SECURITY.md) for vulnerability reporting
 
 ---
 

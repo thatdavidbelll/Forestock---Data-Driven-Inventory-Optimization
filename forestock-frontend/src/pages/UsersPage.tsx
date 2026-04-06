@@ -137,9 +137,9 @@ export default function UsersPage() {
       </div>
 
       {loading ? (
-        <div className="text-center text-sm text-gray-400 py-12">Loading…</div>
+        <div className="text-center text-sm text-gray-400 py-12" role="status" aria-label="Loading">Loading…</div>
       ) : error ? (
-        <div className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">{error}</div>
+        <div className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3" role="alert">{error}</div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200">
           <table className="w-full text-sm">
@@ -292,7 +292,7 @@ export default function UsersPage() {
                 </select>
               </div>
               {modalError && (
-                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{modalError}</p>
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{modalError}</p>
               )}
               <div className="flex gap-3 pt-2">
                 <button

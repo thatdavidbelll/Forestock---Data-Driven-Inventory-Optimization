@@ -73,9 +73,16 @@ public class StoreConfigurationService {
                 .orElseGet(() -> {
                     Store store = storeRepository.findById(storeId)
                             .orElseThrow(() -> new NoSuchElementException("Store not found"));
-                    return storeConfigurationRepository.save(StoreConfiguration.builder()
+                    StoreConfiguration saved = storeConfigurationRepository.save(StoreConfiguration.builder()
                             .store(store)
                             .build());
+                    auditLogService.log(
+                            "STORE_CONFIG_INITIALIZED",
+                            "StoreConfiguration",
+                            saved.getId().toString(),
+                            "Initialized default configuration for store " + store.getSlug()
+                    );
+                    return saved;
                 });
     }
 

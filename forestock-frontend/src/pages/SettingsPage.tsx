@@ -198,7 +198,7 @@ export default function SettingsPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Store Profile</h2>
           {storeLoading ? (
-            <p className="text-sm text-gray-400">Loading…</p>
+            <p className="text-sm text-gray-400" role="status" aria-label="Loading">Loading…</p>
           ) : (
             <form onSubmit={handleSaveStore} className="space-y-4">
               <div>
@@ -208,6 +208,7 @@ export default function SettingsPage() {
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   required
+                  aria-required="true"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -250,7 +251,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              {storeError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{storeError}</p>}
+              {storeError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{storeError}</p>}
               {storeSuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {storeSuccess}</p>}
               <button
                 type="submit"
@@ -269,7 +270,7 @@ export default function SettingsPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Forecast & Restocking</h2>
           {configLoading || !config ? (
-            <p className="text-sm text-gray-400">Loading…</p>
+            <p className="text-sm text-gray-400" role="status" aria-label="Loading">Loading…</p>
           ) : (
             <form onSubmit={handleSaveConfig} className="space-y-5">
               <div>
@@ -346,7 +347,7 @@ export default function SettingsPage() {
                 Run a forecast automatically after a successful sales import.
               </label>
 
-              {configError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{configError}</p>}
+              {configError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{configError}</p>}
               {configSuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {configSuccess}</p>}
 
               <button
@@ -398,6 +399,7 @@ export default function SettingsPage() {
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
+              aria-required="true"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -408,6 +410,7 @@ export default function SettingsPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
+              aria-required="true"
               minLength={8}
               placeholder="Min. 8 characters"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -420,12 +423,13 @@ export default function SettingsPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              aria-required="true"
               placeholder="Repeat new password"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <PasswordStrengthIndicator password={newPassword} />
-          {passwordError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{passwordError}</p>}
+          {passwordError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{passwordError}</p>}
           {passwordSuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {passwordSuccess}</p>}
           <button
             type="submit"
@@ -460,7 +464,7 @@ export default function SettingsPage() {
             Delete my account
           </button>
         </div>
-        {exportError && <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{exportError}</p>}
+        {exportError && <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{exportError}</p>}
       </div>
     </div>
   )

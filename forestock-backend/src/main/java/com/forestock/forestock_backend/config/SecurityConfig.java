@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,7 +49,8 @@ public class SecurityConfig {
             "/api/auth/resend-verification",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
-            "/actuator/**",         // health + metrics (Spring Boot 4.x needs the wildcard)
+            "/actuator/health",
+            "/actuator/health/**",
             "/error",               // Spring error dispatch
             "/swagger-ui/**",
             "/swagger-ui.html",
@@ -86,6 +88,14 @@ public class SecurityConfig {
                         res.getWriter().write("{\"status\":\"error\",\"message\":\"Unauthorized — please log in.\"}");
                     }
             ))
+            .headers(headers -> headers
+                    .frameOptions(frameOptions -> frameOptions.deny())
+                    .contentTypeOptions(Customizer.withDefaults())
+                    .httpStrictTransportSecurity(hsts -> hsts
+                            .maxAgeInSeconds(31536000)
+                            .includeSubDomains(true)
+                            .preload(true))
+            )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -117,7 +127,7 @@ public class SecurityConfig {
                 .filter(origin -> !origin.isEmpty())
                 .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

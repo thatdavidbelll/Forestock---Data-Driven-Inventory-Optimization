@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Ensures the configured platform super-admin account exists on startup.
  *
  * Configure via environment variables:
- *   SUPER_ADMIN_USERNAME  (default from active profile)
- *   SUPER_ADMIN_PASSWORD  (default from active profile)
+ *   SUPER_ADMIN_USERNAME
+ *   SUPER_ADMIN_PASSWORD
  */
 @Slf4j
 @Component
@@ -26,22 +25,18 @@ public class DataInitializer implements ApplicationRunner {
 
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final Environment environment;
 
     @Value("${forestock.super-admin.username:superadmin}")
     private String superAdminUsername;
 
-    @Value("${forestock.super-admin.password:Admin@12345}")
+    @Value("${forestock.super-admin.password}")
     private String superAdminPassword;
-
-    @Value("${SUPER_ADMIN_PASSWORD:}")
-    private String rawSuperAdminPasswordEnv;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (isNonDevProfile() && rawSuperAdminPasswordEnv.isBlank()) {
-            log.warn("SUPER_ADMIN_PASSWORD env var is not set. A profile default password is in use for the super admin.");
+        if (superAdminPassword == null || superAdminPassword.isBlank()) {
+            throw new IllegalStateException("SUPER_ADMIN_PASSWORD environment variable must be set");
         }
 
         AppUser superAdmin = userRepository.findByUsername(superAdminUsername)
@@ -68,14 +63,5 @@ public class DataInitializer implements ApplicationRunner {
         } else {
             log.warn("Configured super admin created: username='{}'", superAdminUsername);
         }
-    }
-
-    private boolean isNonDevProfile() {
-        for (String profile : environment.getActiveProfiles()) {
-            if ("dev".equalsIgnoreCase(profile)) {
-                return false;
-            }
-        }
-        return true;
     }
 }

@@ -69,7 +69,9 @@ forestock/
 │   └── deploy.yml              CI/CD — push to main auto-deploys backend (ECR→EC2) + frontend (S3+CloudFront)
 ├── DEPLOYMENT.md               Full EC2 setup + CI/CD setup guide
 ├── integrations.md             Prioritised feature backlog (14 items — read before adding features)
-└── CODEX_PROMPT.md             Prompt template for delegating work to Codex
+├── SECURITY.md                 Security reporting policy
+├── CONTRIBUTING.md             Contribution workflow
+└── LICENSE                     Proprietary license text
 ```
 
 ---
@@ -92,6 +94,7 @@ All controllers return `ResponseEntity<ApiResponse<T>>` where `ApiResponse` wrap
 | `SalesIngestionService` | CSV parsing + JDBC batch UPSERT (chunks of 500). Validates SKUs, dates, quantities. Auto-triggers forecast on successful import. |
 | `JwtService` + `TokenBlacklistService` | Token generation and Redis-backed revocation on logout/password change. |
 | `TenantContext` | ThreadLocal holding the current `store_id`. Set by `JwtAuthFilter` on every request. Cleared after the request. |
+| `CorrelationIdFilter` | Adds a correlation ID to MDC for structured request tracing, with store ID when available. |
 
 **Forecasting pipeline** (triggered manually or by `DailyForecastJob` at 02:00 UTC):
 ```
@@ -134,8 +137,8 @@ New entities must have `store_id NOT NULL REFERENCES stores(id) ON DELETE CASCAD
 
 ## Database
 
-**Flyway migrations:** `forestock-backend/src/main/resources/db/migration/V1` through `V10`.
-- Next migration is `V11`. Never modify existing ones.
+**Flyway migrations:** `forestock-backend/src/main/resources/db/migration/V1` through `V20`.
+- Next migration is `V21`. Never modify existing ones.
 - Flyway uses `ddl-auto: validate` — Hibernate validates but never changes the schema.
 - **Always use the `current_inventory` view** for current stock levels, never query the `inventory` table directly.
 
@@ -175,6 +178,7 @@ New entities must have `store_id NOT NULL REFERENCES stores(id) ON DELETE CASCAD
 **Auth state** is in `AuthContext` — always read via `useAuth()`, never read localStorage directly.
 
 **Route guards** are inline components in `App.tsx` (`AdminRoute`, `AdminOnlyRoute`, `AdminManagerRoute`). Add new protected routes to `App.tsx` and new nav items to `Layout.tsx`.
+`App.tsx` wraps routes in `ErrorBoundary` and uses `React.lazy()` + `Suspense` for page-level code splitting.
 
 **Page pattern:**
 ```tsx

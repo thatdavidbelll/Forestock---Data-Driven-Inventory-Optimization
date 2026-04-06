@@ -13,6 +13,7 @@ import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.AuditLogService;
 import com.forestock.forestock_backend.service.ProductBulkImportService;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -104,7 +105,8 @@ public class ProductController {
      * POST /api/products
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<ProductDto>> create(@RequestBody ProductDto request) {
+    @Transactional
+    public ResponseEntity<ApiResponse<ProductDto>> create(@Valid @RequestBody ProductDto request) {
         UUID storeId = TenantContext.getStoreId();
         if (storeId == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -151,9 +153,10 @@ public class ProductController {
      * Updates product fields. Use active=false to deactivate (soft delete).
      */
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<ProductDto>> update(
             @PathVariable UUID id,
-            @RequestBody ProductDto updates) {
+            @Valid @RequestBody ProductDto updates) {
         return productRepository.findById(id)
                 .map(existing -> {
                     if (isAccessDenied(existing)) return FORBIDDEN;

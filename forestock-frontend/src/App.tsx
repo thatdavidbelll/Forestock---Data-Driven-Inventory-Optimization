@@ -1,24 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Suspense, lazy } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import SuggestionsPage from './pages/SuggestionsPage'
-import ProductsPage from './pages/ProductsPage'
-import InventoryPage from './pages/InventoryPage'
-import SalesPage from './pages/SalesPage'
-import ImportPage from './pages/ImportPage'
-import AdminPage from './pages/AdminPage'
-import UsersPage from './pages/UsersPage'
-import SettingsPage from './pages/SettingsPage'
-import AuditLogPage from './pages/AuditLogPage'
-import ForgotPasswordPage from './pages/ForgotPasswordPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
-import VerifyEmailPage from './pages/VerifyEmailPage'
-import AcceptInvitePage from './pages/AcceptInvitePage'
-import SlowMoversPage from './pages/SlowMoversPage'
+import { ErrorBoundary } from './components/ErrorBoundary'
+
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const SuggestionsPage = lazy(() => import('./pages/SuggestionsPage'))
+const ProductsPage = lazy(() => import('./pages/ProductsPage'))
+const InventoryPage = lazy(() => import('./pages/InventoryPage'))
+const SalesPage = lazy(() => import('./pages/SalesPage'))
+const ImportPage = lazy(() => import('./pages/ImportPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
+const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'))
+const SlowMoversPage = lazy(() => import('./pages/SlowMoversPage'))
 
 /** Root index redirect — super admins go to /admin, everyone else to /dashboard */
 function RootRedirect() {
@@ -50,43 +53,57 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/accept-invite" element={<AcceptInvitePage />} />
-
-          {/* Protected routes — wrapped in Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
+        <ErrorBoundary>
+          <Suspense
+            fallback={
+              <div
+                className="flex min-h-screen items-center justify-center"
+                role="status"
+                aria-label="Loading"
+              >
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+              </div>
             }
           >
-            <Route index element={<RootRedirect />} />
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
-            {/* Super admin — platform management */}
-            <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+              {/* Protected routes — wrapped in Layout */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<RootRedirect />} />
 
-            {/* Regular store routes */}
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="suggestions" element={<SuggestionsPage />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="slow-movers" element={<AdminManagerRoute><SlowMoversPage /></AdminManagerRoute>} />
-            <Route path="sales" element={<SalesPage />} />
-            <Route path="import" element={<ImportPage />} />
-            <Route path="users" element={<AdminOnlyRoute><UsersPage /></AdminOnlyRoute>} />
-            <Route path="audit" element={<AdminOnlyRoute><AuditLogPage /></AdminOnlyRoute>} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
+                {/* Super admin — platform management */}
+                <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+                {/* Regular store routes */}
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="suggestions" element={<SuggestionsPage />} />
+                <Route path="products" element={<ProductsPage />} />
+                <Route path="inventory" element={<InventoryPage />} />
+                <Route path="slow-movers" element={<AdminManagerRoute><SlowMoversPage /></AdminManagerRoute>} />
+                <Route path="sales" element={<SalesPage />} />
+                <Route path="import" element={<ImportPage />} />
+                <Route path="users" element={<AdminOnlyRoute><UsersPage /></AdminOnlyRoute>} />
+                <Route path="audit" element={<AdminOnlyRoute><AuditLogPage /></AdminOnlyRoute>} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </BrowserRouter>
     </AuthProvider>
   )

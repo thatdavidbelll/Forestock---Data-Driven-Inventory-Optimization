@@ -13,8 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Base64;
 
 /**
  * Handles the forgot-password / reset-password flow.
@@ -30,6 +31,7 @@ public class PasswordResetService {
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+    private final AuditLogService auditLogService;
 
     @Value("${forestock.frontend-url:http://localhost:5173}")
     private String frontendUrl;
@@ -47,7 +49,9 @@ public class PasswordResetService {
     @Transactional
     public void requestReset(ForgotPasswordRequest request) {
         userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
-            String token = UUID.randomUUID().toString();
+            byte[] tokenBytes = new byte[32];
+            new SecureRandom().nextBytes(tokenBytes);
+            String token = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
             user.setPasswordResetToken(token);
             user.setPasswordResetExpiresAt(LocalDateTime.now().plusHours(TOKEN_EXPIRY_HOURS));
             userRepository.save(user);
@@ -77,6 +81,12 @@ public class PasswordResetService {
         user.setPasswordResetExpiresAt(null);
         userRepository.save(user);
 
+        auditLogService.log(
+                "PASSWORD_RESET",
+                "AppUser",
+                user.getId().toString(),
+                "Reset password for user '" + user.getUsername() + "'"
+        );
         log.info("Password reset successfully for user: {}", user.getUsername());
     }
 

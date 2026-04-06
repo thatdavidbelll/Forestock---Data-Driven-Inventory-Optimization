@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * Nightly scheduled job — triggers the full forecast cycle at 02:00.
  * Guard against parallel runs is handled inside ForecastOrchestrator.
@@ -24,12 +26,16 @@ public class DailyForecastJob {
 
     @Scheduled(cron = "${forestock.scheduler.cron}")
     public void runNightlyForecast() {
-        log.info("DailyForecastJob triggered by scheduler");
+        log.info("DailyForecastJob started by scheduler");
+        List<Store> activeStores = storeRepository.findAll()
+                .stream()
+                .filter(store -> Boolean.TRUE.equals(store.getActive()))
+                .toList();
+        log.info("DailyForecastJob processing {} active stores", activeStores.size());
         forecastOrchestrator.runForAllStores("SCHEDULER");
-        for (Store store : storeRepository.findAll()) {
-            if (Boolean.TRUE.equals(store.getActive())) {
-                forecastAccuracyService.evaluateCompletedForecasts(store.getId());
-            }
+        for (Store store : activeStores) {
+            forecastAccuracyService.evaluateCompletedForecasts(store.getId());
         }
+        log.info("DailyForecastJob completed for {} active stores", activeStores.size());
     }
 }

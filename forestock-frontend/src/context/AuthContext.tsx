@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import api, { setApiAuthHandlers } from '../lib/api'
 import { identifyUser, resetAnalytics } from '../lib/analytics'

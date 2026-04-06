@@ -1,5 +1,6 @@
 package com.forestock.forestock_backend.service;
 
+import jakarta.annotation.PostConstruct;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -26,6 +27,19 @@ public class JwtService {
 
     @Value("${forestock.jwt.refresh-token-expiry-days}")
     private long refreshTokenExpiryDays;
+
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException("JWT_SECRET environment variable must be set and be at least 32 characters");
+        }
+
+        try {
+            Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        } catch (Exception e) {
+            throw new IllegalStateException("JWT_SECRET environment variable must be set and be at least 32 characters", e);
+        }
+    }
 
     public String generateAccessToken(UserDetails userDetails, String role, UUID storeId) {
         return buildToken(userDetails.getUsername(), role, storeId,

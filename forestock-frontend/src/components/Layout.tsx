@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const storeNavItems = [
@@ -21,6 +21,7 @@ const superAdminNavItems = [
 
 export default function Layout() {
   const { username, role, logout } = useAuth()
+  const { pathname } = useLocation()
   const navigate = useNavigate()
 
   const isSuperAdmin = role === 'ROLE_SUPER_ADMIN'
@@ -51,11 +52,12 @@ export default function Layout() {
               PLATFORM ADMIN
             </span>
           )}
-          <nav className="flex gap-1">
+          <nav className="flex gap-1" aria-label="Main navigation">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
+                aria-current={pathname === item.to ? 'page' : undefined}
                 className={({ isActive }) =>
                   `px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                     isActive

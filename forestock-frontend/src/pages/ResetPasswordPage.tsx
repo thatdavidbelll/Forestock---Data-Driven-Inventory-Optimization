@@ -20,7 +20,7 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
-          <p className="text-sm text-red-600 mb-4">Invalid or missing reset token.</p>
+          <p className="text-sm text-red-600 mb-4" role="alert">Invalid or missing reset token.</p>
           <Link to="/forgot-password" className="text-sm text-indigo-600 hover:underline">
             Request a new reset link
           </Link>
@@ -97,7 +97,7 @@ export default function ResetPasswordPage() {
             </div>
             <PasswordStrengthIndicator password={newPassword} />
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{error}</p>
             )}
             <button
               type="submit"

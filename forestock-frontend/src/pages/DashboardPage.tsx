@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import api from '../lib/api'
@@ -60,39 +60,101 @@ export default function DashboardPage() {
   const [triggerMsg, setTriggerMsg] = useState('')
   const [forecastStatus, setForecastStatus] = useState<string | null>(null)
   const [forecastStatusAt, setForecastStatusAt] = useState<string | null>(null)
-  const pollIntervalRef = useRef<number | null>(null)
-  const pollTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadDashboard(controller.signal)
+    void (async () => {
+      try {
+        const response = await api.get('/dashboard', { signal: controller.signal })
+        const nextData = response.data.data as Dashboard
+        setData(nextData)
+        setForecastStatus(nextData.lastRunStatus)
+        setForecastStatusAt(nextData.lastRunAt)
+      } catch (e) {
+        if (
+          (e as { name?: string; code?: string }).name === 'AbortError' ||
+          (e as { name?: string; code?: string }).code === 'ERR_CANCELED'
+        ) {
+          return
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    })()
 
     return () => {
       controller.abort()
-      stopPolling()
     }
   }, [])
 
-  async function loadDashboard(signal?: AbortSignal) {
-    try {
-      const response = await api.get('/dashboard', { signal })
-      const nextData = response.data.data as Dashboard
-      setData(nextData)
-      setForecastStatus(nextData.lastRunStatus)
-      setForecastStatusAt(nextData.lastRunAt)
-    } catch (e) {
-      if (
-        (e as { name?: string; code?: string }).name === 'AbortError' ||
-        (e as { name?: string; code?: string }).code === 'ERR_CANCELED'
-      ) {
-        return
-      }
-    } finally {
-      if (!signal?.aborted) {
-        setLoading(false)
-      }
+  useEffect(() => {
+    if (forecastStatus !== 'RUNNING') {
+      return
     }
-  }
+
+    let cancelled = false
+    const intervalId = window.setInterval(() => {
+      void (async () => {
+        try {
+          const response = await api.get('/forecast/runs')
+          if (cancelled) return
+
+          const latestRun = (response.data.data as Array<{
+            status: string
+            startedAt: string | null
+            finishedAt: string | null
+            errorMessage: string | null
+            durationSeconds: number | null
+            productsWithInsufficientData: number | null
+          }>)?.[0]
+
+          if (!latestRun) {
+            return
+          }
+
+          setForecastStatus(latestRun.status)
+          setForecastStatusAt(latestRun.finishedAt ?? latestRun.startedAt)
+
+          if (latestRun.status === 'COMPLETED' || latestRun.status === 'FAILED') {
+            window.clearInterval(intervalId)
+            window.clearTimeout(timeoutId)
+
+            const dashboardResponse = await api.get('/dashboard')
+            if (cancelled) return
+
+            const nextData = dashboardResponse.data.data as Dashboard
+            setData(nextData)
+            setForecastStatus(nextData.lastRunStatus)
+            setForecastStatusAt(nextData.lastRunAt)
+            setTriggerMsg(
+              latestRun.status === 'COMPLETED'
+                ? 'Forecast completed successfully.'
+                : (latestRun.errorMessage || 'Forecast failed.')
+            )
+          }
+        } catch {
+          if (cancelled) return
+          window.clearInterval(intervalId)
+          window.clearTimeout(timeoutId)
+          setTriggerMsg('Unable to refresh forecast status. Refresh the page later.')
+        }
+      })()
+    }, 3000)
+
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return
+      window.clearInterval(intervalId)
+      setTriggerMsg('Forecast is taking longer than expected. Refresh the page later.')
+    }, 60000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.clearTimeout(timeoutId)
+    }
+  }, [forecastStatus])
 
   async function triggerForecast() {
     setTriggering(true)
@@ -103,7 +165,6 @@ export default function DashboardPage() {
       setForecastStatus('RUNNING')
       setForecastStatusAt(new Date().toISOString())
       setTriggerMsg('Forecast started in background.')
-      startPolling()
     } catch {
       setTriggerMsg('Failed to trigger forecast.')
     } finally {
@@ -111,66 +172,8 @@ export default function DashboardPage() {
     }
   }
 
-  function startPolling() {
-    stopPolling()
-
-    pollIntervalRef.current = window.setInterval(() => {
-      void pollLatestRun()
-    }, 3000)
-
-    pollTimeoutRef.current = window.setTimeout(() => {
-      stopPolling()
-      setTriggerMsg('Forecast is taking longer than expected. Refresh the page later.')
-    }, 60000)
-  }
-
-  function stopPolling() {
-    if (pollIntervalRef.current != null) {
-      window.clearInterval(pollIntervalRef.current)
-      pollIntervalRef.current = null
-    }
-    if (pollTimeoutRef.current != null) {
-      window.clearTimeout(pollTimeoutRef.current)
-      pollTimeoutRef.current = null
-    }
-  }
-
-  async function pollLatestRun() {
-    try {
-      const response = await api.get('/forecast/runs')
-      const latestRun = (response.data.data as Array<{
-        status: string
-        startedAt: string | null
-        finishedAt: string | null
-        errorMessage: string | null
-        durationSeconds: number | null
-        productsWithInsufficientData: number | null
-      }>)?.[0]
-
-      if (!latestRun) {
-        return
-      }
-
-      setForecastStatus(latestRun.status)
-      setForecastStatusAt(latestRun.finishedAt ?? latestRun.startedAt)
-
-      if (latestRun.status === 'COMPLETED' || latestRun.status === 'FAILED') {
-        stopPolling()
-        await loadDashboard()
-        setTriggerMsg(
-          latestRun.status === 'COMPLETED'
-            ? 'Forecast completed successfully.'
-            : (latestRun.errorMessage || 'Forecast failed.')
-        )
-      }
-    } catch {
-      stopPolling()
-      setTriggerMsg('Unable to refresh forecast status. Refresh the page later.')
-    }
-  }
-
-  if (loading) return <p className="text-gray-400 text-sm">Loading…</p>
-  if (!data) return <p className="text-red-500 text-sm">Failed to load dashboard.</p>
+  if (loading) return <p className="text-gray-400 text-sm" role="status" aria-label="Loading">Loading…</p>
+  if (!data) return <p className="text-red-500 text-sm" role="alert">Failed to load dashboard.</p>
 
   const showOnboarding = data.lastRunStatus == null
   const accuracy = data.accuracyScore

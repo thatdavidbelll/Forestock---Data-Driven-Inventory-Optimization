@@ -150,7 +150,7 @@ export default function ImportPage() {
           <span className="text-sm text-gray-700">Overwrite existing records for the same product + date</span>
         </label>
 
-        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{error}</p>}
 
         {previewLoading && (
           <p className="text-sm text-gray-500 rounded-lg bg-gray-50 px-3 py-2">

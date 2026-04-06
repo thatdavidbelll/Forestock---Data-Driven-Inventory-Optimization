@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/sales")
@@ -57,7 +58,8 @@ public class SalesController {
         try {
             SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, overwriteExisting);
             if (result.imported() > 0 && Boolean.TRUE.equals(storeConfigurationService.getCurrentConfig().getAutoForecastOnImport())) {
-                forecastOrchestrator.runForecast(TenantContext.getStoreId(), "auto-import");
+                UUID storeId = TenantContext.getStoreId();
+                forecastOrchestrator.runForecast(storeId, "auto-import");
             }
             Map<String, Object> data = Map.of(
                     "imported", result.imported(),
