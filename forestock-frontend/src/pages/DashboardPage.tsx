@@ -202,19 +202,6 @@ export default function DashboardPage() {
     ? `Based on ${accuracy.evaluatedForecasts} forecast${accuracy.evaluatedForecasts !== 1 ? 's' : ''} evaluated`
     : 'Accuracy calculated after the forecast window closes'
   const onboardingSteps = [
-    !onboarding.hasShopifyConnection
-      ? {
-          title: 'Connect Shopify first',
-          description: 'Link your shop in Settings so Forestock can start receiving new Shopify orders automatically.',
-          action: <Link to="/settings" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Open Settings</Link>,
-        }
-      : {
-          title: onboarding.shopifyActive ? 'Shopify is connected' : 'Reactivate Shopify',
-          description: onboarding.shopifyActive
-            ? `Connected to ${onboarding.shopDomain ?? 'your Shopify store'}. Keep this live while you finish the rest of setup.`
-            : `Your store ${onboarding.shopDomain ?? ''} is connected but paused. Reactivate it in Settings before relying on incoming orders.`,
-          action: <Link to="/settings" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Manage Connection</Link>,
-        },
     data.totalActiveProducts === 0
       ? {
           title: 'Add your products',
@@ -224,10 +211,10 @@ export default function DashboardPage() {
       : null,
     !onboarding.hasSalesHistory
       ? {
-          title: 'Backfill sales history',
+          title: 'Import sales history',
           description: onboarding.hasShopifyConnection
-            ? 'Use CSV import to seed historical sales now, then let fresh Shopify orders keep the timeline moving.'
-            : 'Upload a CSV export from your POS or Shopify so the forecast has enough history to learn from.',
+            ? 'Upload a CSV export to seed historical sales now, then let fresh Shopify orders keep the timeline moving.'
+            : 'Upload a CSV export from your POS, ERP, or ecommerce platform so the forecast has enough history to learn from.',
           action: <Link to="/import" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Import Sales</Link>,
         }
       : null,
@@ -244,6 +231,19 @@ export default function DashboardPage() {
         </button>
       ),
     },
+    !onboarding.hasShopifyConnection
+      ? {
+          title: 'Optional: connect Shopify later',
+          description: 'For the first pilot, CSV import is enough. Connect Shopify later if you want ongoing order sync.',
+          action: <Link to="/settings" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Open Settings</Link>,
+        }
+      : {
+          title: onboarding.shopifyActive ? 'Shopify is connected' : 'Reactivate Shopify',
+          description: onboarding.shopifyActive
+            ? `Connected to ${onboarding.shopDomain ?? 'your Shopify store'}. New Shopify orders can continue to enrich the forecast over time.`
+            : `Your store ${onboarding.shopDomain ?? ''} is connected but paused. Reactivate it in Settings whenever you want Shopify orders flowing again.`,
+          action: <Link to="/settings" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Manage Connection</Link>,
+        },
   ].filter(Boolean) as OnboardingStep[]
   const onboardingGridClass = onboardingSteps.length >= 4
     ? 'md:grid-cols-2 xl:grid-cols-4'
@@ -284,12 +284,12 @@ export default function DashboardPage() {
             <h2 className="mt-2 text-2xl font-semibold text-gray-900">
               {onboarding.hasShopifyConnection
                 ? 'Finish setup and launch your first forecast.'
-                : 'Start with Shopify, then backfill your history.'}
+                : 'Load your data and launch your first forecast.'}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               {onboarding.hasShopifyConnection
-                ? 'Shopify is the primary integration path. Use CSV import only to fill older history or cover any missing sales before the first forecast.'
-                : 'Connect Shopify first so new orders can flow in automatically. Then add products, import older sales history, and run the first forecast.'}
+                ? 'You already have Shopify connected. Add products if needed, import any missing historical sales, and run the first forecast to generate suggestions.'
+                : 'For the first pilot, start by adding products, importing sales history, and running the first forecast. Shopify can be connected later if you want ongoing order sync.'}
             </p>
           </div>
           {onboarding.hasShopifyConnection && onboarding.shopDomain && (
