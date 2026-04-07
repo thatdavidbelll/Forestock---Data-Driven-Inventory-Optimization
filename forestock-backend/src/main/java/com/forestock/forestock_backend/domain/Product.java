@@ -61,6 +61,15 @@ public class Product {
     @Column(length = 100)
     private String barcode;
 
+    @Column(name = "shopify_product_gid", length = 255)
+    private String shopifyProductGid;
+
+    @Column(name = "shopify_variant_gid", length = 255)
+    private String shopifyVariantGid;
+
+    @Column(name = "shopify_inventory_item_gid", length = 255)
+    private String shopifyInventoryItemGid;
+
     @Column(name = "storage_location", length = 100)
     private String storageLocation;
 

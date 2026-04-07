@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "forestock.shopify")
 public class ShopifyProperties {
     private String webhookSecret;
+    private String provisioningSecret;
     private boolean enabled = false;
     private boolean autoForecastOnWebhook = true;
     private boolean dailyAggregation = true;
 }
-

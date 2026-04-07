@@ -33,6 +33,9 @@ public class ProductDto {
     private String supplierName;
     private String supplierContact;
     private String barcode;
+    private String shopifyProductGid;
+    private String shopifyVariantGid;
+    private String shopifyInventoryItemGid;
     private String storageLocation;
     private String notes;
     private Boolean active;

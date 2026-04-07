@@ -1,343 +1,552 @@
-import { useEffect } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useRouteError } from "react-router";
+import { authenticate, registerWebhooks } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import {
+  backfillForestockOrders,
+  provisionForestockShop,
+  syncForestockCatalog,
+} from "../forestock.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-
-  return null;
+type LoaderData = {
+  shopName: string;
+  shopDomain: string;
+  contactEmail: string | null;
+  provisioned: {
+    storeId: string;
+    storeName: string;
+    storeSlug: string;
+    shopDomain: string;
+    adminUsername: string | null;
+    createdStore: boolean;
+    createdAdminUser: boolean;
+  } | null;
+  provisioningError: string | null;
+  catalogSync: {
+    processedItems: number;
+    createdProducts: number;
+    updatedProducts: number;
+    inventorySnapshotsCreated: number;
+  } | null;
+  catalogSyncError: string | null;
+  orderBackfill: {
+    importedOrders: number;
+    duplicateOrders: number;
+    matchedLineItems: number;
+    unmatchedLineItems: number;
+    salesRowsUpserted: number;
+  } | null;
+  orderBackfillError: string | null;
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  await registerWebhooks({ session });
   const response = await admin.graphql(
     `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-            demoInfo: metafield(namespace: "$app", key: "demo_info") {
-              jsonValue
-            }
-          }
+      query ForestockProvisioningShop {
+        shop {
+          name
+          myshopifyDomain
+          contactEmail
         }
       }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-          metafields: [
-            {
-              namespace: "$app",
-              key: "demo_info",
-              value: "Created by React Router Template",
-            },
-          ],
-        },
-      },
-    },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
   );
 
-  const variantResponseJson = await variantResponse.json();
+  const result = (await response.json()) as {
+    data?: {
+      shop?: {
+        name?: string | null;
+        myshopifyDomain?: string | null;
+        contactEmail?: string | null;
+      };
+    };
+  };
 
-  const metaobjectResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpsertMetaobject($handle: MetaobjectHandleInput!, $metaobject: MetaobjectUpsertInput!) {
-      metaobjectUpsert(handle: $handle, metaobject: $metaobject) {
-        metaobject {
-          id
-          handle
-          title: field(key: "title") {
-            jsonValue
+  const shop = result.data?.shop;
+  const shopName = shop?.name?.trim() || session.shop.replace(".myshopify.com", "");
+  const shopDomain = shop?.myshopifyDomain?.trim() || session.shop;
+  const contactEmail = shop?.contactEmail?.trim() || null;
+
+  let provisioned: LoaderData["provisioned"] = null;
+  let provisioningError: string | null = null;
+  let catalogSync: LoaderData["catalogSync"] = null;
+  let catalogSyncError: string | null = null;
+  let orderBackfill: LoaderData["orderBackfill"] = null;
+  let orderBackfillError: string | null = null;
+
+  try {
+    provisioned = await provisionForestockShop({
+      shopDomain,
+      shopName,
+      email: contactEmail,
+    });
+  } catch (error) {
+    provisioningError =
+      error instanceof Error ? error.message : "Failed to provision Forestock store";
+  }
+
+  if (!provisioningError) {
+    try {
+      let hasNextPage = true;
+      let cursor: string | null = null;
+      const items: Array<{
+        shopifyProductGid: string;
+        shopifyVariantGid: string;
+        shopifyInventoryItemGid: string | null;
+        sku: string | null;
+        name: string;
+        variantTitle: string | null;
+        category: string | null;
+        vendor: string | null;
+        barcode: string | null;
+        unitCost: number | null;
+        inventoryQuantity: number | null;
+        active: boolean;
+      }> = [];
+
+      while (hasNextPage) {
+        const catalogResponse = await admin.graphql(
+          `#graphql
+            query ForestockCatalogBootstrap($after: String) {
+              products(first: 50, after: $after) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  id
+                  title
+                  productType
+                  vendor
+                  status
+                  variants(first: 50) {
+                    nodes {
+                      id
+                      title
+                      sku
+                      barcode
+                      price
+                      inventoryQuantity
+                      inventoryItem {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }`,
+          { variables: { after: cursor } },
+        );
+
+        const catalogResult = (await catalogResponse.json()) as {
+          data?: {
+            products?: {
+              pageInfo?: {
+                hasNextPage?: boolean | null;
+                endCursor?: string | null;
+              };
+              nodes?: Array<{
+                id: string;
+                title: string;
+                productType?: string | null;
+                vendor?: string | null;
+                status?: string | null;
+                variants?: {
+                  nodes?: Array<{
+                    id: string;
+                    title?: string | null;
+                    sku?: string | null;
+                    barcode?: string | null;
+                    price?: string | null;
+                    inventoryQuantity?: number | null;
+                    inventoryItem?: { id?: string | null } | null;
+                  }>;
+                } | null;
+              }>;
+            };
+          };
+        };
+
+        const products = catalogResult.data?.products;
+        for (const product of products?.nodes ?? []) {
+          for (const variant of product.variants?.nodes ?? []) {
+            items.push({
+              shopifyProductGid: product.id,
+              shopifyVariantGid: variant.id,
+              shopifyInventoryItemGid: variant.inventoryItem?.id ?? null,
+              sku: variant.sku ?? null,
+              name: product.title,
+              variantTitle: variant.title ?? null,
+              category: product.productType ?? null,
+              vendor: product.vendor ?? null,
+              barcode: variant.barcode ?? null,
+              unitCost: variant.price ? Number(variant.price) : null,
+              inventoryQuantity: variant.inventoryQuantity ?? 0,
+              active: product.status === "ACTIVE",
+            });
           }
-          description: field(key: "description") {
-            jsonValue
-          }
         }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      variables: {
-        handle: {
-          type: "$app:example",
-          handle: "demo-entry",
-        },
-        metaobject: {
-          fields: [
-            { key: "title", value: "Demo Entry" },
-            {
-              key: "description",
-              value:
-                "This metaobject was created by the Shopify app template to demonstrate the metaobject API.",
-            },
-          ],
-        },
-      },
-    },
-  );
 
-  const metaobjectResponseJson = await metaobjectResponse.json();
+        hasNextPage = Boolean(products?.pageInfo?.hasNextPage);
+        cursor = products?.pageInfo?.endCursor ?? null;
+      }
+
+      catalogSync = await syncForestockCatalog({
+        shopDomain,
+        items,
+      });
+    } catch (error) {
+      catalogSyncError =
+        error instanceof Error ? error.message : "Failed to sync Shopify catalog";
+    }
+  }
+
+  if (!provisioningError) {
+    try {
+      const orders = [];
+      let hasNextPage = true;
+      let cursor: string | null = null;
+      const backfillQuery = `created_at:>=${new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10)}`;
+
+      while (hasNextPage) {
+        const ordersResponse = await admin.graphql(
+          `#graphql
+            query ForestockOrderBackfill($after: String, $query: String!) {
+              orders(first: 50, after: $after, sortKey: CREATED_AT, query: $query) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  legacyResourceId
+                  displayFulfillmentStatus
+                  displayFinancialStatus
+                  createdAt
+                  updatedAt
+                  name
+                  customer {
+                    email
+                    firstName
+                    lastName
+                  }
+                  currentTotalPriceSet {
+                    shopMoney {
+                      amount
+                      currencyCode
+                    }
+                  }
+                  subtotalPriceSet {
+                    shopMoney {
+                      amount
+                      currencyCode
+                    }
+                  }
+                  lineItems(first: 100) {
+                    nodes {
+                      legacyResourceId
+                      name
+                      quantity
+                      sku
+                      variantTitle
+                      originalUnitPriceSet {
+                        shopMoney {
+                          amount
+                        }
+                      }
+                      variant {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }`,
+          { variables: { after: cursor, query: backfillQuery } },
+        );
+
+        const ordersResult = (await ordersResponse.json()) as {
+          data?: {
+            orders?: {
+              pageInfo?: {
+                hasNextPage?: boolean | null;
+                endCursor?: string | null;
+              };
+              nodes?: Array<{
+                legacyResourceId?: string | null;
+                displayFulfillmentStatus?: string | null;
+                displayFinancialStatus?: string | null;
+                createdAt: string;
+                updatedAt?: string | null;
+                name?: string | null;
+                customer?: {
+                  email?: string | null;
+                  firstName?: string | null;
+                  lastName?: string | null;
+                } | null;
+                currentTotalPriceSet?: {
+                  shopMoney?: {
+                    amount?: string | null;
+                    currencyCode?: string | null;
+                  } | null;
+                } | null;
+                subtotalPriceSet?: {
+                  shopMoney?: {
+                    amount?: string | null;
+                    currencyCode?: string | null;
+                  } | null;
+                } | null;
+                lineItems?: {
+                  nodes?: Array<{
+                    legacyResourceId?: string | null;
+                    name: string;
+                    quantity: number;
+                    sku?: string | null;
+                    variantTitle?: string | null;
+                    originalUnitPriceSet?: {
+                      shopMoney?: {
+                        amount?: string | null;
+                      } | null;
+                    } | null;
+                    variant?: {
+                      id?: string | null;
+                    } | null;
+                  }>;
+                } | null;
+              }>;
+            };
+          };
+        };
+
+        const orderNodes = ordersResult.data?.orders?.nodes ?? [];
+        for (const order of orderNodes) {
+          orders.push({
+            shopifyOrderId: order.legacyResourceId ? Number(order.legacyResourceId) : null,
+            orderNumber: order.name ?? null,
+            orderName: order.name ?? null,
+            financialStatus: order.displayFinancialStatus ?? null,
+            fulfillmentStatus: order.displayFulfillmentStatus ?? null,
+            customerEmail: order.customer?.email ?? null,
+            customerFirstName: order.customer?.firstName ?? null,
+            customerLastName: order.customer?.lastName ?? null,
+            totalPrice: order.currentTotalPriceSet?.shopMoney?.amount
+              ? Number(order.currentTotalPriceSet.shopMoney.amount)
+              : null,
+            subtotalPrice: order.subtotalPriceSet?.shopMoney?.amount
+              ? Number(order.subtotalPriceSet.shopMoney.amount)
+              : null,
+            currency:
+              order.currentTotalPriceSet?.shopMoney?.currencyCode ??
+              order.subtotalPriceSet?.shopMoney?.currencyCode ??
+              null,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt ?? null,
+            lineItems: (order.lineItems?.nodes ?? []).map((lineItem, index) => ({
+              shopifyLineItemId: lineItem.legacyResourceId
+                ? Number(lineItem.legacyResourceId)
+                : Number(`${order.legacyResourceId ?? 0}${String(index + 1).padStart(3, "0")}`),
+              shopifyVariantGid: lineItem.variant?.id ?? null,
+              sku: lineItem.sku ?? null,
+              title: lineItem.name,
+              variantTitle: lineItem.variantTitle ?? null,
+              quantity: lineItem.quantity,
+              price: lineItem.originalUnitPriceSet?.shopMoney?.amount
+                ? Number(lineItem.originalUnitPriceSet.shopMoney.amount)
+                : null,
+            })),
+          });
+        }
+
+        hasNextPage = Boolean(ordersResult.data?.orders?.pageInfo?.hasNextPage);
+        cursor = ordersResult.data?.orders?.pageInfo?.endCursor ?? null;
+      }
+
+      orderBackfill = await backfillForestockOrders({
+        shopDomain,
+        orders,
+      });
+    } catch (error) {
+      orderBackfillError =
+        error instanceof Error ? error.message : "Failed to backfill Shopify orders";
+    }
+  }
 
   return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
-    metaobject:
-      metaobjectResponseJson!.data!.metaobjectUpsert!.metaobject,
-  };
+    shopName,
+    shopDomain,
+    contactEmail,
+    provisioned,
+    provisioningError,
+    catalogSync,
+    catalogSyncError,
+    orderBackfill,
+    orderBackfillError,
+  } satisfies LoaderData;
 };
 
 export default function Index() {
-  const fetcher = useFetcher<typeof action>();
-
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  const {
+    shopName,
+    shopDomain,
+    contactEmail,
+    provisioned,
+    provisioningError,
+    catalogSync,
+    catalogSyncError,
+    orderBackfill,
+    orderBackfillError,
+  } =
+    useLoaderData<typeof loader>();
 
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
-
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
+    <s-page heading="Forestock onboarding">
+      <s-section heading="Shopify store connected">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            Forestock is now provisioning this Shopify shop as a tenant.
+          </s-paragraph>
+          <s-box
+            padding="base"
+            borderWidth="base"
+            borderRadius="base"
+            background="subdued"
           >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references. Includes a product{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data/metafields"
-            target="_blank"
-          >
-            metafield
-          </s-link>{" "}
-          and{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data/metaobjects"
-            target="_blank"
-          >
-            metaobject
-          </s-link>
-          .
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
-            >
-              Edit product
-            </s-button>
-          )}
-        </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
             <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>metaobjectUpsert mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>
-                    {JSON.stringify(fetcher.data.metaobject, null, 2)}
-                  </code>
-                </pre>
-              </s-box>
+              <p>Shop name: {shopName}</p>
+              <p>Shop domain: {shopDomain}</p>
+              <p>Contact email: {contactEmail ?? "Not available from Shopify"}</p>
             </s-stack>
-          </s-section>
-        )}
+          </s-box>
+        </s-stack>
       </s-section>
 
-      <s-section slot="aside" heading="App template specs">
-        <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
+      {provisioningError ? (
+        <s-section heading="Provisioning blocked">
+          <s-box
+            padding="base"
+            borderWidth="base"
+            borderRadius="base"
+            background="subdued"
           >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
+            <s-paragraph>{provisioningError}</s-paragraph>
+            <s-paragraph>
+              Phase 1 only provisions the Forestock tenant automatically. Product,
+              inventory, and order sync come in the next phases.
+            </s-paragraph>
+          </s-box>
+        </s-section>
+      ) : provisioned ? (
+        <s-section heading="Provisioning result">
+          <s-box
+            padding="base"
+            borderWidth="base"
+            borderRadius="base"
+            background="subdued"
           >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Custom data: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/apps/build/custom-data"
-            target="_blank"
+            <s-paragraph>
+              {provisioned.createdStore
+                ? "A new Forestock store was created for this Shopify shop."
+                : "This Shopify shop is already linked to an existing Forestock store."}
+            </s-paragraph>
+          </s-box>
+          <s-box
+            padding="base"
+            borderWidth="base"
+            borderRadius="base"
+            background="subdued"
           >
-            Metafields &amp; metaobjects
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
+            <s-stack direction="block" gap="base">
+              <p>Forestock store: {provisioned.storeName}</p>
+              <p>Store slug: {provisioned.storeSlug}</p>
+              <p>Admin username: {provisioned.adminUsername ?? "Pending"}</p>
+              <p>Admin user created now: {provisioned.createdAdminUser ? "yes" : "no"}</p>
+            </s-stack>
+          </s-box>
+        </s-section>
+      ) : null}
 
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
+      {!provisioningError && (
+        <s-section heading="Catalog bootstrap">
+          {catalogSyncError ? (
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              background="subdued"
             >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
+              <s-paragraph>{catalogSyncError}</s-paragraph>
+              <s-paragraph>
+                Store provisioning succeeded, but Shopify product and inventory import
+                did not complete yet.
+              </s-paragraph>
+            </s-box>
+          ) : catalogSync ? (
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              background="subdued"
             >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
+              <s-stack direction="block" gap="base">
+                <p>Products processed: {catalogSync.processedItems}</p>
+                <p>Products created: {catalogSync.createdProducts}</p>
+                <p>Products updated: {catalogSync.updatedProducts}</p>
+                <p>Inventory snapshots added: {catalogSync.inventorySnapshotsCreated}</p>
+              </s-stack>
+            </s-box>
+          ) : null}
+        </s-section>
+      )}
+
+      {!provisioningError && (
+        <s-section heading="Historical orders">
+          {orderBackfillError ? (
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              background="subdued"
+            >
+              <s-paragraph>{orderBackfillError}</s-paragraph>
+              <s-paragraph>
+                Product and inventory sync completed, but historical Shopify orders
+                have not been imported yet.
+              </s-paragraph>
+            </s-box>
+          ) : orderBackfill ? (
+            <s-box
+              padding="base"
+              borderWidth="base"
+              borderRadius="base"
+              background="subdued"
+            >
+              <s-stack direction="block" gap="base">
+                <p>Orders imported: {orderBackfill.importedOrders}</p>
+                <p>Duplicate orders skipped: {orderBackfill.duplicateOrders}</p>
+                <p>Matched line items: {orderBackfill.matchedLineItems}</p>
+                <p>Unmatched line items: {orderBackfill.unmatchedLineItems}</p>
+                <p>Sales rows upserted: {orderBackfill.salesRowsUpserted}</p>
+              </s-stack>
+            </s-box>
+          ) : null}
+        </s-section>
+      )}
+
+      <s-section heading="Next phases">
+        <s-stack direction="block" gap="base">
+          <p>1. Subscribe to ongoing product, inventory, and order webhooks.</p>
+          <p>2. Add webhook-driven updates for product and stock changes.</p>
+          <p>3. Replace standalone Forestock login with Shopify-native access.</p>
+        </s-stack>
       </s-section>
     </s-page>
   );
+}
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

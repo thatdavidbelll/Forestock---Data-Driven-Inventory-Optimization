@@ -67,6 +67,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/provision").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/catalog-sync").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/product-delete").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/inventory-sync").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/order-backfill").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/disconnect").permitAll()
                     // Platform-level admin: only SUPER_ADMIN can create stores or access admin panel
                     .requestMatchers("/api/register").hasRole("SUPER_ADMIN")
                     .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")

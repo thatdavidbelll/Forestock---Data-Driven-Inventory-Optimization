@@ -95,6 +95,7 @@ forestock:
     from: ${MAIL_FROM:noreply@forestock.app}
   shopify:
     webhook-secret: ${SHOPIFY_WEBHOOK_SECRET:}
+    provisioning-secret: ${SHOPIFY_PROVISIONING_SECRET:}
     enabled: ${SHOPIFY_ENABLED:false}
     auto-forecast-on-webhook: ${SHOPIFY_AUTO_FORECAST:true}
     daily-aggregation: true

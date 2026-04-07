@@ -80,6 +80,21 @@ public class ShopifyConnectionService {
         return saved;
     }
 
+    @Transactional
+    public ShopifyConnection deactivateByShopDomain(String shopDomain) {
+        ShopifyConnection connection = connectionRepository.findByShopDomain(shopDomain)
+                .orElseThrow(() -> new NoSuchElementException("No Shopify connection found for domain: " + shopDomain));
+
+        connection.setActive(false);
+        ShopifyConnection saved = connectionRepository.save(connection);
+        auditLogService.log("SHOPIFY_DEACTIVATED",
+                "ShopifyConnection",
+                saved.getId().toString(),
+                "Shopify connection deactivated by uninstall for " + saved.getShopDomain());
+        log.info("Deactivated Shopify connection for domain {}", shopDomain);
+        return saved;
+    }
+
     private UUID requireStoreContext() {
         UUID storeId = TenantContext.getStoreId();
         if (storeId == null) {
@@ -88,4 +103,3 @@ public class ShopifyConnectionService {
         return storeId;
     }
 }
-

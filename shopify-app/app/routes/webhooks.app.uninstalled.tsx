@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
+import { disconnectForestockShop } from "../forestock.server";
 import db from "../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -12,6 +13,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (session) {
     await db.session.deleteMany({ where: { shop } });
   }
+
+  await disconnectForestockShop({ shopDomain: shop });
 
   return new Response();
 };

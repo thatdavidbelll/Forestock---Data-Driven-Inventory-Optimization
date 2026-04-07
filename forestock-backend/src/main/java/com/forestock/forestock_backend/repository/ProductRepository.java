@@ -15,6 +15,9 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     Optional<Product> findByStoreIdAndSku(UUID storeId, String sku);
+    Optional<Product> findByStoreIdAndShopifyVariantGid(UUID storeId, String shopifyVariantGid);
+    Optional<Product> findByStoreIdAndShopifyInventoryItemGid(UUID storeId, String shopifyInventoryItemGid);
+    List<Product> findByStoreIdAndShopifyProductGid(UUID storeId, String shopifyProductGid);
 
     List<Product> findByStoreIdAndActiveTrue(UUID storeId);
 
