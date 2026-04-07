@@ -28,6 +28,11 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      group:
+        readiness:
+          include: db,redis,diskSpace,ping
+        liveness:
+          include: ping
 
 server:
   error:

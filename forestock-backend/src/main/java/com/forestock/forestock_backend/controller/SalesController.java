@@ -145,9 +145,17 @@ public class SalesController {
      * Returns daily sales for a product (for charting).
      */
     @GetMapping("/{sku}/daily")
-    public ResponseEntity<ApiResponse<List<SalesTransaction>>> getDailySales(@PathVariable String sku) {
+    public ResponseEntity<ApiResponse<List<SalesTransactionDto>>> getDailySales(@PathVariable String sku) {
         try {
-            return ResponseEntity.ok(ApiResponse.success(salesIngestionService.getDailySales(sku)));
+            List<SalesTransactionDto> data = salesIngestionService.getDailySales(sku).stream()
+                    .map(s -> new SalesTransactionDto(
+                            s.getId(),
+                            s.getProduct().getSku(),
+                            s.getProduct().getName(),
+                            s.getSaleDate(),
+                            s.getQuantitySold()))
+                    .toList();
+            return ResponseEntity.ok(ApiResponse.success(data));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         }

@@ -7,6 +7,20 @@ spring:
   jpa:
     show-sql: false
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+      group:
+        readiness:
+          include: db,redis,diskSpace,ping
+        liveness:
+          include: ping
+
 server:
   error:
     include-stacktrace: never

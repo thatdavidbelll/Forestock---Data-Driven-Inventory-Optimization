@@ -51,10 +51,9 @@ public class InventoryService {
         List<Product> products = storeId != null
                 ? productRepository.findByStoreIdAndActiveTrue(storeId)
                 : productRepository.findByActiveTrue();
-        Map<UUID, Inventory> latestInventoryByProductId = (storeId != null
-                ? inventoryRepository.findLatestForAllProductsByStore(storeId)
-                : inventoryRepository.findLatestForAllProducts())
-                .stream()
+        Map<UUID, Inventory> latestInventoryByProductId = products.stream()
+                .map(product -> inventoryRepository.findLatestByProductId(product.getId()).orElse(null))
+                .filter(inventory -> inventory != null)
                 .collect(Collectors.toMap(
                         inventory -> inventory.getProduct().getId(),
                         inventory -> inventory
@@ -153,10 +152,12 @@ public class InventoryService {
     @Transactional(readOnly = true)
     public Map<UUID, BigDecimal> getCurrentStockMap() {
         UUID storeId = TenantContext.getStoreId();
-        List<Inventory> inventories = storeId != null
-                ? inventoryRepository.findLatestForAllProductsByStore(storeId)
-                : inventoryRepository.findLatestForAllProducts();
-        return inventories.stream()
+        List<Product> products = storeId != null
+                ? productRepository.findByStoreIdAndActiveTrue(storeId)
+                : productRepository.findByActiveTrue();
+        return products.stream()
+                .map(product -> inventoryRepository.findLatestByProductId(product.getId()).orElse(null))
+                .filter(inventory -> inventory != null)
                 .collect(Collectors.toMap(
                         inv -> inv.getProduct().getId(),
                         Inventory::getQuantity));

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
@@ -16,7 +17,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             SELECT a FROM AuditLog a
             WHERE a.store.id = :storeId
             AND (:action IS NULL OR a.action = :action)
-            AND (:actor IS NULL OR LOWER(a.actorUsername) LIKE LOWER(CONCAT('%', :actor, '%')))
+            AND (:actorPattern IS NULL OR LOWER(a.actorUsername) LIKE :actorPattern)
             AND (:from IS NULL OR a.occurredAt >= :from)
             AND (:to IS NULL OR a.occurredAt <= :to)
             ORDER BY a.occurredAt DESC
@@ -25,14 +26,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             SELECT COUNT(a) FROM AuditLog a
             WHERE a.store.id = :storeId
             AND (:action IS NULL OR a.action = :action)
-            AND (:actor IS NULL OR LOWER(a.actorUsername) LIKE LOWER(CONCAT('%', :actor, '%')))
+            AND (:actorPattern IS NULL OR LOWER(a.actorUsername) LIKE :actorPattern)
             AND (:from IS NULL OR a.occurredAt >= :from)
             AND (:to IS NULL OR a.occurredAt <= :to)
             """)
     Page<AuditLog> findByStoreFiltered(
             @Param("storeId") UUID storeId,
             @Param("action") String action,
-            @Param("actor") String actor,
+            @Param("actorPattern") String actorPattern,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             Pageable pageable);
@@ -41,7 +42,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             SELECT a FROM AuditLog a
             WHERE a.store.id = :storeId
             AND (:action IS NULL OR a.action = :action)
-            AND (:actor IS NULL OR LOWER(a.actorUsername) LIKE LOWER(CONCAT('%', :actor, '%')))
+            AND (:actorPattern IS NULL OR LOWER(a.actorUsername) LIKE :actorPattern)
             AND (:from IS NULL OR a.occurredAt >= :from)
             AND (:to IS NULL OR a.occurredAt <= :to)
             ORDER BY a.occurredAt DESC
@@ -49,7 +50,11 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
     java.util.List<AuditLog> findAllByStoreFiltered(
             @Param("storeId") UUID storeId,
             @Param("action") String action,
-            @Param("actor") String actor,
+            @Param("actorPattern") String actorPattern,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    List<AuditLog> findByStoreIdOrderByOccurredAtDesc(UUID storeId, Pageable pageable);
+
+    long countByStoreId(UUID storeId);
 }

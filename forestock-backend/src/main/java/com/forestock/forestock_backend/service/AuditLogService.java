@@ -10,6 +10,7 @@ import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -71,8 +72,20 @@ public class AuditLogService {
 
         LocalDateTime fromDateTime = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDateTime = to != null ? to.plusDays(1).atStartOfDay().minusNanos(1) : null;
+        String normalizedAction = normalize(action);
+        String normalizedActor = normalize(actor);
 
-        return auditLogRepository.findByStoreFiltered(storeId, normalize(action), normalize(actor), fromDateTime, toDateTime, pageable)
+        if (normalizedAction == null && normalizedActor == null && fromDateTime == null && toDateTime == null) {
+            List<AuditLogDto> content = auditLogRepository.findByStoreIdOrderByOccurredAtDesc(storeId, pageable)
+                    .stream()
+                    .map(this::toDto)
+                    .toList();
+            long total = auditLogRepository.countByStoreId(storeId);
+            return new PageImpl<>(content, pageable, total);
+        }
+
+        String actorPattern = normalizeLikePattern(normalizedActor);
+        return auditLogRepository.findByStoreFiltered(storeId, normalizedAction, actorPattern, fromDateTime, toDateTime, pageable)
                 .map(this::toDto);
     }
 
@@ -85,7 +98,8 @@ public class AuditLogService {
 
         LocalDateTime fromDateTime = from != null ? from.atStartOfDay() : null;
         LocalDateTime toDateTime = to != null ? to.plusDays(1).atStartOfDay().minusNanos(1) : null;
-        List<AuditLog> logs = auditLogRepository.findAllByStoreFiltered(storeId, normalize(action), normalize(actor), fromDateTime, toDateTime);
+        String actorPattern = normalizeLikePattern(actor);
+        List<AuditLog> logs = auditLogRepository.findAllByStoreFiltered(storeId, normalize(action), actorPattern, fromDateTime, toDateTime);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(out);
@@ -114,6 +128,11 @@ public class AuditLogService {
 
     private String normalize(String action) {
         return action == null || action.isBlank() ? null : action.trim();
+    }
+
+    private String normalizeLikePattern(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : "%" + normalized.toLowerCase() + "%";
     }
 
     private String toJson(Object detail) {
