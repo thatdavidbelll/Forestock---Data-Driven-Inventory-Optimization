@@ -2,6 +2,8 @@
 
 Decision support tool for retail store managers. Analyzes historical sales data, forecasts demand using **Holt-Winters Triple Exponential Smoothing**, and generates prioritized restocking suggestions. The store manager sees what to order and how much — the final decision is always human.
 
+> **Current launch posture:** Forestock is **GO for a controlled invited non-Shopify pilot** with manual onboarding/support and explicitly accepted residual auth/onboarding and browser-validation risk. **Broad public launch remains NO-GO.**
+
 **Commercial SaaS model:** you (the platform owner) create and manage stores. Each store has isolated data scoped by JWT-carried `storeId`. Store admins manage their own team.
 
 ---
@@ -106,6 +108,14 @@ Launch-readiness and operating docs live under [`docs/`](docs):
 - `docs/GTM_PLAN.md`
 - `docs/CHANGELOG.md`
 
+### Pilot scope right now
+
+- **Pilot type:** controlled / invited
+- **Support model:** manual onboarding + manual support
+- **Primary workflow:** products → CSV import → forecast → suggestions
+- **Shopify:** intentionally **out** for the first pilot unless separately validated later
+- **Broad public launch:** not yet approved
+
 ## Testing
 
 ### Backend
@@ -119,8 +129,12 @@ cd forestock-backend
 ```bash
 cd forestock-frontend
 npm run lint
-npx tsc --noEmit
+npm run build
 ```
+
+Notes:
+- `npm run build` runs `tsc -b && vite build`, so TypeScript compilation is already included.
+- There is currently no separate `typecheck` script in `package.json`.
 
 ---
 
@@ -391,6 +405,13 @@ Urgency thresholds and the safety-stock multiplier are configurable per store th
 ---
 
 ## Frontend Pages
+
+For the first pilot, the intended onboarding path is:
+1. add products
+2. import sales history via CSV
+3. run the first forecast
+4. review suggestions
+5. optionally connect Shopify later
 
 ### Regular store users
 | Page | Route | Who sees it | Description |
