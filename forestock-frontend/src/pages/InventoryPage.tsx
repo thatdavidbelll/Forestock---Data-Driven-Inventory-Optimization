@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
 import InventoryHistoryModal, { type InventoryHistoryItem } from '../components/InventoryHistoryModal'
@@ -61,11 +61,7 @@ export default function InventoryPage() {
   const [saveError, setSaveError] = useState('')
   const [historyProduct, setHistoryProduct] = useState<{ id: string; name: string } | null>(null)
 
-  useEffect(() => {
-    fetchInventory()
-  }, [alertsOnly])
-
-  async function fetchInventory() {
+  const fetchInventory = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -77,7 +73,11 @@ export default function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [alertsOnly])
+
+  useEffect(() => {
+    void fetchInventory()
+  }, [fetchInventory])
 
   function startEdit(item: InventoryItem) {
     setEditingId(item.productId)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
@@ -34,11 +34,7 @@ export default function AuditLogPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
 
-  useEffect(() => {
-    void loadLogs(page)
-  }, [page])
-
-  async function loadLogs(targetPage: number) {
+  const loadLogs = useCallback(async (targetPage: number) => {
     try {
       setLoading(true)
       setError('')
@@ -62,7 +58,11 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [actionFilter, actorFilter, from, to])
+
+  useEffect(() => {
+    void loadLogs(page)
+  }, [loadLogs, page])
 
   async function applyFilters() {
     setPage(0)

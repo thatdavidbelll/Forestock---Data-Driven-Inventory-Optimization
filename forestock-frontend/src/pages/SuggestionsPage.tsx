@@ -45,43 +45,40 @@ export default function SuggestionsPage() {
   const [missingForecast, setMissingForecast] = useState(false)
 
   useEffect(() => {
-    void fetchDashboardSummary()
-    void fetchSuggestions()
-  }, [urgencyFilter, categoryFilter, showAcknowledged])
-
-  async function fetchDashboardSummary() {
-    try {
-      const { data } = await api.get('/dashboard')
-      setDashboard(data.data ?? null)
-    } catch {
-      setDashboard(null)
-    }
-  }
-
-  async function fetchSuggestions() {
-    setLoading(true)
-    setError('')
-    setMissingForecast(false)
-    try {
-      const params: Record<string, string> = {}
-      if (urgencyFilter) params.urgency = urgencyFilter
-      if (categoryFilter) params.category = categoryFilter
-      if (showAcknowledged) params.includeAcknowledged = 'true'
-      const { data } = await api.get('/suggestions', { params })
-      setSuggestions(data.data ?? [])
-      setSelectedIds([])
-    } catch (e: unknown) {
-      const msg = extractErrorMessage(e, 'No completed forecast run found. Run a forecast first.')
-      if ((msg ?? '').toLowerCase().includes('no completed forecast run')) {
-        setSuggestions([])
-        setMissingForecast(true)
-      } else {
-        setError(msg ?? 'No completed forecast run found. Run a forecast first.')
+    void (async () => {
+      try {
+        const { data } = await api.get('/dashboard')
+        setDashboard(data.data ?? null)
+      } catch {
+        setDashboard(null)
       }
-    } finally {
-      setLoading(false)
-    }
-  }
+    })()
+
+    void (async () => {
+      setLoading(true)
+      setError('')
+      setMissingForecast(false)
+      try {
+        const params: Record<string, string> = {}
+        if (urgencyFilter) params.urgency = urgencyFilter
+        if (categoryFilter) params.category = categoryFilter
+        if (showAcknowledged) params.includeAcknowledged = 'true'
+        const { data } = await api.get('/suggestions', { params })
+        setSuggestions(data.data ?? [])
+        setSelectedIds([])
+      } catch (e: unknown) {
+        const msg = extractErrorMessage(e, 'No completed forecast run found. Run a forecast first.')
+        if ((msg ?? '').toLowerCase().includes('no completed forecast run')) {
+          setSuggestions([])
+          setMissingForecast(true)
+        } else {
+          setError(msg ?? 'No completed forecast run found. Run a forecast first.')
+        }
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [urgencyFilter, categoryFilter, showAcknowledged])
 
   async function acknowledgeSuggestion(id: string) {
     setAcknowledgingId(id)

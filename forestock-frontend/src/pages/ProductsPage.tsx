@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
 import ProductForm from '../components/products/ProductForm'
@@ -45,17 +45,13 @@ export default function ProductsPage() {
   const [confirmError, setConfirmError] = useState('')
 
   useEffect(() => {
-    fetchProducts()
-  }, [includeInactive, search])
-
-  useEffect(() => {
     const handle = window.setTimeout(() => {
       setSearch(searchInput.trim())
     }, 300)
     return () => window.clearTimeout(handle)
   }, [searchInput])
 
-  async function fetchProducts() {
+  const fetchProducts = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -68,7 +64,11 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [includeInactive, search])
+
+  useEffect(() => {
+    void fetchProducts()
+  }, [fetchProducts])
 
   function toggleSort(field: SortField) {
     if (sortField === field) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
@@ -43,15 +43,11 @@ export default function SalesPage() {
   const [actionResult, setActionResult] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchTransactions()
-  }, [currentPage, skuFilter, fromDate, toDate])
-
-  useEffect(() => {
     setSkuFilter(searchParams.get('sku') ?? '')
     setCurrentPage(0)
   }, [searchParams])
 
-  async function fetchTransactions() {
+  const fetchTransactions = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -70,7 +66,11 @@ export default function SalesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, fromDate, toDate, skuFilter])
+
+  useEffect(() => {
+    void fetchTransactions()
+  }, [fetchTransactions])
 
   function resetFilters() {
     setSkuFilter('')

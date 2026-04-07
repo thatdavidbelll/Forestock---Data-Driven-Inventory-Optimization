@@ -26,24 +26,22 @@ export default function AcceptInvitePage() {
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    void loadInvite()
+    void (async () => {
+      if (!token) {
+        setError('Missing invite token.')
+        setLoading(false)
+        return
+      }
+      try {
+        const { data } = await api.get('/auth/invite/verify', { params: { token } })
+        setInvite(data.data)
+      } catch (err) {
+        setError(extractErrorMessage(err, 'Invalid invite.'))
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [token])
-
-  async function loadInvite() {
-    if (!token) {
-      setError('Missing invite token.')
-      setLoading(false)
-      return
-    }
-    try {
-      const { data } = await api.get('/auth/invite/verify', { params: { token } })
-      setInvite(data.data)
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Invalid invite.'))
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

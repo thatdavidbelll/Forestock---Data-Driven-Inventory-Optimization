@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
 import { extractErrorMessage } from '../lib/errors'
@@ -34,11 +34,7 @@ export default function SlowMoversPage() {
   const [sortBy, setSortBy] = useState<SortKey>('daysSinceLastSale')
   const [disablingId, setDisablingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    void fetchSlowMovers()
-  }, [inactiveDays])
-
-  async function fetchSlowMovers() {
+  const fetchSlowMovers = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -53,7 +49,11 @@ export default function SlowMoversPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [inactiveDays, setSearchParams])
+
+  useEffect(() => {
+    void fetchSlowMovers()
+  }, [fetchSlowMovers])
 
   async function markAsDiscontinued(productId: string) {
     setDisablingId(productId)
