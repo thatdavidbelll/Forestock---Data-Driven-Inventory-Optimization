@@ -468,8 +468,16 @@ public class ReportService {
         if (storeId == null) {
             return DateTimeFormatter.ofPattern("dd/MM/yyyy");
         }
-        String timezone = storeConfigurationService.getConfigForStore(storeId).getTimezone();
-        ZoneId.of(timezone);
+        try {
+            String timezone = storeConfigurationService.getConfigForStore(storeId).getTimezone();
+            if (timezone == null || timezone.isBlank()) {
+                return DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            }
+            ZoneId.of(timezone);
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to default report date format for store {} due to invalid/missing timezone", storeId, ex);
+            return DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        }
         return DateTimeFormatter.ofPattern("dd/MM/yyyy");
     }
 
