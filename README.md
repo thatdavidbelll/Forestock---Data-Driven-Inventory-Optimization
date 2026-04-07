@@ -11,7 +11,8 @@ Decision support tool for retail store managers. Analyzes historical sales data,
 ```
 Forestock/
 ├── forestock-backend/     Java 21 + Spring Boot 4 REST API
-└── forestock-frontend/    React 19 + Vite + TypeScript web app
+├── forestock-frontend/    React 19 + Vite + TypeScript web app
+└── shopify-app/           Shopify embedded app + webhook/auth integration
 ```
 
 ---
@@ -22,8 +23,8 @@ Forestock/
 |---|---|
 | Backend | Java 21 + Spring Boot 4.0.4 |
 | Frontend | React 19 + Vite + TypeScript + TailwindCSS 4 |
-| Database | PostgreSQL 17 (local Docker for dev, Neon for cloud profile, AWS RDS planned for prod) |
-| Migrations | Flyway (V1–V20) |
+| Database | PostgreSQL 17 (local Docker for dev, Neon for cloud/prod-style environments) |
+| Migrations | Flyway (V1–V22) |
 | Forecasting | Holt-Winters Triple Exponential Smoothing — internal Java engine |
 | Storage | AWS S3 (sales data backup + forecast results) |
 | Notifications | AWS SNS (email on forecast complete / failed) |
@@ -90,6 +91,20 @@ Open `http://localhost:5173` for the app UI. The Vite dev server proxies `/api` 
 | Swagger UI | http://localhost:8080/swagger-ui.html |
 | Adminer | http://localhost:8090 |
 | Redis | localhost:6379 (dev profile only) |
+
+## Launch Documentation
+
+Launch-readiness and operating docs live under [`docs/`](docs):
+- `docs/MVP_SCOPE.md`
+- `docs/LAUNCH_BLOCKERS.md`
+- `docs/ARCHITECTURE.md`
+- `docs/NEON_OPERATIONS.md`
+- `docs/AWS_OPERATIONS.md`
+- `docs/SHOPIFY_OPERATIONS.md`
+- `docs/ROLLBACK_PROCEDURES.md`
+- `docs/BRAND_BRIEF.md`
+- `docs/GTM_PLAN.md`
+- `docs/CHANGELOG.md`
 
 ## Testing
 

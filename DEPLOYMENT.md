@@ -19,16 +19,20 @@ Browser
 
 ---
 
-## Neon URLs
+## Neon Connection Variables
 
-Both are in `application-cloud.yml`. You need both — the pooler URL for the app, the direct URL for Flyway (bypasses PgBouncer advisory lock issue).
+Forestock needs two Neon connection forms in cloud/prod-style environments:
+- a **pooler URL** for normal application runtime
+- a **direct URL** for Flyway migrations, to avoid PgBouncer advisory lock issues
 
-| Variable | Value |
-|----------|-------|
-| `NEON_POOLER_URL` | `jdbc:postgresql://ep-soft-credit-agkhx8ux-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
-| `NEON_DIRECT_URL` | `jdbc:postgresql://ep-soft-credit-agkhx8ux.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
-| `NEON_USERNAME` | `neondb_owner` |
-| `NEON_PASSWORD` | your `DB_PASSWORD` value from `application-cloud.yml` |
+Use placeholders in committed docs and keep real values in secure environment configuration.
+
+| Variable | Purpose |
+|----------|---------|
+| `NEON_POOLER_URL` | Runtime JDBC URL via Neon pooler |
+| `NEON_DIRECT_URL` | Direct JDBC URL for Flyway |
+| `NEON_USERNAME` | Database username |
+| `NEON_PASSWORD` | Database password |
 
 ---
 
@@ -155,16 +159,16 @@ nano .env
 Paste and fill in your values:
 ```env
 # Neon Database
-NEON_POOLER_URL=jdbc:postgresql://ep-soft-credit-agkhx8ux-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
-NEON_DIRECT_URL=jdbc:postgresql://ep-soft-credit-agkhx8ux.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
-NEON_USERNAME=neondb_owner
-NEON_PASSWORD=your_neon_password
+NEON_POOLER_URL=jdbc:postgresql://<your-neon-pooler-host>/neondb?sslmode=require
+NEON_DIRECT_URL=jdbc:postgresql://<your-neon-direct-host>/neondb?sslmode=require
+NEON_USERNAME=<your-neon-username>
+NEON_PASSWORD=<your-neon-password>
 
 # AWS
 AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
 AWS_REGION=eu-central-1
-AWS_S3_BUCKET=forestock-forecast-data-104091534682
+AWS_S3_BUCKET=<your-forecast-bucket>
 AWS_SNS_TOPIC_ARN=
 
 # App
@@ -213,7 +217,21 @@ Look for:
 - `Successfully applied N migrations` (Flyway)
 - `Started ForestockBackendApplication` (Spring Boot)
 
-Test the health endpoint:
+Test the readiness endpoint (preferred for deploy checks):
+```bash
+curl https://api.forestock.ro/actuator/health/readiness
+```
+
+Expected:
+- HTTP `200`
+- core dependencies (database, Redis, disk, ping) report `UP`
+
+You can still inspect the broader diagnostic endpoint if needed:
+```bash
+curl https://api.forestock.ro/actuator/health
+```
+
+Overall `/actuator/health` may report `DOWN` if optional contributors such as mail are misconfigured. Use `/actuator/health/readiness` for deployment and availability checks.
 ```bash
 curl https://api.forestock.ro/actuator/health
 # Expected: {"status":"UP"}
