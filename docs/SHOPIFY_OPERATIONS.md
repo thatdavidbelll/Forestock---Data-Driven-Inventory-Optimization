@@ -3,6 +3,10 @@
 ## Purpose
 Track Forestock’s Shopify integration operating model and launch readiness requirements.
 
+## Companion Docs
+- `docs/SHOPIFY_DEV_STORE_VALIDATION_PLAN.md` — executable runtime validation checklist for a Shopify dev store
+- `docs/SHOPIFY_LAUNCH_CLOSURE_SPRINT.md` — sprint-level execution plan for moving Shopify from NO-GO toward GO or limited pilot GO
+
 ## Current Implementation Shape
 - Embedded Shopify app exists in `shopify-app`
 - Shopify auth/session storage is managed through Prisma-backed session storage
