@@ -61,6 +61,23 @@ public class AppUser {
     @Column(name = "email_verification_sent_at")
     private LocalDateTime emailVerificationSentAt;
 
+    @Column(name = "provisioning_source", nullable = false, length = 32)
+    @Builder.Default
+    private String provisioningSource = "DIRECT";
+
+    @Column(name = "standalone_access_enabled", nullable = false)
+    @Builder.Default
+    private Boolean standaloneAccessEnabled = true;
+
+    @Column(name = "standalone_access_activated_at")
+    private LocalDateTime standaloneAccessActivatedAt;
+
+    @Column(name = "standalone_activation_token", length = 255)
+    private String standaloneActivationToken;
+
+    @Column(name = "standalone_activation_sent_at")
+    private LocalDateTime standaloneActivationSentAt;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
@@ -69,5 +86,10 @@ public class AppUser {
         if (createdAt == null) createdAt = LocalDateTime.now();
         if (active == null) active = true;
         if (emailVerified == null) emailVerified = false;
+        if (provisioningSource == null) provisioningSource = "DIRECT";
+        if (standaloneAccessEnabled == null) standaloneAccessEnabled = true;
+        if (Boolean.TRUE.equals(standaloneAccessEnabled) && standaloneAccessActivatedAt == null) {
+            standaloneAccessActivatedAt = createdAt;
+        }
     }
 }

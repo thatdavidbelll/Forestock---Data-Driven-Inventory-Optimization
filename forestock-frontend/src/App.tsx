@@ -21,6 +21,8 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
 const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
 const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'))
+const RequestStandaloneAccessPage = lazy(() => import('./pages/RequestStandaloneAccessPage'))
+const ActivateStandaloneAccessPage = lazy(() => import('./pages/ActivateStandaloneAccessPage'))
 const SlowMoversPage = lazy(() => import('./pages/SlowMoversPage'))
 
 /** Root index redirect — super admins go to /admin, everyone else to /dashboard */
@@ -72,6 +74,8 @@ export default function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/accept-invite" element={<AcceptInvitePage />} />
+              <Route path="/request-standalone-access" element={<RequestStandaloneAccessPage />} />
+              <Route path="/activate-standalone-access" element={<ActivateStandaloneAccessPage />} />
 
               {/* Protected routes — wrapped in Layout */}
               <Route

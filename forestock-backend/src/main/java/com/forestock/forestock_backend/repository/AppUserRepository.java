@@ -28,6 +28,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     Optional<AppUser> findByEmail(String email);
     boolean existsByEmail(String email);
 
+    Optional<AppUser> findByStandaloneActivationToken(String token);
+
     /** Find user by password reset token (for reset validation). */
     Optional<AppUser> findByPasswordResetToken(String token);
 

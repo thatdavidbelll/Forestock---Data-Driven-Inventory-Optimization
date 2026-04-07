@@ -49,6 +49,7 @@ export default function LoginPage() {
   }
 
   const canResendVerification = error.toLowerCase().includes('verify your email')
+  const canRequestStandaloneAccess = error.toLowerCase().includes('standalone forestock access has not been activated')
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -93,6 +94,14 @@ export default function LoginPage() {
                 >
                   {resendingVerification ? 'Resending verification email…' : 'Resend verification email'}
                 </button>
+              )}
+              {canRequestStandaloneAccess && (
+                <Link
+                  to="/request-standalone-access"
+                  className="block text-sm font-medium text-sky-600 hover:text-sky-700 hover:underline"
+                >
+                  Request standalone web access
+                </Link>
               )}
             </div>
           )}

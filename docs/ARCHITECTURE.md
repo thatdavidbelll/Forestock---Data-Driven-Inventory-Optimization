@@ -36,6 +36,8 @@ Forestock is a multi-surface inventory optimization platform with three primary 
 - Handles Shopify auth/session lifecycle
 - Registers webhooks after auth
 - Forwards provisioning, catalog sync, inventory sync, and order backfill operations to the Forestock backend through a shared integration secret
+- Intended as the primary merchant-facing surface for Shopify-connected stores
+- Shopify-provisioned admin identities can now be scaffolded with standalone web access disabled by default until an explicit activation flow is completed
 
 ### Data Layer
 - PostgreSQL for core product, inventory, sales, forecast, suggestion, user, and store data
@@ -58,6 +60,7 @@ Forestock is a multi-surface inventory optimization platform with three primary 
 - Tenant scoping for store data
 - Rate limiting on selected auth endpoints
 - Email verification and password reset flows
+- Standalone-access activation flow for Shopify-provisioned accounts
 - Audit logs for store-scoped actions
 
 ## Launch Architecture Risks

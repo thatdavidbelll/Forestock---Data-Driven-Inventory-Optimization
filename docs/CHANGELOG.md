@@ -19,9 +19,19 @@
 - Fixed audit-log list endpoint for unfiltered store queries and verified `PRODUCT_CREATED` / `INVENTORY_UPDATED` retrieval
 - Fixed `/api/sales/{sku}/daily` to return DTO payloads instead of raw entities and verified live daily-series responses after CSV import
 - Added targeted backend regression tests: `InventoryServiceTest`, `AuditLogServiceTest`, and `SalesControllerTest`
+- Fixed `/api/reports/sales` so it no longer requires explicit `from` / `to` parameters and now defaults to the last 30 days
+- Hardened report generation to fall back safely when store timezone/config values are invalid or missing, preventing production 500s during sales-report export
+- Added targeted backend regression tests: `ReportControllerTest` and `ReportServiceTest`
 - Added Spring Boot Actuator dependency and exposed `/actuator/health` in the test profile
 - Tuned Actuator health groups so `/actuator/health/readiness` and `/actuator/health/liveness` reflect core service availability in non-prod
 - Validated live CSV import → forecast → suggestions flow with audit evidence on non-prod data
 - Verified `/actuator/health` now returns structured health JSON; readiness/liveness are `UP` while overall health still reports mail as `DOWN` when SMTP is unset
+- Verified production-safe downloads for `/api/suggestions/export/excel`, `/api/suggestions/export/pdf`, `/api/reports/inventory-valuation`, `/api/reports/slow-movers`, and `/api/reports/sales`
+- Updated pilot/release docs to explicitly accept remaining auth/onboarding verification gaps only for a controlled, invited, manually supported, non-Shopify first pilot
+- Hardened Shopify app configuration with real application/redirect URLs, declared runtime webhook topics, and a new `shopify-app/.env.example`
+- Reframed the Shopify embedded app onboarding/status page to use merchant-facing setup language instead of internal prototype wording
+- Updated Shopify docs to explicitly adopt a Shopify-first merchant model, with the embedded app as the primary merchant surface when Shopify is in scope
+- Added backend scaffolding for Shopify standalone-access activation: additive user schema, activation service/endpoints, Shopify login gating, and focused regression tests
+- Added frontend standalone-access request/activation pages and login recovery CTA, styled with a Shopify-first dark/indigo/violet/light-blue auth treatment
 - Captured initial launch audit findings and readiness framing
 - Identified major launch blockers around validation depth, Shopify readiness, and documentation drift

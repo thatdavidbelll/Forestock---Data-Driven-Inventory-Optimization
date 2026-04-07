@@ -36,6 +36,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new DisabledException("Email not verified. Check your inbox.");
         }
 
+        if ("SHOPIFY".equalsIgnoreCase(user.getProvisioningSource())
+                && (!Boolean.TRUE.equals(user.getStandaloneAccessEnabled())
+                || user.getStandaloneAccessActivatedAt() == null)) {
+            throw new DisabledException("Standalone Forestock access has not been activated for this Shopify account yet. Continue in Shopify or request web access.");
+        }
+
         return new User(
                 user.getUsername(),
                 user.getPasswordHash(),

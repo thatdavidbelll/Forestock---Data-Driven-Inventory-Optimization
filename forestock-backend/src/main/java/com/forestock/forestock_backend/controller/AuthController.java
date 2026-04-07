@@ -2,16 +2,20 @@ package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.domain.AppUser;
 import com.forestock.forestock_backend.dto.request.AcceptInviteRequest;
+import com.forestock.forestock_backend.dto.request.ActivateStandaloneAccessRequest;
 import com.forestock.forestock_backend.dto.request.ForgotPasswordRequest;
 import com.forestock.forestock_backend.dto.request.LoginRequest;
+import com.forestock.forestock_backend.dto.request.RequestStandaloneAccessRequest;
 import com.forestock.forestock_backend.dto.request.ResetPasswordRequest;
 import java.util.UUID;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.AuthResponse;
 import com.forestock.forestock_backend.dto.response.InviteVerificationDto;
+import com.forestock.forestock_backend.dto.response.StandaloneAccessVerificationDto;
 import com.forestock.forestock_backend.repository.AppUserRepository;
 import com.forestock.forestock_backend.service.JwtService;
 import com.forestock.forestock_backend.service.PasswordResetService;
+import com.forestock.forestock_backend.service.StandaloneAccessService;
 import com.forestock.forestock_backend.service.UserInviteService;
 import com.forestock.forestock_backend.service.TokenBlacklistService;
 import com.forestock.forestock_backend.service.EmailVerificationService;
@@ -51,6 +55,7 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
     private final UserInviteService userInviteService;
+    private final StandaloneAccessService standaloneAccessService;
 
     /** Authenticates a user and returns access + refresh tokens. */
     @PostMapping("/login")
@@ -215,6 +220,34 @@ public class AuthController {
         try {
             passwordResetService.resetPassword(request);
             return ResponseEntity.ok(ApiResponse.success("Password reset successfully.", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/standalone-access/request")
+    public ResponseEntity<ApiResponse<Void>> requestStandaloneAccess(
+            @Valid @RequestBody RequestStandaloneAccessRequest request) {
+        standaloneAccessService.requestStandaloneAccess(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If eligible, a standalone access link has been sent.", null));
+    }
+
+    @GetMapping("/standalone-access/verify")
+    public ResponseEntity<ApiResponse<StandaloneAccessVerificationDto>> verifyStandaloneAccess(@RequestParam String token) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(standaloneAccessService.verifyStandaloneAccess(token)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/standalone-access/activate")
+    public ResponseEntity<ApiResponse<Void>> activateStandaloneAccess(
+            @Valid @RequestBody ActivateStandaloneAccessRequest request) {
+        try {
+            standaloneAccessService.activateStandaloneAccess(request);
+            return ResponseEntity.ok(ApiResponse.success("Standalone access activated. You can now sign in.", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
         }

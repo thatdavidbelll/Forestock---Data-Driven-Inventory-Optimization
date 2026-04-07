@@ -22,7 +22,7 @@
 ### 2. Incomplete critical-path validation
 - Severity: Critical
 - Area: QA / release
-- Why it matters: Frontend has no visible automated E2E coverage and full system critical flows are not yet validated together. Backend startup, migrations, inventory current-state, CSV import, forecast completion, suggestions, sales daily-series, audit-log retrieval, refresh, and logout now work locally, but onboarding still relies on completing email/invite token flows and broader UI/system flow coverage remains incomplete.
+- Why it matters: Frontend has no visible automated E2E coverage and full system critical flows are not yet validated together. Backend startup, migrations, inventory current-state, CSV import, forecast completion, suggestions, sales daily-series, audit-log retrieval, refresh, logout, and production-safe report/export endpoints now work, but onboarding still relies on completing email/invite token flows and broader UI/system flow coverage remains incomplete. For the first invited pilot, this residual auth/onboarding risk is accepted only because onboarding will remain manual and supervised rather than self-serve.
 - Needed to close:
   - complete email verification flow for newly created store admins
   - complete invite verify/accept flow end to end
@@ -34,18 +34,19 @@
 ### 3. Shopify production readiness incomplete
 - Severity: High
 - Area: Shopify / product / operations
-- Why it matters: Shopify config still contains placeholder public URLs and launch/review readiness is incomplete.
+- Why it matters: Shopify config/operator readiness is improving, but launch/review readiness is still incomplete and merchant install/runtime behavior is not yet validated end to end.
 - Needed to close:
-  - finalize production application URLs and redirects
   - verify scopes are minimal and sufficient
   - verify webhook subscriptions end to end
+  - validate Shopify install → provisioning → sync → usable merchant state
+  - validate standalone-access activation flow if secondary web access remains supported
   - document merchant impact and reinstall implications
   - prepare support / listing / review materials if App Store launch is planned
 
 ### 4. Backend verification only partially completed
 - Severity: Medium
 - Area: backend / QA
-- Why it matters: Backend automated tests now pass locally under Java 21, non-prod startup plus fresh migrations succeeded locally, and Actuator readiness/liveness are now correctly exposed. Remaining work is broader flow coverage and production policy decisions rather than a missing health endpoint.
+- Why it matters: Backend automated tests now pass locally under Java 21, non-prod startup plus fresh migrations succeeded locally, and Actuator readiness/liveness are now correctly exposed. Remaining work is broader flow coverage and production policy decisions rather than a missing health endpoint. Local evidence also confirms newly created admins are blocked before email verification, but full verification/invite completion remains open.
 - Needed to close:
   - validate key endpoints beyond login/admin-store listing
   - decide whether overall `/actuator/health` should continue to include mail in each environment

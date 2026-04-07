@@ -61,6 +61,9 @@ public class RegisterService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role("ROLE_ADMIN")
                 .email(request.getEmail())
+                .provisioningSource("DIRECT")
+                .standaloneAccessEnabled(true)
+                .standaloneAccessActivatedAt(java.time.LocalDateTime.now())
                 .store(store)
                 .active(true)
                 .build());
