@@ -1,0 +1,26 @@
+# Changelog
+
+## 2026-04-07
+- Added launch-readiness documentation pack under `docs/`
+- Added MVP scope, launch blockers, architecture, operations, rollback, brand, and GTM docs
+- Added `docs/VERIFICATION_MATRIX.md` to track critical-path validation and launch evidence
+- Added `docs/MANUAL_TEST_SCRIPT.md` for structured manual validation of launch-critical flows
+- Added `docs/FINAL_LAUNCH_BOARD.md` with go/no-go guidance, blocker owners, and immediate next actions
+- Added `docs/PILOT_GO_LIVE_CHECKLIST.md` for the non-Shopify controlled pilot path
+- Added `docs/DEPLOY_REHEARSAL_PLAN.md` with defaults/placeholders for backend deploy/readiness/rollback rehearsal
+- Updated launch board to assume Shopify is out of scope for the first pilot unless separately validated
+- Continued auth/onboarding validation: verified invalid-login handling, refresh token flow, logout invalidation, super-admin vs store-admin admin-boundary behavior, invite creation, invite acceptance, and cross-store isolation evidence
+- Installed Java 21 locally for backend validation and verified backend automated tests pass (`./mvnw test`)
+- Attempted backend non-prod startup; initial attempt failed because PostgreSQL was not reachable on `localhost:5432` in this environment
+- Re-ran backend non-prod startup successfully once local PostgreSQL was available; verified fresh Flyway migration apply and successful super-admin login
+- Continued live smoke pass: verified store creation via `/api/register` and confirmed newly created store admins are gated behind email verification before first login
+- Fixed inventory current-state resolution so `/api/inventory` reflects the latest persisted stock snapshot
+- Fixed audit-log list endpoint for unfiltered store queries and verified `PRODUCT_CREATED` / `INVENTORY_UPDATED` retrieval
+- Fixed `/api/sales/{sku}/daily` to return DTO payloads instead of raw entities and verified live daily-series responses after CSV import
+- Added targeted backend regression tests: `InventoryServiceTest`, `AuditLogServiceTest`, and `SalesControllerTest`
+- Added Spring Boot Actuator dependency and exposed `/actuator/health` in the test profile
+- Tuned Actuator health groups so `/actuator/health/readiness` and `/actuator/health/liveness` reflect core service availability in non-prod
+- Validated live CSV import → forecast → suggestions flow with audit evidence on non-prod data
+- Verified `/actuator/health` now returns structured health JSON; readiness/liveness are `UP` while overall health still reports mail as `DOWN` when SMTP is unset
+- Captured initial launch audit findings and readiness framing
+- Identified major launch blockers around validation depth, Shopify readiness, and documentation drift
