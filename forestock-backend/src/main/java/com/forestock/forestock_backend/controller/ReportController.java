@@ -34,11 +34,13 @@ public class ReportController {
 
     @GetMapping("/sales")
     public ResponseEntity<byte[]> salesPerformance(
-            @RequestParam LocalDate from,
-            @RequestParam LocalDate to,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
             @RequestParam(defaultValue = "excel") String format) throws IOException {
         UUID storeId = TenantContext.getStoreId();
-        byte[] bytes = reportService.generateSalesReport(storeId, from, to, format);
+        LocalDate resolvedTo = to != null ? to : LocalDate.now();
+        LocalDate resolvedFrom = from != null ? from : resolvedTo.minusDays(29);
+        byte[] bytes = reportService.generateSalesReport(storeId, resolvedFrom, resolvedTo, format);
         return buildResponse(bytes, "sales-performance-" + LocalDate.now(), format);
     }
 
