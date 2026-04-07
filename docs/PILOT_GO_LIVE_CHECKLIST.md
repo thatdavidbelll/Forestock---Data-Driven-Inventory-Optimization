@@ -26,10 +26,10 @@ Pilot should only proceed when all **Critical** items are complete and all **Hig
 - [ ] Email verification flow works end to end or is replaced with a controlled manual onboarding workaround for pilot
 
 ### Operations
-- [ ] Backend deploy health check uses `/actuator/health/readiness`
+- [x] Backend deploy health check uses `/actuator/health/readiness`
 - [ ] One deploy rehearsal completed successfully
 - [ ] One rollback rehearsal completed successfully
-- [ ] Production config for backend/frontend is reviewed and current
+- [x] Production config for backend/frontend is reviewed and current
 - [ ] Neon migration/backward-compatibility risk accepted for current schema state
 
 ## High Priority Before Pilot

@@ -13,7 +13,7 @@ Track launch-critical flows, current validation state, evidence, and remaining g
 
 | Area | Flow | Priority | Current Status | Evidence | Remaining Work |
 |---|---|---:|---|---|---|
-| Auth | Login with valid credentials | Critical | Verified | Live API login succeeded against running backend using seeded super admin credentials in non-prod smoke pass | Extend verification to store-scoped user roles |
+| Auth | Login with valid credentials | Critical | Verified | Valid login succeeded in non-prod and again in production using a safe admin account during post-deploy validation | Extend verification to additional production-safe roles only as needed |
 | Auth | Invalid login and lockout / rate limiting behavior | Critical | Partially Verified | Live auth validation confirmed invalid login returns 401 with safe error message; rate-limit threshold behavior still not exercised | Execute repeated invalid-login validation for 401/429 behavior |
 | Auth | Refresh token flow | Critical | Verified | Live auth validation confirmed `/api/auth/refresh` returns a fresh access token from a valid refresh token | Extend to token-rotation policy checks if rotation is introduced |
 | Auth | Logout / token revocation | Critical | Verified | Live auth validation confirmed `/api/auth/logout` invalidates the current access token; subsequent `/api/users/me` call returned 401 | Reconfirm in deployed environment with real Redis parity |
@@ -29,7 +29,7 @@ Track launch-critical flows, current validation state, evidence, and remaining g
 | Sales Data | CSV import / ingestion | Critical | Verified | Live non-prod flow validated CSV preview, import (7 rows, 0 errors), sales listing, summary, and audit logging | Reconfirm via frontend UI flow |
 | Forecasting | Forecast generation completes successfully | Critical | Verified | Live non-prod flow validated forecast completion after imported sales data; latest run completed with no insufficient-data products | Reconfirm with broader SKU mix and staging-like data |
 | Forecasting | Forecast fallback / edge-case handling | High | Partially Verified | Forecast engine and config thresholds exist | Validate low-history / malformed / sparse data cases |
-| Suggestions | Suggestion generation after forecast | Critical | Verified | Live non-prod flow produced a critical reorder suggestion after CSV import and forecast completion | Reconfirm suggestion review/acknowledgement via frontend UI |
+| Suggestions | Suggestion generation after forecast | Critical | Verified | Live non-prod flow produced a critical reorder suggestion after CSV import and forecast completion; production `/api/suggestions` also returned valid business data during post-deploy validation | Reconfirm suggestion review/acknowledgement via frontend UI |
 | Suggestions | Suggestion acknowledgement / workflow state | High | Partially Verified | Suggestion acknowledgement DTOs/services exist | Validate acknowledgement actions and persistence |
 | Dashboard | Dashboard accuracy after data changes | High | Not Verified | Dashboard surfaces exist | Validate metrics after import / forecast / inventory updates |
 | Reporting / Export | Report generation / exports | Medium | Partially Verified | Sales daily-series endpoint now returns DTO payloads correctly after fix; broader report/export generation still unverified | Validate CSV/PDF/Excel report creation and permissions |
@@ -46,9 +46,9 @@ Track launch-critical flows, current validation state, evidence, and remaining g
 | Deploy | Backend CI test/build | Critical | Partially Verified | CI workflow exists | Run and confirm green in actual CI context |
 | Deploy | Frontend build/lint/typecheck | High | Verified | Local audit run passed lint, typecheck, and build | Keep as release gate |
 | Backend Tests | Backend automated test suite | Critical | Verified | `./mvnw test` passed locally with Java 21: 34 tests, 0 failures, 0 errors, 1 skipped | Add this as ongoing release evidence and investigate skipped app test if needed |
-| Deploy | Backend deploy rollback | High | Partially Verified | Rollback workflow exists | Rehearse rollback in non-prod or controlled environment |
+| Deploy | Backend deploy rollback | High | Partially Verified | Rollback workflow exists and production post-deploy validation succeeded, but rollback itself has not yet been executed | Rehearse rollback in non-prod or controlled production window |
 | Deploy | Frontend rollback | Medium | Not Verified | Procedure documented in docs pass, not rehearsed | Test restore/redeploy path |
-| Ops | Health endpoint post-deploy check | High | Verified at current scope | Spring Boot Actuator is enabled; `/actuator/health/readiness` and `/actuator/health/liveness` now return `UP` in non-prod while overall `/actuator/health` still reports mail as `DOWN` when SMTP is unset | Mirror health-group policy in production docs/deploy checks and decide whether overall health should include mail |
+| Ops | Health endpoint post-deploy check | High | Verified | Spring Boot Actuator is enabled; `/actuator/health/readiness` and `/actuator/health/liveness` return `UP` in non-prod, and production readiness at `https://api.forestock.ro/actuator/health/readiness` returned HTTP 200 with status `UP` during post-deploy validation | Decide whether overall `/actuator/health` should continue to include optional mail health in every environment |
 | Security | Swagger disabled in prod | Medium | Partially Verified | Prod config shows disabled springdoc | Confirm effective runtime config |
 | Security | Secrets/config separation | Critical | Partially Verified | `.env.example` exists, some docs hardened | Review actual deployment secret handling |
 

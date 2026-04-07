@@ -10,6 +10,7 @@
 - Added `docs/DEPLOY_REHEARSAL_PLAN.md` with defaults/placeholders for backend deploy/readiness/rollback rehearsal
 - Updated launch board to assume Shopify is out of scope for the first pilot unless separately validated
 - Continued auth/onboarding validation: verified invalid-login handling, refresh token flow, logout invalidation, super-admin vs store-admin admin-boundary behavior, invite creation, invite acceptance, and cross-store isolation evidence
+- Recorded successful production post-deploy validation for readiness, login, `/api/store`, and `/api/suggestions`
 - Installed Java 21 locally for backend validation and verified backend automated tests pass (`./mvnw test`)
 - Attempted backend non-prod startup; initial attempt failed because PostgreSQL was not reachable on `localhost:5432` in this environment
 - Re-ran backend non-prod startup successfully once local PostgreSQL was available; verified fresh Flyway migration apply and successful super-admin login

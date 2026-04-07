@@ -99,7 +99,8 @@
 - Forecast completion validated on imported data
 - Suggestion generation validated with meaningful reorder output
 - Audit logs validated for `PRODUCT_CREATED`, `INVENTORY_UPDATED`, `SALES_IMPORTED`
-- `/actuator/health/readiness` and `/actuator/health/liveness` validated as `UP`
+- `/actuator/health/readiness` and `/actuator/health/liveness` validated as `UP` in non-prod
+- Production post-deploy validation passed for readiness, login, `/api/store`, and `/api/suggestions`
 
 ## Recommended Owners / Workstreams
 ### Engineering
