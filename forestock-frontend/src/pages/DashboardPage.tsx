@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import api from '../lib/api'
@@ -22,6 +22,12 @@ interface Dashboard {
   topCritical: Array<{ productName: string; sku: string; daysOfStock: number | null; suggestedQty: number; estimatedOrderValue: number | null }>
   salesVelocityTrend: Array<{ date: string; totalUnitsSold: number }>
   dataQualityWarnings: string[]
+  onboarding?: {
+    hasShopifyConnection: boolean
+    shopifyActive: boolean
+    shopDomain: string | null
+    hasSalesHistory: boolean
+  } | null
 }
 
 interface KardProps {
@@ -29,6 +35,12 @@ interface KardProps {
   value: string | number
   sub?: string
   accent?: 'red' | 'orange' | 'green' | 'default'
+}
+
+interface OnboardingStep {
+  title: string
+  description: string
+  action: ReactNode
 }
 
 function Kard({ label, value, sub, accent = 'default' }: KardProps) {
@@ -177,58 +189,67 @@ export default function DashboardPage() {
 
   const showOnboarding = data.lastRunStatus == null
   const accuracy = data.accuracyScore
+  const onboarding = data.onboarding ?? {
+    hasShopifyConnection: false,
+    shopifyActive: false,
+    shopDomain: null,
+    hasSalesHistory: false,
+  }
   const accuracyValue = accuracy?.lastRunMape != null
     ? `${Math.max(0, 100 - Number(accuracy.lastRunMape)).toFixed(1)}%`
     : '—'
   const accuracySub = accuracy?.lastRunMape != null
     ? `Based on ${accuracy.evaluatedForecasts} forecast${accuracy.evaluatedForecasts !== 1 ? 's' : ''} evaluated`
     : 'Accuracy calculated after the forecast window closes'
-  const onboardingSteps = data.totalActiveProducts === 0
-    ? [
-        {
+  const onboardingSteps = [
+    !onboarding.hasShopifyConnection
+      ? {
+          title: 'Connect Shopify first',
+          description: 'Link your shop in Settings so Forestock can start receiving new Shopify orders automatically.',
+          action: <Link to="/settings" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Open Settings</Link>,
+        }
+      : {
+          title: onboarding.shopifyActive ? 'Shopify is connected' : 'Reactivate Shopify',
+          description: onboarding.shopifyActive
+            ? `Connected to ${onboarding.shopDomain ?? 'your Shopify store'}. Keep this live while you finish the rest of setup.`
+            : `Your store ${onboarding.shopDomain ?? ''} is connected but paused. Reactivate it in Settings before relying on incoming orders.`,
+          action: <Link to="/settings" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Manage Connection</Link>,
+        },
+    data.totalActiveProducts === 0
+      ? {
           title: 'Add your products',
-          description: 'Create the items you want Forestock to track and forecast.',
+          description: 'Create the items Forestock should forecast and match incoming sales against.',
           action: <Link to="/products" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Go to Products</Link>,
-        },
-        {
-          title: 'Import sales data',
-          description: 'Upload a CSV export from your POS so the forecast has history to learn from.',
-          action: <Link to="/import" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Go to Import</Link>,
-        },
-        {
-          title: 'Run a forecast',
-          description: 'Generate your first restocking suggestions once products and sales are in place.',
-          action: (
-            <button
-              onClick={triggerForecast}
-              disabled={triggering}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
-            >
-              {triggering ? 'Starting…' : 'Run Forecast'}
-            </button>
-          ),
-        },
-      ]
-    : [
-        {
-          title: 'Import sales data',
-          description: 'Upload recent sales so the engine has enough history to produce useful output.',
-          action: <Link to="/import" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Go to Import</Link>,
-        },
-        {
-          title: 'Run a forecast',
-          description: 'Kick off your first forecast and come back here for inventory signals.',
-          action: (
-            <button
-              onClick={triggerForecast}
-              disabled={triggering}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
-            >
-              {triggering ? 'Starting…' : 'Run Forecast'}
-            </button>
-          ),
-        },
-      ]
+        }
+      : null,
+    !onboarding.hasSalesHistory
+      ? {
+          title: 'Backfill sales history',
+          description: onboarding.hasShopifyConnection
+            ? 'Use CSV import to seed historical sales now, then let fresh Shopify orders keep the timeline moving.'
+            : 'Upload a CSV export from your POS or Shopify so the forecast has enough history to learn from.',
+          action: <Link to="/import" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Import Sales</Link>,
+        }
+      : null,
+    {
+      title: 'Run your first forecast',
+      description: 'Generate the first restocking recommendations once products and enough sales history are in place.',
+      action: (
+        <button
+          onClick={triggerForecast}
+          disabled={triggering}
+          className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+        >
+          {triggering ? 'Starting…' : 'Run Forecast'}
+        </button>
+      ),
+    },
+  ].filter(Boolean) as OnboardingStep[]
+  const onboardingGridClass = onboardingSteps.length >= 4
+    ? 'md:grid-cols-2 xl:grid-cols-4'
+    : onboardingSteps.length === 3
+      ? 'md:grid-cols-2 xl:grid-cols-3'
+      : 'md:grid-cols-2'
 
   return (
     <div className="space-y-6">
@@ -261,15 +282,22 @@ export default function DashboardPage() {
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">Getting Started</p>
             <h2 className="mt-2 text-2xl font-semibold text-gray-900">
-              {data.totalActiveProducts === 0 ? 'Set up your store in three steps.' : 'You are one forecast away from live suggestions.'}
+              {onboarding.hasShopifyConnection
+                ? 'Finish setup and launch your first forecast.'
+                : 'Start with Shopify, then backfill your history.'}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              {data.totalActiveProducts === 0
-                ? 'Add products, import historical sales, and run the first forecast to unlock the dashboard.'
-                : 'Your products are ready. Import sales history and run the first forecast to populate alerts and recommendations.'}
+              {onboarding.hasShopifyConnection
+                ? 'Shopify is the primary integration path. Use CSV import only to fill older history or cover any missing sales before the first forecast.'
+                : 'Connect Shopify first so new orders can flow in automatically. Then add products, import older sales history, and run the first forecast.'}
             </p>
           </div>
-          <div className={`mt-6 grid gap-4 ${onboardingSteps.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
+          {onboarding.hasShopifyConnection && onboarding.shopDomain && (
+            <div className="mt-4 inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm ring-1 ring-indigo-100">
+              Shopify store: {onboarding.shopDomain}{onboarding.shopifyActive ? '' : ' (paused)'}
+            </div>
+          )}
+          <div className={`mt-6 grid gap-4 ${onboardingGridClass}`}>
             {onboardingSteps.map((step, index) => (
               <div key={step.title} className="rounded-xl border border-white/70 bg-white/90 p-4 shadow-sm">
                 <p className="text-xs font-semibold text-indigo-600">Step {index + 1}</p>

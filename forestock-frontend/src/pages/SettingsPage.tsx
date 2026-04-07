@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
+import { captureEvent } from '../lib/analytics'
 import { extractErrorMessage } from '../lib/errors'
 import { isStrongPassword } from '../lib/passwordStrength'
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator'
@@ -39,6 +40,15 @@ interface CurrentUser {
   lastLoginAt: string | null
 }
 
+interface ShopifyConnection {
+  id: string
+  shopDomain: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+  hasCustomSecret: boolean
+}
+
 export default function SettingsPage() {
   const { username, role } = useAuth()
 
@@ -54,6 +64,13 @@ export default function SettingsPage() {
   const [configSaving, setConfigSaving] = useState(false)
   const [configSuccess, setConfigSuccess] = useState('')
   const [configError, setConfigError] = useState('')
+  const [shopifyConnection, setShopifyConnection] = useState<ShopifyConnection | null>(null)
+  const [shopifyDomain, setShopifyDomain] = useState('')
+  const [shopifySecret, setShopifySecret] = useState('')
+  const [shopifyLoading, setShopifyLoading] = useState(false)
+  const [shopifySaving, setShopifySaving] = useState(false)
+  const [shopifySuccess, setShopifySuccess] = useState('')
+  const [shopifyError, setShopifyError] = useState('')
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState('')
@@ -88,19 +105,26 @@ export default function SettingsPage() {
     try {
       setStoreLoading(true)
       setConfigLoading(true)
-      const [{ data: storeData }, { data: configData }] = await Promise.all([
+      setShopifyLoading(true)
+      const [{ data: storeData }, { data: configData }, { data: shopifyData }] = await Promise.all([
         api.get('/store'),
         api.get('/store/config'),
+        api.get('/store/shopify'),
       ])
       setStoreName(storeData.data.name ?? '')
       setStoreSlug(storeData.data.slug ?? '')
       setConfig(configData.data ?? null)
+      setShopifyConnection(shopifyData.data ?? null)
+      setShopifyDomain(shopifyData.data?.shopDomain ?? '')
+      setShopifySecret('')
     } catch (err) {
       setStoreError(extractErrorMessage(err, 'Failed to load store info'))
       setConfigError(extractErrorMessage(err, 'Failed to load store configuration'))
+      setShopifyError(extractErrorMessage(err, 'Failed to load Shopify connection'))
     } finally {
       setStoreLoading(false)
       setConfigLoading(false)
+      setShopifyLoading(false)
     }
   }
 
@@ -165,6 +189,70 @@ export default function SettingsPage() {
       setConfigError(extractErrorMessage(err, 'Failed to update store configuration'))
     } finally {
       setConfigSaving(false)
+    }
+  }
+
+  async function handleConnectShopify(e: FormEvent) {
+    e.preventDefault()
+    setShopifyError('')
+    setShopifySuccess('')
+    setShopifySaving(true)
+
+    try {
+      const payload = {
+        shopDomain: shopifyDomain.trim(),
+        webhookSecret: shopifySecret.trim() || undefined,
+      }
+      const { data } = await api.post('/store/shopify', payload)
+      setShopifyConnection(data.data ?? null)
+      setShopifyDomain(data.data?.shopDomain ?? payload.shopDomain)
+      setShopifySecret('')
+      setShopifySuccess('Shopify store connected.')
+      captureEvent('shopify_connection_created')
+    } catch (err) {
+      setShopifyError(extractErrorMessage(err, 'Failed to connect Shopify store'))
+    } finally {
+      setShopifySaving(false)
+    }
+  }
+
+  async function handleToggleShopify(active: boolean) {
+    setShopifyError('')
+    setShopifySuccess('')
+    setShopifySaving(true)
+
+    try {
+      const { data } = await api.put(`/store/shopify/toggle?active=${active}`)
+      setShopifyConnection(data.data ?? null)
+      setShopifySuccess(active ? 'Shopify connection activated.' : 'Shopify connection paused.')
+      captureEvent(active ? 'shopify_connection_activated' : 'shopify_connection_deactivated')
+    } catch (err) {
+      setShopifyError(extractErrorMessage(err, 'Failed to update Shopify connection'))
+    } finally {
+      setShopifySaving(false)
+    }
+  }
+
+  async function handleDeleteShopify() {
+    if (!window.confirm('Disconnect this Shopify store? New Shopify webhooks will stop being processed.')) {
+      return
+    }
+
+    setShopifyError('')
+    setShopifySuccess('')
+    setShopifySaving(true)
+
+    try {
+      await api.delete('/store/shopify')
+      setShopifyConnection(null)
+      setShopifyDomain('')
+      setShopifySecret('')
+      setShopifySuccess('Shopify store disconnected.')
+      captureEvent('shopify_connection_deleted')
+    } catch (err) {
+      setShopifyError(extractErrorMessage(err, 'Failed to disconnect Shopify store'))
+    } finally {
+      setShopifySaving(false)
     }
   }
 
@@ -356,6 +444,118 @@ export default function SettingsPage() {
                 className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
                 {configSaving ? 'Saving…' : 'Save Forecast Settings'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Shopify</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Connect Shopify first so new orders can flow into Forestock. Use CSV import to backfill older sales history.
+              </p>
+            </div>
+            {shopifyConnection && (
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                shopifyConnection.active
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-amber-100 text-amber-700'
+              }`}>
+                {shopifyConnection.active ? 'Active' : 'Paused'}
+              </span>
+            )}
+          </div>
+
+          {shopifyLoading ? (
+            <p className="mt-4 text-sm text-gray-400" role="status" aria-label="Loading">Loading…</p>
+          ) : shopifyConnection ? (
+            <div className="mt-5 space-y-5">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{shopifyConnection.shopDomain}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Connected {new Date(shopifyConnection.createdAt).toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Webhook secret: {shopifyConnection.hasCustomSecret ? 'custom secret configured' : 'using default app secret'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {shopifyConnection.active ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleShopify(false)}
+                        disabled={shopifySaving}
+                        className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                      >
+                        Pause Connection
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleShopify(true)}
+                        disabled={shopifySaving}
+                        className="rounded-lg border border-green-300 px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-50 disabled:opacity-50"
+                      >
+                        Reactivate
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteShopify()}
+                      disabled={shopifySaving}
+                      className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {shopifyError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{shopifyError}</p>}
+              {shopifySuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {shopifySuccess}</p>}
+            </div>
+          ) : (
+            <form onSubmit={handleConnectShopify} className="mt-5 space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Shop Domain</label>
+                  <input
+                    type="text"
+                    value={shopifyDomain}
+                    onChange={(e) => setShopifyDomain(e.target.value)}
+                    placeholder="example.myshopify.com"
+                    required
+                    aria-required="true"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret</label>
+                  <input
+                    type="password"
+                    value={shopifySecret}
+                    onChange={(e) => setShopifySecret(e.target.value)}
+                    placeholder="Optional override"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Start with the shop domain. Add a webhook secret only if this store should use a secret different from the platform default.
+              </p>
+              {shopifyError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2" role="alert">{shopifyError}</p>}
+              {shopifySuccess && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">✓ {shopifySuccess}</p>}
+              <button
+                type="submit"
+                disabled={shopifySaving}
+                className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {shopifySaving ? 'Connecting…' : 'Connect Shopify'}
               </button>
             </form>
           )}

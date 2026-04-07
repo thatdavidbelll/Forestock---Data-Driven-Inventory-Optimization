@@ -25,6 +25,7 @@ public class DashboardDto {
     private List<SalesVelocityPoint> salesVelocityTrend;
     private List<String> dataQualityWarnings;
     private List<CategorySummary> categorySummaries;
+    private OnboardingStatus onboarding;
 
     @Data
     @Builder
@@ -65,5 +66,14 @@ public class DashboardDto {
         private String category;
         private long productCount;
         private long alertCount;
+    }
+
+    @Data
+    @Builder
+    public static class OnboardingStatus {
+        private boolean hasShopifyConnection;
+        private boolean shopifyActive;
+        private String shopDomain;
+        private boolean hasSalesHistory;
     }
 }

@@ -12,6 +12,7 @@ import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
 import com.forestock.forestock_backend.repository.ProductRepository;
 import com.forestock.forestock_backend.repository.SalesTransactionRepository;
+import com.forestock.forestock_backend.repository.ShopifyConnectionRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class DashboardService {
     private final ForecastRunRepository forecastRunRepository;
     private final OrderSuggestionRepository suggestionRepository;
     private final SalesTransactionRepository salesTransactionRepository;
+    private final ShopifyConnectionRepository shopifyConnectionRepository;
     private final InventoryService inventoryService;
     private final ForecastAccuracyService forecastAccuracyService;
 
@@ -45,6 +47,7 @@ public class DashboardService {
         long alertsCount = inventoryService.getAlerts().size();
         long slowMoversCount = storeId != null ? inventoryService.getSlowMovers(30).size() : 0;
         long deadStockCount = storeId != null ? inventoryService.getSlowMovers(90).size() : 0;
+        boolean hasSalesHistory = storeId != null && salesTransactionRepository.existsByStoreId(storeId);
 
         Optional<ForecastRun> latestRun = storeId != null
                 ? forecastRunRepository.findTopByStoreIdAndStatusOrderByFinishedAtDesc(storeId, ForecastStatus.COMPLETED)
@@ -74,6 +77,7 @@ public class DashboardService {
                 .topCritical(latestRun.map(run -> getTopCritical(run.getId())).orElse(List.of()))
                 .salesVelocityTrend(storeId != null ? getSalesVelocityTrend(storeId) : List.of())
                 .dataQualityWarnings(storeId != null ? getDataQualityWarnings(storeId) : List.of())
+                .onboarding(storeId != null ? getOnboardingStatus(storeId, hasSalesHistory) : null)
                 .build();
     }
 
@@ -204,5 +208,21 @@ public class DashboardService {
             warnings.add(missingReorderPoint + " active products have no reorder point configured.");
         }
         return warnings;
+    }
+
+    private DashboardDto.OnboardingStatus getOnboardingStatus(UUID storeId, boolean hasSalesHistory) {
+        return shopifyConnectionRepository.findByStoreId(storeId)
+                .map(connection -> DashboardDto.OnboardingStatus.builder()
+                        .hasShopifyConnection(true)
+                        .shopifyActive(connection.isActive())
+                        .shopDomain(connection.getShopDomain())
+                        .hasSalesHistory(hasSalesHistory)
+                        .build())
+                .orElseGet(() -> DashboardDto.OnboardingStatus.builder()
+                        .hasShopifyConnection(false)
+                        .shopifyActive(false)
+                        .shopDomain(null)
+                        .hasSalesHistory(hasSalesHistory)
+                        .build());
     }
 }

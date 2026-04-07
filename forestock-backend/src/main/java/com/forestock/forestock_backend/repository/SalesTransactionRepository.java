@@ -67,6 +67,13 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
     List<SalesTransaction> findAllByStoreIdOrderBySaleDateAsc(@Param("storeId") UUID storeId);
 
     @Query("""
+           SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END
+           FROM SalesTransaction s
+           WHERE s.product.store.id = :storeId
+           """)
+    boolean existsByStoreId(@Param("storeId") UUID storeId);
+
+    @Query("""
            SELECT s.product.id, MAX(s.saleDate)
            FROM SalesTransaction s
            WHERE s.product.store.id = :storeId
