@@ -103,3 +103,5 @@ The current recommended deployment strategy for Shopify is:
 - restart a systemd service
 
 Do not rely on `npm install` or `npm run build` on the EC2 host for Shopify deployment because the current instance is not a reliable build machine for this app.
+
+Runtime note: the deployed Shopify service requires a non-empty `SHOPIFY_APP_URL`. If that secret is empty or malformed in GitHub Actions, the service will fail during Shopify app initialization with an `empty appUrl configuration` error.

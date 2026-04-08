@@ -263,6 +263,8 @@ for Shopify deployment.
 ### Required GitHub Secrets
 Add these repository secrets before relying on Shopify deployment through Actions:
 
+Important: `SHOPIFY_APP_URL` must be set to the final public Shopify host (for example `https://shopify.forestock.ro`). The deployed Shopify runtime will fail fast if this secret is empty or malformed.
+
 - `SHOPIFY_API_KEY`
 - `SHOPIFY_API_SECRET`
 - `SHOPIFY_APP_URL`

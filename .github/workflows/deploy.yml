@@ -261,7 +261,9 @@ jobs:
           FORESTOCK_PROVISIONING_SECRET=${{ secrets.FORESTOCK_PROVISIONING_SECRET }}
           NODE_ENV=production
           PORT=3000
-          EOF
+EOF
+          sed -i 's/^          //' .env
+          grep '^SHOPIFY_APP_URL=' .env >/dev/null
           chmod 600 .env
 
       - name: Package Shopify artifact
