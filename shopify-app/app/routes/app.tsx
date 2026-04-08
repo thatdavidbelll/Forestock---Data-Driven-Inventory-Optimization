@@ -17,8 +17,10 @@ export default function App() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", gap: "16px" }}>
-        <a href="/app">Setup status</a>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", gap: "16px", flexWrap: "wrap" }}>
+        <a href="/app">Overview</a>
+        <a href="/app/recommendations">Recommendations</a>
+        <a href="/app/setup">Setup</a>
       </div>
       <Outlet />
     </AppProvider>

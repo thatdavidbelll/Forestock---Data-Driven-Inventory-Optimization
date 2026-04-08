@@ -24,6 +24,9 @@ const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'))
 const RequestStandaloneAccessPage = lazy(() => import('./pages/RequestStandaloneAccessPage'))
 const ActivateStandaloneAccessPage = lazy(() => import('./pages/ActivateStandaloneAccessPage'))
 const SlowMoversPage = lazy(() => import('./pages/SlowMoversPage'))
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'))
+const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage'))
+const SupportPage = lazy(() => import('./pages/SupportPage'))
 
 /** Root index redirect — super admins go to /admin, everyone else to /dashboard */
 function RootRedirect() {
@@ -76,6 +79,9 @@ export default function App() {
               <Route path="/accept-invite" element={<AcceptInvitePage />} />
               <Route path="/request-standalone-access" element={<RequestStandaloneAccessPage />} />
               <Route path="/activate-standalone-access" element={<ActivateStandaloneAccessPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+              <Route path="/support" element={<SupportPage />} />
 
               {/* Protected routes — wrapped in Layout */}
               <Route

@@ -21,9 +21,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Forestock for Shopify</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Forecast demand, review restocking priorities, and keep inventory decisions grounded in your Shopify data.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -39,16 +39,13 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Connect Shopify quickly</strong>. Install the app to link your store and prepare product, inventory, and order data for forecasting.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>See what needs attention</strong>. Surface priority restocking recommendations inside Shopify instead of relying on spreadsheets.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Stay operational</strong>. Track setup, sync quality, and forecast readiness without leaving the Shopify admin.
           </li>
         </ul>
       </div>

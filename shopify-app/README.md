@@ -13,7 +13,7 @@ The app currently supports:
 - automatic webhook registration after auth
 - initial Forestock workspace provisioning for the connected shop
 - initial catalog and inventory bootstrap into Forestock
-- historical Shopify order backfill into Forestock
+- recent 60-day Shopify order backfill into Forestock
 - webhook-driven product, inventory, order, scope-update, and uninstall handling
 
 ## Merchant model
@@ -88,7 +88,7 @@ Before calling Shopify launch-ready, verify:
 - install/auth on a real dev store
 - provisioning/linking behavior
 - catalog import
-- historical order backfill
+- recent 60-day order backfill
 - webhook-driven updates
 - uninstall/reinstall behavior
 - merchant comprehension of the embedded setup flow

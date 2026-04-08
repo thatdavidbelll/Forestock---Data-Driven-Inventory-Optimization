@@ -53,9 +53,6 @@ type OrderBackfillOrder = {
   orderName: string | null;
   financialStatus: string | null;
   fulfillmentStatus: string | null;
-  customerEmail: string | null;
-  customerFirstName: string | null;
-  customerLastName: string | null;
   totalPrice: number | null;
   subtotalPrice: number | null;
   currency: string | null;
@@ -90,6 +87,41 @@ type InventorySyncResponse = {
 type DisconnectResponse = {
   shopDomain: string;
   active: boolean;
+};
+
+type AppHomeOverviewResponse = {
+  shopDomain: string;
+  storeName: string;
+  shopifyConnectionActive: boolean;
+  activeProductCount: number;
+  hasSalesHistory: boolean;
+  forecastStatus: string | null;
+  forecastCompletedAt: string | null;
+  criticalSuggestions: number;
+  highSuggestions: number;
+  totalActiveSuggestions: number;
+  topRecommendation: RecommendationCard | null;
+  dataQualityWarnings: string[];
+  nextActions: string[];
+};
+
+type RecommendationCard = {
+  id: string;
+  productName: string;
+  productSku: string;
+  urgency: string;
+  daysOfStock: number | null;
+  suggestedQty: number | null;
+  estimatedOrderValue: number | null;
+  supplierName: string | null;
+  generatedAt: string | null;
+};
+
+type RecommendationsResponse = {
+  shopDomain: string;
+  forecastStatus: string | null;
+  forecastCompletedAt: string | null;
+  recommendations: RecommendationCard[];
 };
 
 function getApiBaseUrl() {
@@ -256,6 +288,52 @@ export async function disconnectForestockShop(payload: {
   const responseBody = (await response.json()) as { message?: string; data?: DisconnectResponse };
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to disconnect Forestock shop");
+  }
+  return responseBody.data;
+}
+
+export async function getForestockAppHome(shopDomain: string): Promise<AppHomeOverviewResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/app-home?shopDomain=${encodeURIComponent(shopDomain)}`,
+    {
+      headers: {
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+    },
+  );
+
+  const responseBody = (await response.json()) as {
+    message?: string;
+    data?: AppHomeOverviewResponse;
+  };
+  if (!response.ok || !responseBody.data) {
+    throw new Error(responseBody.message || "Failed to load Forestock app home");
+  }
+  return responseBody.data;
+}
+
+export async function getForestockRecommendations(shopDomain: string): Promise<RecommendationsResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/recommendations?shopDomain=${encodeURIComponent(shopDomain)}`,
+    {
+      headers: {
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+    },
+  );
+
+  const responseBody = (await response.json()) as {
+    message?: string;
+    data?: RecommendationsResponse;
+  };
+  if (!response.ok || !responseBody.data) {
+    throw new Error(responseBody.message || "Failed to load Forestock recommendations");
   }
   return responseBody.data;
 }

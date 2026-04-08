@@ -18,10 +18,10 @@ This document is intentionally practical. It is meant to answer:
 ## App positioning statement
 Forestock helps Shopify merchants turn sales history, catalog data, and stock levels into practical restocking decisions.
 
-The embedded Shopify app links the merchant’s store to Forestock, imports product, inventory, and order history, and prepares the data needed for forecasting and replenishment recommendations.
+The embedded Shopify app links the merchant’s store to Forestock, imports product and inventory data, backfills the recent 60 days of order history, and prepares the data needed for forecasting and replenishment recommendations.
 
 ## Concise merchant value proposition
-Install Forestock to connect your Shopify store, sync your catalog and order history, and prepare smarter restocking insights without manual data wrangling.
+Install Forestock to connect your Shopify store, sync your catalog and the recent 60 days of order history, and prepare smarter restocking insights without manual data wrangling.
 
 ## Short listing copy draft
 ### App name
@@ -31,12 +31,12 @@ Forestock
 Inventory forecasting and restocking support for Shopify merchants.
 
 ### Short description
-Forestock connects to your Shopify store, imports product, inventory, and order history, and helps you prepare clearer restocking decisions using sales-driven forecasting.
+Forestock connects to your Shopify store, imports product, inventory, and the recent 60 days of order history, and helps you prepare clearer restocking decisions using sales-driven forecasting.
 
 ### Longer description draft
 Forestock is designed for merchants who want better visibility into what to restock and when to act.
 
-After installation, Forestock links your Shopify store, prepares a Forestock workspace, imports catalog and inventory data, and backfills recent order history. That data can then be used to power forecasting and replenishment workflows.
+After installation, Forestock links your Shopify store, prepares a Forestock workspace, imports catalog and inventory data, and backfills the recent 60 days of Shopify order history. That data can then be used to power forecasting and replenishment workflows.
 
 Forestock is intended to reduce spreadsheet-heavy inventory review and give operators a clearer starting point for restocking decisions.
 
@@ -45,7 +45,7 @@ When the app is opened after installation, the embedded app will:
 1. authenticate the merchant through Shopify
 2. provision or link the merchant’s Forestock workspace
 3. import product and inventory data
-4. backfill recent Shopify order history
+4. backfill the recent 60 days of Shopify order history
 5. display setup and sync status in the embedded app
 
 The first-run experience is currently centered on setup/status confirmation rather than a deep in-app workflow.
@@ -70,10 +70,10 @@ The first-run experience is currently centered on setup/status confirmation rath
 ### Why these scopes are needed
 - `read_products` — to import product catalog structure and variant data
 - `read_inventory` — to import and update stock state from Shopify inventory records
-- `read_orders` — to backfill and process sales/order history for forecasting and replenishment workflows
+- `read_orders` — to backfill and process the recent 60 days of sales/order history for forecasting and replenishment workflows
 
 ### Scope minimization note
-Forestock is currently scoped for read-driven synchronization from Shopify into Forestock. No write scopes are requested in the current app configuration.
+Forestock is currently scoped for read-driven synchronization from Shopify into Forestock. The current public-scope posture avoids requesting `read_all_orders` and avoids pulling customer-identifying fields in the Shopify app flow. No write scopes are requested in the current app configuration.
 
 ## Webhooks in use
 - `app/uninstalled`
@@ -118,8 +118,8 @@ A reviewer should be able to verify:
 - [ ] Final app icon / brand asset set
 - [ ] Embedded app screenshots from a real dev-store run
 - [ ] Optional short demo video or reviewer screencast plan
-- [ ] Privacy policy URL
-- [ ] Support email / support URL
+- [ ] Deploy privacy policy page to the final public domain
+- [ ] Deploy support page to the final public domain
 - [ ] Reviewer test instructions if special setup is required
 
 ## Suggested screenshot set
@@ -131,11 +131,12 @@ A reviewer should be able to verify:
 6. Any follow-up screen that demonstrates merchant value after setup
 
 ## Support / contact placeholders
-Replace these before submission:
-- **Support email:** TODO
-- **Support URL:** TODO
-- **Privacy policy URL:** TODO
-- **App website / marketing URL:** TODO
+Deploy these routes on the final public web domain before submission:
+- **Support email:** `support@forestock.app`
+- **Support route:** `/support`
+- **Privacy policy route:** `/privacy-policy`
+- **Terms of service route:** `/terms-of-service`
+- **App website / marketing URL:** still needed
 
 ## Honest current recommendation
 Forestock is not yet ready for confident Shopify public submission purely on the basis of local code health.

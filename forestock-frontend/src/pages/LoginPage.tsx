@@ -122,22 +122,24 @@ export default function LoginPage() {
           </Link>
         </p>
         <div className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-400">
-          <a
-            href="https://forestock.app/privacy-policy"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/privacy-policy"
             className="hover:text-gray-600"
           >
             Privacy Policy
-          </a>
-          <a
-            href="https://forestock.app/terms-of-service"
-            target="_blank"
-            rel="noreferrer"
+          </Link>
+          <Link
+            to="/terms-of-service"
             className="hover:text-gray-600"
           >
             Terms of Service
-          </a>
+          </Link>
+          <Link
+            to="/support"
+            className="hover:text-gray-600"
+          >
+            Support
+          </Link>
         </div>
       </div>
     </div>
