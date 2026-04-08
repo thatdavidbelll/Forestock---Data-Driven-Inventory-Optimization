@@ -35,6 +35,7 @@
 - Added `docs/SHOPIFY_LOCAL_ENV_RUNBOOK.md`, `docs/SHOPIFY_LOCAL_COMMAND_SEQUENCE.md`, and local env examples for the backend and Shopify app so dev-store validation can be stood up without guessing
 - Switched Shopify app package scripts to `npx shopify ...` so local dev does not depend on a globally installed Shopify CLI
 - Added `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md` to document a supervised path for promoting the Shopify app onto `shopify.forestock.ro` behind AWS + Nginx
+- Standardized Shopify deployment direction around CI-built artifacts deployed to EC2 runtime, instead of building on the EC2 host
 - Added backend scaffolding for Shopify standalone-access activation: additive user schema, activation service/endpoints, Shopify login gating, and focused regression tests
 - Added frontend standalone-access request/activation pages and login recovery CTA, styled with a Shopify-first dark/indigo/violet/light-blue auth treatment
 - Captured initial launch audit findings and readiness framing

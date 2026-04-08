@@ -17,6 +17,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      shopify: ${{ steps.filter.outputs.shopify }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -28,6 +29,9 @@ jobs:
               - '.github/workflows/deploy.yml'
             frontend:
               - 'forestock-frontend/**'
+              - '.github/workflows/deploy.yml'
+            shopify:
+              - 'shopify-app/**'
               - '.github/workflows/deploy.yml'
 
   # ── Backend: build image → push ECR → restart on EC2 ───────────────────────
@@ -202,3 +206,120 @@ jobs:
             --paths "/*"
 
           echo "✓ Frontend deployed"
+
+  # ── Shopify: build on runner → upload artifact → restart on EC2 ───────────
+  deploy-shopify:
+    name: Deploy Shopify App
+    needs: changes
+    if: needs.changes.outputs.shopify == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: shopify-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: shopify-app
+        run: npm ci
+
+      - name: Type check Shopify app
+        working-directory: shopify-app
+        run: npm run typecheck
+
+      - name: Lint Shopify app
+        working-directory: shopify-app
+        run: npm run lint
+
+      - name: Build Shopify app
+        working-directory: shopify-app
+        env:
+          SHOPIFY_API_KEY: ${{ secrets.SHOPIFY_API_KEY }}
+          SHOPIFY_API_SECRET: ${{ secrets.SHOPIFY_API_SECRET }}
+          SHOPIFY_APP_URL: ${{ secrets.SHOPIFY_APP_URL }}
+          SCOPES: ${{ secrets.SHOPIFY_SCOPES }}
+          DATABASE_URL: ${{ secrets.SHOPIFY_DATABASE_URL }}
+          FORESTOCK_API_BASE_URL: ${{ secrets.FORESTOCK_API_BASE_URL }}
+          FORESTOCK_PROVISIONING_SECRET: ${{ secrets.FORESTOCK_PROVISIONING_SECRET }}
+        run: npm run build
+
+      - name: Prepare runtime env file
+        working-directory: shopify-app
+        run: |
+          cat > .env <<EOF
+          SHOPIFY_API_KEY=${{ secrets.SHOPIFY_API_KEY }}
+          SHOPIFY_API_SECRET=${{ secrets.SHOPIFY_API_SECRET }}
+          SHOPIFY_APP_URL=${{ secrets.SHOPIFY_APP_URL }}
+          SCOPES=${{ secrets.SHOPIFY_SCOPES }}
+          SHOP_CUSTOM_DOMAIN=
+          DATABASE_URL=${{ secrets.SHOPIFY_DATABASE_URL }}
+          FORESTOCK_API_BASE_URL=${{ secrets.FORESTOCK_API_BASE_URL }}
+          FORESTOCK_PROVISIONING_SECRET=${{ secrets.FORESTOCK_PROVISIONING_SECRET }}
+          NODE_ENV=production
+          PORT=3000
+          EOF
+          chmod 600 .env
+
+      - name: Package Shopify artifact
+        run: |
+          tar -czf shopify-app-deploy.tar.gz \
+            -C shopify-app \
+            build \
+            node_modules \
+            package.json \
+            package-lock.json \
+            prisma \
+            app \
+            public \
+            .env
+
+      - name: Upload Shopify artifact to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: shopify-app-deploy.tar.gz
+          target: /home/ubuntu/
+
+      - name: Deploy Shopify artifact on EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p ~/forestock/shopify-runtime
+            rm -rf ~/forestock/shopify-runtime/*
+            tar -xzf ~/shopify-app-deploy.tar.gz -C ~/forestock/shopify-runtime
+
+            sudo tee /etc/systemd/system/forestock-shopify.service >/dev/null <<'EOF'
+            [Unit]
+            Description=Forestock Shopify App
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/forestock/shopify-runtime
+            EnvironmentFile=/home/ubuntu/forestock/shopify-runtime/.env
+            ExecStart=/usr/bin/npm start
+            Restart=always
+            RestartSec=5
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable forestock-shopify
+            sudo systemctl restart forestock-shopify
+            sleep 5
+            curl -I --max-time 15 http://127.0.0.1:3000
+
+            echo "✓ Shopify app deployed"

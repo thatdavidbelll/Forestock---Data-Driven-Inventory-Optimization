@@ -239,7 +239,49 @@ curl https://api.forestock.ro/actuator/health
 
 ---
 
-## Step 6 — Deploy the Frontend
+## Step 6 — Deploy the Shopify App
+
+The Shopify app should be treated as a runtime artifact deployment, not a build-on-EC2 deployment.
+
+### Why
+The current EC2 instance is reliable enough to run the Shopify app, but not reliable enough to perform `npm install` / `npm run build` safely for this codebase.
+
+### Deployment model
+GitHub Actions should:
+- build the Shopify app on the runner
+- package a runtime-ready artifact
+- upload it to EC2
+- unpack it into a dedicated runtime directory
+- restart `forestock-shopify.service`
+
+EC2 should **not** run:
+- `npm install`
+- `npm run build`
+
+for Shopify deployment.
+
+### Required GitHub Secrets
+Add these repository secrets before relying on Shopify deployment through Actions:
+
+- `SHOPIFY_API_KEY`
+- `SHOPIFY_API_SECRET`
+- `SHOPIFY_APP_URL`
+- `SHOPIFY_SCOPES`
+- `SHOPIFY_DATABASE_URL`
+- `FORESTOCK_API_BASE_URL`
+- `FORESTOCK_PROVISIONING_SECRET`
+- `EC2_HOST`
+- `EC2_SSH_KEY`
+
+### Expected EC2 runtime location
+- runtime directory: `/home/ubuntu/forestock/shopify-runtime`
+- systemd service: `forestock-shopify.service`
+- app port: `3000`
+
+### Next infrastructure step after deploy
+Once the service runs successfully on `127.0.0.1:3000`, add an Nginx host for `shopify.forestock.ro`, then attach TLS and only later cut over Shopify application/callback URLs.
+
+## Step 7 — Deploy the Frontend
 
 Run locally on your machine:
 

@@ -93,3 +93,13 @@ If Shopify is part of launch, treat it as its own readiness track with explicit 
 
 ## Dedicated Host Planning
 If Forestock promotes the Shopify app to its own production-ish hostname, prefer a dedicated host such as `shopify.forestock.ro` rather than reusing the main Forestock frontend host. See `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md` for a supervised AWS + Nginx implementation guide and risk framing.
+
+## Deployment Strategy
+The current recommended deployment strategy for Shopify is:
+- build on GitHub Actions runners
+- package a runtime-ready artifact
+- upload the artifact to EC2
+- unpack into a dedicated Shopify runtime directory
+- restart a systemd service
+
+Do not rely on `npm install` or `npm run build` on the EC2 host for Shopify deployment because the current instance is not a reliable build machine for this app.
