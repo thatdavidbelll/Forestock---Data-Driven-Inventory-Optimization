@@ -40,6 +40,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: ec2-runtime-deploy
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
@@ -213,6 +216,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.shopify == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: ec2-runtime-deploy
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
@@ -331,10 +337,14 @@ jobs:
             WantedBy=multi-user.target
             EOF
 
+            cd ~/forestock/shopify-runtime
+            mkdir -p prisma
+            npx prisma db push
+
             sudo systemctl daemon-reload
             sudo systemctl enable forestock-shopify
             sudo systemctl restart forestock-shopify
-            sleep 5
-            curl -I --max-time 15 http://127.0.0.1:3000
+            sleep 8
+            curl -I --max-time 20 http://127.0.0.1:3000
 
             echo "✓ Shopify app deployed"
