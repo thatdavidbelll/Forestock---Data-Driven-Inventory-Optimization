@@ -18,8 +18,7 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", gap: "16px" }}>
-        <a href="/app">Home</a>
-        <a href="/app/additional">Additional page</a>
+        <a href="/app">Setup status</a>
       </div>
       <Outlet />
     </AppProvider>

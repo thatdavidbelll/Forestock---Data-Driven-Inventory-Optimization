@@ -44,6 +44,43 @@ Track Forestock’s Shopify integration operating model and launch readiness req
 - Validate standalone-access activation flow (request → email/token → activation → standalone login) if standalone web access remains supported for Shopify merchants
 - Document merchant impact of scope changes and reinstall requirements
 - Prepare support path for sync failures and uninstall cleanup
+- Prepare app review/listing artifacts in `docs/SHOPIFY_APP_REVIEW_PACK.md`
+
+## Support Runbook Starter
+### Install or auth fails
+- Confirm `SHOPIFY_APP_URL` matches the deployed embedded app URL
+- Confirm callback URLs in `shopify.app.toml` match the deployed environment
+- Inspect Shopify app runtime logs for callback/auth loop failures
+- Confirm Prisma session storage is reachable and writable
+
+### Provisioning fails after install
+- Inspect embedded app setup page for the surfaced provisioning error
+- Confirm `FORESTOCK_API_BASE_URL` is reachable from the Shopify app runtime
+- Confirm `FORESTOCK_PROVISIONING_SECRET` matches the backend expectation
+- Inspect backend logs for `/api/shopify/provision`
+- Verify a workspace/store link was created or safely rejected without duplication
+
+### Catalog or order sync fails
+- Inspect setup-page counters and surfaced error text
+- Inspect backend logs for `/api/shopify/catalog-sync` and `/api/shopify/order-backfill`
+- Verify Shopify data exists in the test store for the expected period
+- Check whether duplicates, empty imports, or matching failures occurred
+
+### Webhook updates fail
+- Confirm webhook subscriptions are registered after auth
+- Inspect Shopify delivery status and app runtime logs
+- Inspect backend endpoints for product, inventory, and order sync handling
+- Confirm shared-secret configuration is still correct between app and backend
+
+### Uninstall or reinstall behaves oddly
+- Confirm uninstall webhook was received and processed
+- Verify session cleanup and backend disconnect state were applied
+- On reinstall, verify the existing Forestock workspace is reused or reconciled cleanly rather than duplicated
+
+### What support should tell the merchant
+- Forestock setup begins inside Shopify and may take a short time while product, inventory, and order history are prepared
+- If setup cannot complete automatically, support can inspect the linked workspace and sync status without asking the merchant to repeat unnecessary steps
+- Reinstall or scope changes may require reauthorization depending on the final launch configuration
 
 ## Merchant Impact Notes
 Any change to scopes, install behavior, or provisioning flow can affect:
@@ -53,3 +90,6 @@ Any change to scopes, install behavior, or provisioning flow can affect:
 
 ## Launch Recommendation
 If Shopify is part of launch, treat it as its own readiness track with explicit validation evidence and support procedures. The target product posture is Shopify-first for merchants, with the embedded app acting as the primary setup and status surface.
+
+## Dedicated Host Planning
+If Forestock promotes the Shopify app to its own production-ish hostname, prefer a dedicated host such as `shopify.forestock.ro` rather than reusing the main Forestock frontend host. See `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md` for a supervised AWS + Nginx implementation guide and risk framing.

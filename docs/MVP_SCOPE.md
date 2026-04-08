@@ -27,7 +27,7 @@ Forestock helps store operators:
 - Suggestion review and acknowledgement
 - Basic dashboard visibility
 - Basic audit logging
-- Shopify connection for selected pilot merchants
+- Shopify connection for selected pilot merchants, with the embedded Shopify app acting as the intended primary merchant surface when Shopify is in scope
 
 ### Operational
 - Backend deployment via CI/CD
@@ -69,3 +69,5 @@ Forestock MVP should not be considered launch-ready until all of the following a
 
 ## Notes
 This MVP definition intentionally favors a narrow, polished launch over full-surface breadth.
+
+For Shopify merchants, the intended long-term product posture is Shopify-first: install and ongoing use should center on the embedded Shopify app, while any standalone Forestock access remains secondary unless explicitly promoted later.

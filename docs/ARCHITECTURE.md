@@ -54,6 +54,11 @@ Forestock is a multi-surface inventory optimization platform with three primary 
 - Backend: EC2 + Nginx + Docker
 - Database: Neon PostgreSQL
 
+### Shopify host planning
+- Shopify app is intended to live on its own host when promoted beyond local/tunneled validation
+- Preferred dedicated hostname: `shopify.forestock.ro`
+- Likely initial hosting shape: EC2 + Nginx reverse proxy to a Node/Docker Shopify app runtime
+
 ## Security Model
 - JWT-based authentication
 - Role-based authorization

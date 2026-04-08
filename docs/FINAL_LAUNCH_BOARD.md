@@ -15,9 +15,9 @@
 |---|---|---|
 | Core backend product flow | Strong | CSV import → forecast → suggestions validated live in non-prod |
 | Frontend integration | Moderate | Build/lint/typecheck pass; code path audit looks aligned; no real browser E2E proof yet |
-| Auth / onboarding | Medium-Low | Login works, onboarding flow exists, but refresh/logout/rate-limit/email verification end-to-end still incomplete |
+| Auth / onboarding | Medium-Low | Login works, onboarding flow exists, and local evidence confirms newly created admins are blocked until email verification; full verification/invite completion, tenant-isolation proof, and broader role-matrix evidence remain incomplete and are accepted only for a manual first pilot |
 | Inventory / audit trust | Strong | Real bugs found, fixed, and covered with regression tests |
-| Operations / readiness | Moderate | Actuator/readiness/liveness fixed; rollback exists; deploy/rollback rehearsal still limited |
+| Operations / readiness | Moderate | Actuator/readiness/liveness fixed and production readiness verified; rollback exists; deploy/rollback rehearsal still limited |
 | Shopify readiness | Low-Moderate | Real implementation exists, but production/app-review readiness is incomplete |
 | Docs / release discipline | Strong | Launch docs, blockers, verification matrix, manual script, and changelog now exist |
 
@@ -41,7 +41,7 @@
 - **Severity:** Critical
 - **Status:** Open
 - **Owner:** Engineering / QA
-- **Why it matters:** Full launch-critical flows are not yet validated together, especially onboarding token flows, cross-store isolation, and UI-level confirmation.
+- **Why it matters:** Full launch-critical flows are not yet validated together, especially onboarding token flows and UI-level confirmation. Backend production-safe report/export validation is now substantially stronger, including `/api/reports/sales`.
 - **To close:**
   - validate email verification end to end
   - validate invite verify/accept end to end
@@ -71,9 +71,9 @@
 
 ### Blocker 4 — Auth/onboarding trust boundary validation incomplete
 - **Severity:** High
-- **Status:** Open
+- **Status:** Partially accepted for first pilot only
 - **Owner:** Backend / QA
-- **Why it matters:** The app is trust-sensitive; tenant isolation, role matrix, verification flow, and invite flow need stronger evidence.
+- **Why it matters:** The app is trust-sensitive; tenant isolation, role matrix, verification flow, and invite flow need stronger evidence. Current local evidence confirms newly created admins are blocked until verification, but the full token-completion path was not closed in this audit.
 - **To close:**
   - validate store A vs store B isolation
   - validate super admin/admin/manager/viewer matrix
@@ -91,16 +91,16 @@
 - CSV import → forecast → suggestions validated live in non-prod
 
 ## Evidence Highlights
-- Backend tests passing: 39 tests, 0 failures, 0 errors, 1 skipped
+- Backend tests passing: 41 tests, 0 failures, 0 errors, 1 skipped
 - Fresh Flyway migration apply validated on local non-prod PostgreSQL
-- Valid login + store creation + store-admin auth validated
+- Valid login + store creation + store-admin auth validated; local evidence also confirms newly created store admins are blocked before email verification
 - Inventory update, history, and current-state validated after fix
 - CSV import validated: 7 imported, 0 errors
 - Forecast completion validated on imported data
 - Suggestion generation validated with meaningful reorder output
 - Audit logs validated for `PRODUCT_CREATED`, `INVENTORY_UPDATED`, `SALES_IMPORTED`
 - `/actuator/health/readiness` and `/actuator/health/liveness` validated as `UP` in non-prod
-- Production post-deploy validation passed for readiness, login, `/api/store`, and `/api/suggestions`
+- Production post-deploy validation passed for readiness, login, `/api/store`, `/api/suggestions`, `/api/dashboard`, `/api/sales/summary?days=30`, `/api/audit-logs?page=0&size=10`, `/api/suggestions/export/excel`, `/api/suggestions/export/pdf`, `/api/reports/inventory-valuation`, `/api/reports/slow-movers`, and `/api/reports/sales`
 
 ## Recommended Owners / Workstreams
 ### Engineering
@@ -116,6 +116,7 @@
 ### Product
 - Decide launch scope: pilot only vs Shopify-inclusive pilot
 - Keep MVP promise narrow and supportable
+- Keep first-pilot onboarding manual and supervised while auth/onboarding residual risk remains accepted rather than fully closed
 
 ### Shopify
 - Deferred from first pilot
@@ -127,11 +128,12 @@
 
 ## Immediate Next 7-Day Plan
 1. Rehearse deploy + readiness + rollback once
-2. Confirm remaining auth/onboarding gaps are either closed or explicitly accepted for pilot
-3. Prepare pilot go-live checklist and assign owners
-4. Select pilot merchants and pilot date target
-5. Run one final pilot dry-run on the core import → forecast → suggestions journey
-6. Keep Shopify out of pilot scope until a dedicated readiness milestone is completed
+2. Confirm remaining auth/onboarding gaps are either closed or explicitly accepted for pilot; if accepted, keep onboarding manual rather than self-serve
+3. Optionally verify `/api/reports/sales?format=pdf` and the frontend report-download UX
+4. Prepare pilot go-live checklist and assign owners
+5. Select pilot merchants and pilot date target
+6. Run one final pilot dry-run on the core import → forecast → suggestions journey
+7. Keep Shopify out of pilot scope until a dedicated readiness milestone is completed
 
 ## Final Recommendation
 Forestock should **not** do a broad public launch yet.

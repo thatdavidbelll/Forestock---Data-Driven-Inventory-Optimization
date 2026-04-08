@@ -31,6 +31,10 @@
 - Hardened Shopify app configuration with real application/redirect URLs, declared runtime webhook topics, and a new `shopify-app/.env.example`
 - Reframed the Shopify embedded app onboarding/status page to use merchant-facing setup language instead of internal prototype wording
 - Updated Shopify docs to explicitly adopt a Shopify-first merchant model, with the embedded app as the primary merchant surface when Shopify is in scope
+- Added `docs/SHOPIFY_APP_REVIEW_PACK.md`, `docs/SHOPIFY_SUBMISSION_TODO.md`, and `docs/SHOPIFY_VALIDATION_EVIDENCE_TEMPLATE.md` to make Shopify validation/submission work executable instead of ad hoc
+- Added `docs/SHOPIFY_LOCAL_ENV_RUNBOOK.md`, `docs/SHOPIFY_LOCAL_COMMAND_SEQUENCE.md`, and local env examples for the backend and Shopify app so dev-store validation can be stood up without guessing
+- Switched Shopify app package scripts to `npx shopify ...` so local dev does not depend on a globally installed Shopify CLI
+- Added `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md` to document a supervised path for promoting the Shopify app onto `shopify.forestock.ro` behind AWS + Nginx
 - Added backend scaffolding for Shopify standalone-access activation: additive user schema, activation service/endpoints, Shopify login gating, and focused regression tests
 - Added frontend standalone-access request/activation pages and login recovery CTA, styled with a Shopify-first dark/indigo/violet/light-blue auth treatment
 - Captured initial launch audit findings and readiness framing

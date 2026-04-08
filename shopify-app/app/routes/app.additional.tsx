@@ -1,36 +1,29 @@
 export default function AdditionalPage() {
   return (
-    <s-page heading="Additional page">
-      <s-section heading="Multiple pages">
-        <s-paragraph>
-          The app template comes with an additional page which demonstrates how
-          to create multiple pages within app navigation using{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>
-          .
-        </s-paragraph>
-        <s-paragraph>
-          To create your own page and have it show up in the app navigation, add
-          a page inside <code>app/routes</code>, and a link to it in the{" "}
-          <code>&lt;ui-nav-menu&gt;</code> component found in{" "}
-          <code>app/routes/app.jsx</code>.
-        </s-paragraph>
+    <s-page heading="Using Forestock in Shopify">
+      <s-section heading="Shopify-first merchant workflow">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            For Shopify merchants, Forestock is intended to be used primarily through this embedded Shopify app.
+          </s-paragraph>
+          <s-paragraph>
+            Installing the app links your Shopify store, prepares your Forestock workspace, and starts bringing product, inventory, and order data into Forestock.
+          </s-paragraph>
+        </s-stack>
       </s-section>
-      <s-section slot="aside" heading="Resources">
+
+      <s-section heading="What merchants should expect">
         <s-unordered-list>
-          <s-list-item>
-            <s-link
-              href="https://shopify.dev/docs/apps/design-guidelines/navigation#app-nav"
-              target="_blank"
-            >
-              App nav best practices
-            </s-link>
-          </s-list-item>
+          <s-list-item>Shopify is the primary entry point for setup and sync status.</s-list-item>
+          <s-list-item>Forestock prepares a linked workspace behind the scenes for forecasting and restocking logic.</s-list-item>
+          <s-list-item>Manual support may still be used during the pilot if setup or sync needs intervention.</s-list-item>
         </s-unordered-list>
+      </s-section>
+
+      <s-section heading="Current pilot note">
+        <s-paragraph>
+          The Shopify flow is being hardened as a dedicated readiness track. During the current pilot phase, support may still help merchants complete setup if sync or provisioning needs attention.
+        </s-paragraph>
       </s-section>
     </s-page>
   );

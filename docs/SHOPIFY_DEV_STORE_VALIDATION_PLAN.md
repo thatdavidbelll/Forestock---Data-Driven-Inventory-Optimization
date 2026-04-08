@@ -270,6 +270,8 @@ For each scenario, capture:
 - DB excerpt(s) if useful
 - Unresolved notes
 
+Use `docs/SHOPIFY_VALIDATION_EVIDENCE_TEMPLATE.md` as the default capture sheet for a run so pass/fail evidence stays consistent.
+
 ## Minimum Shopify GO checklist
 Shopify should not move to GO until all of these are true:
 

@@ -166,9 +166,11 @@ One of:
 - [ ] Validate standalone-access activation flow in real merchant lifecycle
 
 ### Parallel documentation / launch prep
-- [ ] Draft Shopify support runbook
-- [ ] Draft app listing/review pack
-- [ ] Document scope justification + merchant impact notes
+- [x] Draft Shopify support runbook
+- [x] Draft app listing/review pack
+- [x] Document scope justification + merchant impact notes
+- [ ] Fill reviewer/contact/privacy placeholders with real values
+- [ ] Capture real screenshots from a validated dev-store run
 
 ### Final closure
 - [ ] Update blocker board with runtime evidence

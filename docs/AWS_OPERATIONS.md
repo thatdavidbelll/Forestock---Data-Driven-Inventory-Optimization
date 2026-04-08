@@ -37,6 +37,7 @@ Document the current AWS operating model for Forestock and the minimum controls 
 - Add explicit alerting and monitoring expectations
 - Capture environment inventory and owner list
 - Move toward reproducible infra definitions over manual console drift
+- If Shopify gets a dedicated public hostname, document the EC2/Nginx/TLS/DNS operating path explicitly (see `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md`)
 
 ## Launch Checklist
 - Backend CI passes on main

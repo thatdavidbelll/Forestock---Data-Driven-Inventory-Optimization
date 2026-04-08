@@ -401,11 +401,11 @@ export default function Index() {
     useLoaderData<typeof loader>();
 
   return (
-    <s-page heading="Forestock onboarding">
-      <s-section heading="Shopify store connected">
+    <s-page heading="Forestock setup">
+      <s-section heading="Shop connected">
         <s-stack direction="block" gap="base">
           <s-paragraph>
-            Forestock is now provisioning this Shopify shop as a tenant.
+            Forestock is preparing your Shopify store so product data, inventory, and sales history can power forecasting and restocking suggestions.
           </s-paragraph>
           <s-box
             padding="base"
@@ -423,7 +423,7 @@ export default function Index() {
       </s-section>
 
       {provisioningError ? (
-        <s-section heading="Provisioning blocked">
+        <s-section heading="Store setup needs attention">
           <s-box
             padding="base"
             borderWidth="base"
@@ -432,13 +432,12 @@ export default function Index() {
           >
             <s-paragraph>{provisioningError}</s-paragraph>
             <s-paragraph>
-              Phase 1 only provisions the Forestock tenant automatically. Product,
-              inventory, and order sync come in the next phases.
+              Forestock could not finish linking this Shopify store automatically. The Shopify app is installed, but Forestock setup is incomplete until this is resolved.
             </s-paragraph>
           </s-box>
         </s-section>
       ) : provisioned ? (
-        <s-section heading="Provisioning result">
+        <s-section heading="Store setup">
           <s-box
             padding="base"
             borderWidth="base"
@@ -447,8 +446,8 @@ export default function Index() {
           >
             <s-paragraph>
               {provisioned.createdStore
-                ? "A new Forestock store was created for this Shopify shop."
-                : "This Shopify shop is already linked to an existing Forestock store."}
+                ? "A new Forestock workspace was created for this Shopify store."
+                : "This Shopify store is already linked to an existing Forestock workspace."}
             </s-paragraph>
           </s-box>
           <s-box
@@ -458,17 +457,17 @@ export default function Index() {
             background="subdued"
           >
             <s-stack direction="block" gap="base">
-              <p>Forestock store: {provisioned.storeName}</p>
-              <p>Store slug: {provisioned.storeSlug}</p>
+              <p>Forestock workspace: {provisioned.storeName}</p>
+              <p>Workspace slug: {provisioned.storeSlug}</p>
               <p>Admin username: {provisioned.adminUsername ?? "Pending"}</p>
-              <p>Admin user created now: {provisioned.createdAdminUser ? "yes" : "no"}</p>
+              <p>Admin user created during setup: {provisioned.createdAdminUser ? "yes" : "no"}</p>
             </s-stack>
           </s-box>
         </s-section>
       ) : null}
 
       {!provisioningError && (
-        <s-section heading="Catalog bootstrap">
+        <s-section heading="Catalog and inventory import">
           {catalogSyncError ? (
             <s-box
               padding="base"
@@ -478,8 +477,7 @@ export default function Index() {
             >
               <s-paragraph>{catalogSyncError}</s-paragraph>
               <s-paragraph>
-                Store provisioning succeeded, but Shopify product and inventory import
-                did not complete yet.
+                Your store connection is in place, but Forestock has not finished importing products and inventory yet.
               </s-paragraph>
             </s-box>
           ) : catalogSync ? (
@@ -491,9 +489,9 @@ export default function Index() {
             >
               <s-stack direction="block" gap="base">
                 <p>Products processed: {catalogSync.processedItems}</p>
-                <p>Products created: {catalogSync.createdProducts}</p>
-                <p>Products updated: {catalogSync.updatedProducts}</p>
-                <p>Inventory snapshots added: {catalogSync.inventorySnapshotsCreated}</p>
+                <p>Products created in Forestock: {catalogSync.createdProducts}</p>
+                <p>Products updated in Forestock: {catalogSync.updatedProducts}</p>
+                <p>Inventory snapshots captured: {catalogSync.inventorySnapshotsCreated}</p>
               </s-stack>
             </s-box>
           ) : null}
@@ -501,7 +499,7 @@ export default function Index() {
       )}
 
       {!provisioningError && (
-        <s-section heading="Historical orders">
+        <s-section heading="Sales history import">
           {orderBackfillError ? (
             <s-box
               padding="base"
@@ -511,8 +509,7 @@ export default function Index() {
             >
               <s-paragraph>{orderBackfillError}</s-paragraph>
               <s-paragraph>
-                Product and inventory sync completed, but historical Shopify orders
-                have not been imported yet.
+                Products and inventory were prepared, but Forestock has not finished importing historical Shopify orders yet.
               </s-paragraph>
             </s-box>
           ) : orderBackfill ? (
@@ -527,18 +524,18 @@ export default function Index() {
                 <p>Duplicate orders skipped: {orderBackfill.duplicateOrders}</p>
                 <p>Matched line items: {orderBackfill.matchedLineItems}</p>
                 <p>Unmatched line items: {orderBackfill.unmatchedLineItems}</p>
-                <p>Sales rows upserted: {orderBackfill.salesRowsUpserted}</p>
+                <p>Sales rows written to Forestock: {orderBackfill.salesRowsUpserted}</p>
               </s-stack>
             </s-box>
           ) : null}
         </s-section>
       )}
 
-      <s-section heading="Next phases">
+      <s-section heading="What happens next">
         <s-stack direction="block" gap="base">
-          <p>1. Subscribe to ongoing product, inventory, and order webhooks.</p>
-          <p>2. Add webhook-driven updates for product and stock changes.</p>
-          <p>3. Replace standalone Forestock login with Shopify-native access.</p>
+          <p>1. Forestock keeps this Shopify store linked for ongoing product, inventory, and order updates.</p>
+          <p>2. Once enough data is available, Forestock can generate forecasting and restocking suggestions.</p>
+          <p>3. If setup needs manual help, support can use the workspace and sync status shown above to continue onboarding.</p>
         </s-stack>
       </s-section>
     </s-page>

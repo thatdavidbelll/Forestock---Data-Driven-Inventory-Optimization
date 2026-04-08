@@ -24,6 +24,7 @@ Pilot should only proceed when all **Critical** items are complete and all **Hig
 - [ ] Tenant isolation verified between at least two stores
 - [ ] Admin vs manager role boundaries validated for pilot-critical endpoints
 - [ ] Email verification flow works end to end or is replaced with a controlled manual onboarding workaround for pilot
+- [x] Accepted pilot risk: auth/onboarding remains partially verified, with evidence that new store admins are blocked until verification; for the first pilot, onboarding will remain manual and supervised rather than fully self-serve
 
 ### Operations
 - [x] Backend deploy health check uses `/actuator/health/readiness`
@@ -45,7 +46,7 @@ Pilot should only proceed when all **Critical** items are complete and all **Hig
 - [ ] Incident/rollback owner identified
 - [ ] Pilot merchant list agreed
 - [ ] Success criteria for pilot agreed
-- [ ] Known limitations documented and ready to share internally
+- [x] Known limitations documented and ready to share internally
 
 ## Nice-to-Have Before Pilot
 - [ ] Password reset flow validated end to end
@@ -85,6 +86,6 @@ Pilot should only proceed when all **Critical** items are complete and all **Hig
 ## Decision Log
 - Pilot date target:
 - Pilot stores:
-- Known accepted risks:
+- Known accepted risks: Auth/onboarding is only partially verified end to end. Manual evidence confirms store registration works and unverified new admins are blocked from login, but verification-token completion, invite-token completion, full tenant-isolation proof, and full role-matrix proof were deferred. This risk is accepted only for a controlled, invited, manually supported, non-Shopify pilot.
 - Go / No-Go decision:
 - Decision date:
