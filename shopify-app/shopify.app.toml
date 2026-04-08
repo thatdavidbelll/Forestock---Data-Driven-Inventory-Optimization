@@ -2,7 +2,7 @@
 
 client_id = "d9fd2c3975da07288798229d9b87138e"
 name = "forestock"
-application_url = "https://app.forestock.ro"
+application_url = "https://shopify.forestock.ro"
 embedded = true
 
 [build]
@@ -45,4 +45,4 @@ api_version = "2026-07"
 scopes = "read_products,read_inventory,read_orders"
 
 [auth]
-redirect_urls = [ "https://app.forestock.ro/auth/callback", "https://app.forestock.ro/auth/shopify/callback" ]
+redirect_urls = [ "https://shopify.forestock.ro/auth/callback", "https://shopify.forestock.ro/auth/shopify/callback" ]
