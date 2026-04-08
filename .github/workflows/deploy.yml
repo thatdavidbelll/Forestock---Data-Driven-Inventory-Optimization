@@ -250,19 +250,17 @@ jobs:
       - name: Prepare runtime env file
         working-directory: shopify-app
         run: |
-          cat > .env <<EOF
-          SHOPIFY_API_KEY=${{ secrets.SHOPIFY_API_KEY }}
-          SHOPIFY_API_SECRET=${{ secrets.SHOPIFY_API_SECRET }}
-          SHOPIFY_APP_URL=${{ secrets.SHOPIFY_APP_URL }}
-          SCOPES=${{ secrets.SHOPIFY_SCOPES }}
-          SHOP_CUSTOM_DOMAIN=
-          DATABASE_URL=${{ secrets.SHOPIFY_DATABASE_URL }}
-          FORESTOCK_API_BASE_URL=${{ secrets.FORESTOCK_API_BASE_URL }}
-          FORESTOCK_PROVISIONING_SECRET=${{ secrets.FORESTOCK_PROVISIONING_SECRET }}
-          NODE_ENV=production
-          PORT=3000
-EOF
-          sed -i 's/^          //' .env
+          printf '%s\n' \
+            "SHOPIFY_API_KEY=${{ secrets.SHOPIFY_API_KEY }}" \
+            "SHOPIFY_API_SECRET=${{ secrets.SHOPIFY_API_SECRET }}" \
+            "SHOPIFY_APP_URL=${{ secrets.SHOPIFY_APP_URL }}" \
+            "SCOPES=${{ secrets.SHOPIFY_SCOPES }}" \
+            "SHOP_CUSTOM_DOMAIN=" \
+            "DATABASE_URL=${{ secrets.SHOPIFY_DATABASE_URL }}" \
+            "FORESTOCK_API_BASE_URL=${{ secrets.FORESTOCK_API_BASE_URL }}" \
+            "FORESTOCK_PROVISIONING_SECRET=${{ secrets.FORESTOCK_PROVISIONING_SECRET }}" \
+            "NODE_ENV=production" \
+            "PORT=3000" > .env
           grep '^SHOPIFY_APP_URL=' .env >/dev/null
           chmod 600 .env
 
