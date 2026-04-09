@@ -179,7 +179,7 @@ export default function SetupPage() {
                     ? "Automatic setup needs to finish"
                     : "Automatic setup completed"}
               </div>
-              <div style={{ color: "#52606d", lineHeight: 1.7, maxWidth: 760 }}>
+              <div style={{ color: "rgba(226, 232, 240, 0.92)", lineHeight: 1.65, maxWidth: 760, fontSize: 15 }}>
                 {nextSetupStage
                   ? `${nextSetupStage.step}: ${nextSetupStage.title}. ${nextSetupStage.summary}`
                   : "Products, transactions, and forecast proof are already in place for this store."}
@@ -208,14 +208,14 @@ export default function SetupPage() {
             <Card key={stage.id} tone={stepTone(stage.status)}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 10, flexWrap: "wrap" }}>
                 <div>
-                  <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 800, color: "#52606d", marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 800, color: "rgba(226, 232, 240, 0.82)", marginBottom: 6 }}>
                     {stage.step}
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 800 }}>{stage.title}</div>
                 </div>
                 <Badge tone={stepTone(stage.status)}>{stepStatusLabel(stage.status)}</Badge>
               </div>
-              <div style={{ color: "#52606d", lineHeight: 1.7, marginBottom: 12 }}>{stage.summary}</div>
+              <div style={{ color: "rgba(226, 232, 240, 0.9)", lineHeight: 1.65, marginBottom: 12, fontSize: 15 }}>{stage.summary}</div>
               <KeyValueList
                 items={[
                   { label: "Success condition", value: stage.successLooksLike },

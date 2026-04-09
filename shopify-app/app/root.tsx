@@ -25,7 +25,7 @@ export default function App() {
             --fs-surface-muted: rgba(30, 41, 59, 0.78);
             --fs-border: rgba(148, 163, 184, 0.16);
             --fs-text: #E2E8F0;
-            --fs-text-muted: rgba(226, 232, 240, 0.72);
+            --fs-text-muted: rgba(226, 232, 240, 0.86);
             --fs-success: #22D3EE;
             --fs-warning: #F59E0B;
             --fs-critical: #F87171;

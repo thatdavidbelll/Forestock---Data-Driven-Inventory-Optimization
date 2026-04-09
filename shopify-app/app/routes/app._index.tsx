@@ -73,7 +73,7 @@ export default function AppIndex() {
         <Card tone="accent">
           <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
             <div>
-              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8, opacity: 0.8 }}>
+              <div style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, color: "rgba(226, 232, 240, 0.88)" }}>
                 Command Board
               </div>
               <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.04em" }}>
@@ -92,13 +92,13 @@ export default function AppIndex() {
           <Card tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "success"}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
-                <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8, opacity: 0.82 }}>
+                <div style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, color: "rgba(226, 232, 240, 0.88)" }}>
                   Risk Spotlight
                 </div>
                 <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.04 }}>
                   {data.topRecommendation.productName}
                 </div>
-                <div style={{ marginTop: 8, fontSize: 14, color: "rgba(226, 232, 240, 0.82)" }}>
+                <div style={{ marginTop: 8, fontSize: 15, color: "rgba(226, 232, 240, 0.94)" }}>
                   {data.topRecommendation.productSku}
                 </div>
               </div>
@@ -176,7 +176,7 @@ export default function AppIndex() {
             <Card key={stage.id} tone={stage.status === "completed" ? "success" : stage.status === "running" ? "accent" : stage.status === "failed" ? "critical" : "subtle"}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6, color: "rgba(226, 232, 240, 0.66)" }}>
+                  <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, color: "rgba(226, 232, 240, 0.82)" }}>
                     {stage.step}
                   </div>
                   <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}>{stage.title}</div>
@@ -185,7 +185,7 @@ export default function AppIndex() {
                   {stage.status.replaceAll("_", " ")}
                 </Badge>
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.7, color: "rgba(226, 232, 240, 0.8)", marginBottom: 12 }}>
+              <div style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(226, 232, 240, 0.92)", marginBottom: 12 }}>
                 {stage.summary}
               </div>
               {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
@@ -259,7 +259,7 @@ export default function AppIndex() {
           ) : (
             <Card tone="success">
               <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Core recommendation prerequisites are in place</div>
-              <div style={{ fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
+              <div style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(226, 232, 240, 0.92)" }}>
                 Active products, usable sales history, and a completed forecast run are present for this store.
               </div>
             </Card>
