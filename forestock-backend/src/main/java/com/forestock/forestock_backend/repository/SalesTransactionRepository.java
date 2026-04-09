@@ -74,6 +74,20 @@ public interface SalesTransactionRepository extends JpaRepository<SalesTransacti
     boolean existsByStoreId(@Param("storeId") UUID storeId);
 
     @Query("""
+           SELECT COUNT(s)
+           FROM SalesTransaction s
+           WHERE s.product.store.id = :storeId
+           """)
+    long countByStoreId(@Param("storeId") UUID storeId);
+
+    @Query("""
+           SELECT MAX(s.saleDate)
+           FROM SalesTransaction s
+           WHERE s.product.store.id = :storeId
+           """)
+    LocalDate findLatestSaleDateForStore(@Param("storeId") UUID storeId);
+
+    @Query("""
            SELECT s.product.id, MAX(s.saleDate)
            FROM SalesTransaction s
            WHERE s.product.store.id = :storeId

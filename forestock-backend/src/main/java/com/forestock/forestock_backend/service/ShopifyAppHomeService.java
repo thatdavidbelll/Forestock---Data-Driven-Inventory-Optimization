@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,9 +43,19 @@ public class ShopifyAppHomeService {
                     .storeName(null)
                     .shopifyConnectionActive(false)
                     .activeProductCount(0)
+                    .totalProductCount(0)
                     .hasSalesHistory(false)
+                    .salesTransactionCount(0)
+                    .latestSaleDate(null)
                     .forecastStatus(null)
                     .forecastCompletedAt(null)
+                    .lastForecastStartedAt(null)
+                    .forecastProof(null)
+                    .recommendationReadinessReasons(List.of(
+                            "The Shopify store is not linked to a Forestock workspace yet.",
+                            "No catalog or order history has been imported yet.",
+                            "No forecast run exists for this store."
+                    ))
                     .criticalSuggestions(0)
                     .highSuggestions(0)
                     .totalActiveSuggestions(0)
@@ -58,8 +69,15 @@ public class ShopifyAppHomeService {
         }
         UUID storeId = connection.getStore().getId();
 
-        List<Product> activeProducts = productRepository.findByStoreIdAndActiveTrue(storeId);
+        long totalProductCount = productRepository.countByStoreId(storeId);
+        long activeProductCount = productRepository.countByStoreIdAndActiveTrue(storeId);
         boolean hasSalesHistory = salesTransactionRepository.existsByStoreId(storeId);
+        long salesTransactionCount = salesTransactionRepository.countByStoreId(storeId);
+        LocalDate latestSaleDate = salesTransactionRepository.findLatestSaleDateForStore(storeId);
+
+        ForecastRun latestRun = forecastRunRepository
+                .findTopByStoreIdOrderByStartedAtDesc(storeId)
+                .orElse(null);
         ForecastRun latestCompletedRun = forecastRunRepository
                 .findTopByStoreIdAndStatusOrderByFinishedAtDesc(storeId, ForecastStatus.COMPLETED)
                 .orElse(null);
@@ -76,20 +94,35 @@ public class ShopifyAppHomeService {
                 .filter(suggestion -> suggestion.getUrgency() == Urgency.HIGH)
                 .count();
 
+        List<String> readinessReasons = buildRecommendationReadinessReasons(
+                connection.isActive(),
+                (int) activeProductCount,
+                hasSalesHistory,
+                latestRun,
+                latestCompletedRun,
+                activeSuggestions.size()
+        );
+
         return AppHomeOverview.builder()
                 .shopDomain(connection.getShopDomain())
                 .storeName(connection.getStore().getName())
                 .shopifyConnectionActive(connection.isActive())
-                .activeProductCount(activeProducts.size())
+                .activeProductCount((int) activeProductCount)
+                .totalProductCount((int) totalProductCount)
                 .hasSalesHistory(hasSalesHistory)
-                .forecastStatus(latestCompletedRun != null ? latestCompletedRun.getStatus().name() : null)
+                .salesTransactionCount((int) salesTransactionCount)
+                .latestSaleDate(latestSaleDate)
+                .forecastStatus(latestRun != null ? latestRun.getStatus().name() : null)
                 .forecastCompletedAt(latestCompletedRun != null ? latestCompletedRun.getFinishedAt() : null)
+                .lastForecastStartedAt(latestRun != null ? latestRun.getStartedAt() : null)
+                .forecastProof(toForecastProof(latestRun, activeSuggestions.isEmpty() ? latestCompletedRun != null && readinessReasons.isEmpty() : readinessReasons.isEmpty()))
+                .recommendationReadinessReasons(readinessReasons)
                 .criticalSuggestions(criticalSuggestions)
                 .highSuggestions(highSuggestions)
                 .totalActiveSuggestions(activeSuggestions.size())
                 .topRecommendation(activeSuggestions.isEmpty() ? null : toRecommendation(activeSuggestions.get(0)))
                 .dataQualityWarnings(dashboardService.getDataQualityWarnings(storeId))
-                .nextActions(buildNextActions(activeProducts.size(), hasSalesHistory, latestCompletedRun, activeSuggestions))
+                .nextActions(buildNextActions((int) activeProductCount, hasSalesHistory, latestCompletedRun, activeSuggestions))
                 .build();
     }
 
@@ -155,6 +188,62 @@ public class ShopifyAppHomeService {
         return nextActions;
     }
 
+    private List<String> buildRecommendationReadinessReasons(boolean connectionActive,
+                                                             int activeProductCount,
+                                                             boolean hasSalesHistory,
+                                                             ForecastRun latestRun,
+                                                             ForecastRun latestCompletedRun,
+                                                             int activeSuggestionCount) {
+        List<String> reasons = new ArrayList<>();
+
+        if (!connectionActive) {
+            reasons.add("The Shopify connection is inactive.");
+        }
+        if (activeProductCount == 0) {
+            reasons.add("No active products are available in Forestock yet.");
+        }
+        if (!hasSalesHistory) {
+            reasons.add("Sales history is missing, so demand signals are weak or absent.");
+        }
+        if (latestRun == null) {
+            reasons.add("No forecast run has started for this store yet.");
+            return reasons;
+        }
+        if (latestRun.getStatus() == ForecastStatus.RUNNING) {
+            reasons.add("A forecast is currently running; recommendations may not be ready yet.");
+        }
+        if (latestRun.getStatus() == ForecastStatus.FAILED) {
+            reasons.add("The latest forecast run failed and should be inspected before trusting recommendations.");
+        }
+        if (latestCompletedRun == null) {
+            reasons.add("No completed forecast exists yet.");
+        }
+        if (latestCompletedRun != null && activeSuggestionCount == 0) {
+            reasons.add("A forecast completed, but it did not produce active reorder suggestions.");
+        }
+
+        return reasons;
+    }
+
+    private ForecastProof toForecastProof(ForecastRun run, boolean readyForRecommendations) {
+        if (run == null) {
+            return null;
+        }
+
+        return ForecastProof.builder()
+                .status(run.getStatus() != null ? run.getStatus().name() : null)
+                .startedAt(run.getStartedAt())
+                .finishedAt(run.getFinishedAt())
+                .durationSeconds(run.getDurationSeconds())
+                .productsProcessed(run.getProductsProcessed())
+                .productsWithInsufficientData(run.getProductsWithInsufficientData())
+                .horizonDays(run.getHorizonDays())
+                .triggeredBy(run.getTriggeredBy())
+                .errorMessage(run.getErrorMessage())
+                .readyForRecommendations(readyForRecommendations)
+                .build();
+    }
+
     private RecommendationCard toRecommendation(OrderSuggestion suggestion) {
         return RecommendationCard.builder()
                 .id(suggestion.getId())
@@ -175,15 +264,36 @@ public class ShopifyAppHomeService {
             String storeName,
             boolean shopifyConnectionActive,
             int activeProductCount,
+            int totalProductCount,
             boolean hasSalesHistory,
+            int salesTransactionCount,
+            LocalDate latestSaleDate,
             String forecastStatus,
             LocalDateTime forecastCompletedAt,
+            LocalDateTime lastForecastStartedAt,
+            ForecastProof forecastProof,
+            List<String> recommendationReadinessReasons,
             long criticalSuggestions,
             long highSuggestions,
             int totalActiveSuggestions,
             RecommendationCard topRecommendation,
             List<String> dataQualityWarnings,
             List<String> nextActions
+    ) {
+    }
+
+    @Builder
+    public record ForecastProof(
+            String status,
+            LocalDateTime startedAt,
+            LocalDateTime finishedAt,
+            Integer durationSeconds,
+            Integer productsProcessed,
+            Integer productsWithInsufficientData,
+            Integer horizonDays,
+            String triggeredBy,
+            String errorMessage,
+            boolean readyForRecommendations
     ) {
     }
 

@@ -18,6 +18,8 @@ public interface ForecastRunRepository extends JpaRepository<ForecastRun, UUID> 
     // Most recent successfully completed run for a store
     Optional<ForecastRun> findTopByStoreIdAndStatusOrderByFinishedAtDesc(UUID storeId, ForecastStatus status);
 
+    Optional<ForecastRun> findTopByStoreIdOrderByStartedAtDesc(UUID storeId);
+
     // Check whether an active run exists for a store (guard against overlapping runs)
     boolean existsByStoreIdAndStatus(UUID storeId, ForecastStatus status);
 

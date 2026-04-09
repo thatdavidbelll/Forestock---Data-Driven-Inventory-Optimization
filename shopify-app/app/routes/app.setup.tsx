@@ -1,6 +1,8 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { ActionButton, AppShell, Badge, Card, EmptyState, Grid, KeyValueList, Section, formatDateTime } from "../components";
+import { getForestockAppHome } from "../forestock.server";
 import { authenticate } from "../shopify.server";
 import {
   backfillForestockOrders,
@@ -325,7 +327,9 @@ async function collectOrders(admin: Awaited<ReturnType<typeof authenticate.admin
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-  return loadShopIdentity(admin, session.shop);
+  const identity = await loadShopIdentity(admin, session.shop);
+  const overview = await getForestockAppHome(session.shop);
+  return { ...identity, overview };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -403,7 +407,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
 
       return {
-        intent,
+        intent: "full",
         ok: true,
         message: "Full setup completed.",
         provisioned: {
@@ -435,125 +439,196 @@ function StepResult({ data }: { data: ActionData | undefined }) {
   if (!data) return null;
 
   return (
-    <s-box
-      padding="base"
-      borderWidth="base"
-      borderRadius="base"
-      background="subdued"
-    >
-      <s-stack direction="block" gap="base">
-        <s-paragraph>{data.message}</s-paragraph>
-        {data.provisioned ? (
-          <s-stack direction="block" gap="base">
-            <p>Workspace: {data.provisioned.storeName}</p>
-            <p>Workspace slug: {data.provisioned.storeSlug}</p>
-            <p>Admin username: {data.provisioned.adminUsername ?? "Pending"}</p>
-          </s-stack>
-        ) : null}
-        {data.catalogSync ? (
-          <s-stack direction="block" gap="base">
-            <p>Products processed: {data.catalogSync.processedItems}</p>
-            <p>Products created: {data.catalogSync.createdProducts}</p>
-            <p>Products updated: {data.catalogSync.updatedProducts}</p>
-            <p>Inventory snapshots: {data.catalogSync.inventorySnapshotsCreated}</p>
-          </s-stack>
-        ) : null}
-        {data.orderBackfill ? (
-          <s-stack direction="block" gap="base">
-            <p>Orders imported: {data.orderBackfill.importedOrders}</p>
-            <p>Duplicates skipped: {data.orderBackfill.duplicateOrders}</p>
-            <p>Matched line items: {data.orderBackfill.matchedLineItems}</p>
-            <p>Unmatched line items: {data.orderBackfill.unmatchedLineItems}</p>
-            <p>Sales rows written: {data.orderBackfill.salesRowsUpserted}</p>
-          </s-stack>
-        ) : null}
-      </s-stack>
-    </s-box>
+    <Card tone={data.ok ? "success" : "critical"}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 17, fontWeight: 800 }}>{data.message}</div>
+        <Badge tone={data.ok ? "success" : "critical"}>{data.ok ? "Completed" : "Failed"}</Badge>
+      </div>
+      {data.provisioned ? (
+        <KeyValueList
+          items={[
+            { label: "Workspace", value: data.provisioned.storeName },
+            { label: "Workspace slug", value: data.provisioned.storeSlug },
+            { label: "Admin username", value: data.provisioned.adminUsername ?? "Pending" },
+            { label: "Store created in this run", value: data.provisioned.createdStore ? "Yes" : "No" },
+          ]}
+        />
+      ) : null}
+      {data.catalogSync ? (
+        <KeyValueList
+          items={[
+            { label: "Products processed", value: data.catalogSync.processedItems },
+            { label: "Products created", value: data.catalogSync.createdProducts },
+            { label: "Products updated", value: data.catalogSync.updatedProducts },
+            { label: "Inventory snapshots created", value: data.catalogSync.inventorySnapshotsCreated },
+          ]}
+        />
+      ) : null}
+      {data.orderBackfill ? (
+        <KeyValueList
+          items={[
+            { label: "Orders imported", value: data.orderBackfill.importedOrders },
+            { label: "Duplicates skipped", value: data.orderBackfill.duplicateOrders },
+            { label: "Matched line items", value: data.orderBackfill.matchedLineItems },
+            { label: "Unmatched line items", value: data.orderBackfill.unmatchedLineItems },
+            { label: "Sales rows written", value: data.orderBackfill.salesRowsUpserted },
+          ]}
+        />
+      ) : null}
+    </Card>
   );
 }
 
 function ActionSection({
+  step,
   title,
   description,
   buttonLabel,
   intent,
   fetcher,
+  successLooksLike,
 }: {
+  step: string;
   title: string;
   description: string;
   buttonLabel: string;
   intent: ActionData["intent"];
   fetcher: ReturnType<typeof useFetcher<ActionData>>;
+  successLooksLike: string;
 }) {
   const busy = fetcher.state !== "idle";
   const result = fetcher.data?.intent === intent ? fetcher.data : undefined;
 
   return (
-    <s-section heading={title}>
-      <s-stack direction="block" gap="base">
-        <s-paragraph>{description}</s-paragraph>
-        <fetcher.Form method="post">
-          <input type="hidden" name="intent" value={intent} />
-          <s-button type="submit" loading={busy}>
-            {busy ? "Running..." : buttonLabel}
-          </s-button>
-        </fetcher.Form>
-        <StepResult data={result} />
-      </s-stack>
-    </s-section>
+    <Card>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 800, color: "#52606d", marginBottom: 6 }}>
+            {step}
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
+        </div>
+        <Badge tone={result?.ok ? "success" : result && !result.ok ? "critical" : "accent"}>{result?.ok ? "Done" : result && !result.ok ? "Needs attention" : "Ready"}</Badge>
+      </div>
+      <div style={{ color: "#52606d", lineHeight: 1.7, marginBottom: 12 }}>{description}</div>
+      <div style={{ fontSize: 14, marginBottom: 14 }}>
+        <strong>Success looks like:</strong> {successLooksLike}
+      </div>
+      <fetcher.Form method="post">
+        <input type="hidden" name="intent" value={intent} />
+        <ActionButton loading={busy}>{buttonLabel}</ActionButton>
+      </fetcher.Form>
+      {result ? <div style={{ marginTop: 14 }}><StepResult data={result} /></div> : null}
+    </Card>
   );
 }
 
 export default function SetupPage() {
-  const { shopName, shopDomain } = useLoaderData<typeof loader>();
+  const { shopName, shopDomain, overview } = useLoaderData<typeof loader>();
   const fullSetupFetcher = useFetcher<ActionData>();
   const provisionFetcher = useFetcher<ActionData>();
   const catalogFetcher = useFetcher<ActionData>();
   const ordersFetcher = useFetcher<ActionData>();
 
   return (
-    <s-page heading="Setup and sync">
-      <s-section heading="Shop identity">
-        <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-            <s-stack direction="block" gap="base">
-              <p>Shop name: {shopName}</p>
-              <p>Shop domain: {shopDomain}</p>
-            </s-stack>
-          </s-box>
-      </s-section>
+    <AppShell
+      title="Setup and sync"
+      subtitle="Use this page to make the Shopify-to-Forestock pipeline explicit. Each step should leave visible evidence, not just the feeling that something might have happened."
+      actions={<Badge tone="accent">Operator flow</Badge>}
+    >
+      <Section title="Shop identity" description="This is the shop Forestock will link and import from.">
+        <Card tone="subtle">
+          <KeyValueList
+            items={[
+              { label: "Shop name", value: shopName },
+              { label: "Shop domain", value: shopDomain },
+            ]}
+          />
+        </Card>
+      </Section>
 
-      <ActionSection
-        title="Run complete setup"
-        description="Link the Forestock workspace, import the Shopify catalog, and backfill the recent 60 days of order history in one explicit action."
-        buttonLabel="Run complete setup"
-        intent="full"
-        fetcher={fullSetupFetcher}
-      />
+      <Section title="Recommended path" description="Run the whole flow if this is a first install. Use individual steps only when fixing or re-running a specific part.">
+        <Card tone="accent">
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Run complete setup</div>
+              <div style={{ color: "#52606d", lineHeight: 1.7, maxWidth: 760 }}>
+                This links the Forestock workspace, imports the Shopify catalog and inventory, and backfills the most recent 60 days of order history in one operator action.
+              </div>
+            </div>
+            <fullSetupFetcher.Form method="post">
+              <input type="hidden" name="intent" value="full" />
+              <ActionButton loading={fullSetupFetcher.state !== "idle"}>Run complete setup</ActionButton>
+            </fullSetupFetcher.Form>
+          </div>
+          {fullSetupFetcher.data ? <div style={{ marginTop: 16 }}><StepResult data={fullSetupFetcher.data} /></div> : null}
+        </Card>
+      </Section>
 
-      <ActionSection
-        title="Link workspace"
-        description="Create or reconnect the Forestock workspace for this Shopify store without importing data."
-        buttonLabel="Link workspace"
-        intent="provision"
-        fetcher={provisionFetcher}
-      />
-
-      <ActionSection
-        title="Import catalog and inventory"
-        description="Pull the latest Shopify product catalog and inventory levels into Forestock."
-        buttonLabel="Import catalog"
-        intent="catalog"
-        fetcher={catalogFetcher}
-      />
-
-      <ActionSection
-        title="Import order history"
-        description="Backfill the recent 60 days of Shopify order history so forecasts and recommendations have sales context."
-        buttonLabel="Import orders"
-        intent="orders"
-        fetcher={ordersFetcher}
-      />
-    </s-page>
+      <Section title="Step-by-step controls" description="Use these when validating specific parts of the flow or when one step needs to be retried.">
+        <Grid columns={2}>
+          <ActionSection
+            step="Step 1"
+            title="Link workspace"
+            description="Create or reconnect the Forestock workspace for this Shopify store without importing data."
+            buttonLabel="Link workspace"
+            intent="provision"
+            fetcher={provisionFetcher}
+            successLooksLike="The store is linked to a Forestock workspace and you get a clear workspace identity back."
+          />
+          <ActionSection
+            step="Step 2"
+            title="Import catalog and inventory"
+            description="Pull the live Shopify catalog and inventory positions into Forestock."
+            buttonLabel="Import catalog"
+            intent="catalog"
+            fetcher={catalogFetcher}
+            successLooksLike="Products are processed, created or updated, and inventory snapshots are recorded."
+          />
+          <ActionSection
+            step="Step 3"
+            title="Import order history"
+            description="Backfill the most recent 60 days of Shopify order history so recommendations have sales context."
+            buttonLabel="Import orders"
+            intent="orders"
+            fetcher={ordersFetcher}
+            successLooksLike="Orders are imported, line items are matched, and sales rows are written for forecasting."
+          />
+          {overview.forecastProof ? (
+            <Card tone={overview.forecastProof.readyForRecommendations ? "success" : overview.forecastProof.errorMessage ? "critical" : "warning"}>
+              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 800, color: "#52606d", marginBottom: 6 }}>
+                Step 4
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>Forecast proof</div>
+              <KeyValueList
+                items={[
+                  { label: "Status", value: overview.forecastProof.status ?? "Unknown" },
+                  { label: "Started", value: formatDateTime(overview.forecastProof.startedAt) },
+                  { label: "Finished", value: formatDateTime(overview.forecastProof.finishedAt) },
+                  { label: "Products processed", value: overview.forecastProof.productsProcessed ?? "Unknown" },
+                  { label: "Insufficient-history products", value: overview.forecastProof.productsWithInsufficientData ?? "Unknown" },
+                ]}
+              />
+              {overview.recommendationReadinessReasons.length > 0 ? (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Still blocking recommendation trust:</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+                    {overview.recommendationReadinessReasons.map((reason: string) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </Card>
+          ) : (
+            <EmptyState
+              title="Step 4: Forecast proof missing"
+              body="Imports alone are not enough. We still need evidence that a forecast has actually started or completed for this store before treating recommendations as trustworthy."
+            />
+          )}
+        </Grid>
+      </Section>
+    </AppShell>
   );
 }
 

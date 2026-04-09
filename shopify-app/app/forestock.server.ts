@@ -89,14 +89,33 @@ type DisconnectResponse = {
   active: boolean;
 };
 
+type ForecastProof = {
+  status: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationSeconds: number | null;
+  productsProcessed: number | null;
+  productsWithInsufficientData: number | null;
+  horizonDays: number | null;
+  triggeredBy: string | null;
+  errorMessage: string | null;
+  readyForRecommendations: boolean;
+};
+
 type AppHomeOverviewResponse = {
   shopDomain: string;
   storeName: string;
   shopifyConnectionActive: boolean;
   activeProductCount: number;
+  totalProductCount: number;
   hasSalesHistory: boolean;
+  salesTransactionCount: number;
+  latestSaleDate: string | null;
   forecastStatus: string | null;
   forecastCompletedAt: string | null;
+  lastForecastStartedAt: string | null;
+  forecastProof: ForecastProof | null;
+  recommendationReadinessReasons: string[];
   criticalSuggestions: number;
   highSuggestions: number;
   totalActiveSuggestions: number;

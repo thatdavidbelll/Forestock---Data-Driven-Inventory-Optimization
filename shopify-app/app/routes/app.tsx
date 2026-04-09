@@ -1,8 +1,9 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, useLoaderData, useLocation, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
+import { NavTabs } from "../components";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -14,13 +15,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>();
+  const location = useLocation();
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", gap: "16px", flexWrap: "wrap" }}>
-        <a href="/app">Overview</a>
-        <a href="/app/recommendations">Recommendations</a>
-        <a href="/app/setup">Setup</a>
+      <div style={{ padding: "20px 20px 0" }}>
+        <NavTabs
+          currentPath={location.pathname}
+          items={[
+            { label: "Overview", href: "/app" },
+            { label: "Setup & Sync", href: "/app/setup" },
+            { label: "Recommendations", href: "/app/recommendations" },
+            { label: "How it works", href: "/app/additional" },
+          ]}
+        />
       </div>
       <Outlet />
     </AppProvider>
