@@ -42,7 +42,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = String(formData.get("intent") || "") as ShopifySetupIntent;
 
   try {
-    if (intent === "provision" || intent === "catalog" || intent === "orders" || intent === "full") {
+    if (intent === "provision" || intent === "catalog" || intent === "orders" || intent === "forecast" || intent === "full") {
       return await runShopifySetupIntent({
         intent,
         admin,
@@ -205,6 +205,7 @@ export default function SetupPage() {
   const provisionFetcher = useFetcher<ActionData>();
   const catalogFetcher = useFetcher<ActionData>();
   const ordersFetcher = useFetcher<ActionData>();
+  const forecastFetcher = useFetcher<ActionData>();
   const readiness = toneForReadiness({
     activeProductCount: overview.activeProductCount,
     hasSalesHistory: overview.hasSalesHistory,
@@ -299,6 +300,7 @@ export default function SetupPage() {
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Run complete setup</div>
               <div style={{ color: "#52606d", lineHeight: 1.7, maxWidth: 760 }}>
                 This links the Forestock workspace, imports the Shopify catalog and inventory snapshot, and backfills the most recent 60 days of order history so the existing forecast engine has usable data.
+                It then starts a forecast run in the backend.
               </div>
             </div>
             <fullSetupFetcher.Form method="post">
@@ -340,38 +342,44 @@ export default function SetupPage() {
             intent="orders"
             fetcher={ordersFetcher}
           />
-          {overview.forecastProof ? (
-            <Card tone={stepTone(forecastStage.status)}>
-              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 800, color: "#52606d", marginBottom: 6 }}>
-                {forecastStage.step}
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>{forecastStage.title}</div>
-              <div style={{ marginBottom: 12 }}>
-                <StepStatusBadge status={forecastStage.status} />
-              </div>
-              <KeyValueList
-                items={[
-                  { label: "Status", value: overview.forecastProof.status ?? "Unknown" },
-                  { label: "Started", value: formatDateTime(overview.forecastProof.startedAt) },
-                  { label: "Finished", value: formatDateTime(overview.forecastProof.finishedAt) },
-                  { label: "Products processed", value: overview.forecastProof.productsProcessed ?? "Unknown" },
-                  { label: "Insufficient-history products", value: overview.forecastProof.productsWithInsufficientData ?? "Unknown" },
-                ]}
-              />
-              {overview.recommendationReadinessReasons.length > 0 ? (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Still blocking recommendation trust:</div>
-                  <InlineList items={overview.recommendationReadinessReasons} />
-                </div>
-              ) : null}
-            </Card>
-          ) : (
-            <EmptyState
-              title={`${forecastStage.step}: ${forecastStage.title} missing`}
-              body="Imports alone are not enough. We still need evidence that a forecast has actually started or completed for this store before treating recommendations as trustworthy."
-            />
-          )}
+          <ActionSection
+            stage={forecastStage}
+            description="Start the backend forecast cycle after catalog and order history are ready so recommendations can be generated."
+            buttonLabel="Run forecast"
+            intent="forecast"
+            fetcher={forecastFetcher}
+          />
         </Grid>
+      </Section>
+
+      <Section
+        title="Forecast evidence"
+        description="Once a run has started, this card should show whether the backend actually processed products and finished cleanly."
+      >
+        {overview.forecastProof ? (
+          <Card tone={stepTone(forecastStage.status)}>
+            <KeyValueList
+              items={[
+                { label: "Status", value: overview.forecastProof.status ?? "Unknown" },
+                { label: "Started", value: formatDateTime(overview.forecastProof.startedAt) },
+                { label: "Finished", value: formatDateTime(overview.forecastProof.finishedAt) },
+                { label: "Products processed", value: overview.forecastProof.productsProcessed ?? "Unknown" },
+                { label: "Insufficient-history products", value: overview.forecastProof.productsWithInsufficientData ?? "Unknown" },
+              ]}
+            />
+            {overview.recommendationReadinessReasons.length > 0 ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Still blocking recommendation trust:</div>
+                <InlineList items={overview.recommendationReadinessReasons} />
+              </div>
+            ) : null}
+          </Card>
+        ) : (
+          <EmptyState
+            title={`${forecastStage.step}: ${forecastStage.title} missing`}
+            body="Imports alone are not enough. We still need evidence that a forecast has actually started or completed for this store before treating recommendations as trustworthy."
+          />
+        )}
       </Section>
 
       <Section

@@ -2,6 +2,7 @@ import {
   backfillForestockOrders,
   provisionForestockShop,
   syncForestockCatalog,
+  triggerForestockForecast,
 } from "../../forestock.server";
 import {
   SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
@@ -83,6 +84,21 @@ export async function runShopifyOrderBackfillStep({
   };
 }
 
+export async function runShopifyForecastStep({
+  shopDomain,
+}: {
+  shopDomain: string;
+}): Promise<ShopifySetupStepResult> {
+  const forecast = await triggerForestockForecast(shopDomain);
+
+  return {
+    intent: "forecast",
+    ok: true,
+    message: forecast.message,
+    forecastTriggered: true,
+  };
+}
+
 export async function runShopifyFullSetup({
   admin,
   shopDomain,
@@ -112,10 +128,12 @@ export async function runShopifyFullSetup({
     orders,
   });
 
+  const forecast = await triggerForestockForecast(shopDomain);
+
   return {
     intent: "full",
     ok: true,
-    message: "Full setup completed.",
+    message: forecast.message,
     provisioned: {
       storeName: provisioned.storeName,
       storeSlug: provisioned.storeSlug,
@@ -124,6 +142,7 @@ export async function runShopifyFullSetup({
     },
     catalogSync,
     orderBackfill,
+    forecastTriggered: true,
   };
 }
 
@@ -141,6 +160,8 @@ export async function runShopifySetupIntent({
       return runShopifyCatalogSyncStep({ shopDomain, admin });
     case "orders":
       return runShopifyOrderBackfillStep({ shopDomain, admin, historyDays });
+    case "forecast":
+      return runShopifyForecastStep({ shopDomain });
     case "full":
       return runShopifyFullSetup({ admin, shopDomain, shopName, historyDays });
     default: {

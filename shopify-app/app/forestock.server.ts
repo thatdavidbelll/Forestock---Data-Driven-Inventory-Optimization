@@ -89,6 +89,10 @@ type DisconnectResponse = {
   active: boolean;
 };
 
+type ForecastTriggerResponse = {
+  message: string;
+};
+
 export type ForecastProof = {
   status: string | null;
   startedAt: string | null;
@@ -323,6 +327,34 @@ export async function disconnectForestockShop(payload: {
     throw new Error(responseBody.message || "Failed to disconnect Forestock shop");
   }
   return responseBody.data;
+}
+
+export async function triggerForestockForecast(shopDomain: string): Promise<ForecastTriggerResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/forecast-run?shopDomain=${encodeURIComponent(shopDomain)}`,
+    {
+      method: "POST",
+      headers: {
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+    },
+  );
+
+  const responseBody = (await response.json()) as {
+    message?: string;
+    data?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(responseBody.message || "Failed to trigger Forestock forecast");
+  }
+
+  return {
+    message: responseBody.data || responseBody.message || "Forecast started in background",
+  };
 }
 
 export async function getForestockAppHome(shopDomain: string): Promise<AppHomeOverviewResponse> {
