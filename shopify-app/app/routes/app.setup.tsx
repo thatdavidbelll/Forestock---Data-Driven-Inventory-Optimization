@@ -213,7 +213,6 @@ export default function SetupPage() {
   const provisioned = overview.shopifyConnectionActive;
   const catalogReady = overview.totalProductCount > 0;
   const ordersReady = overview.hasSalesHistory;
-  const forecastReady = Boolean(overview.forecastProof);
   const recommendationsReady = overview.recommendationReadinessReasons.length === 0 && overview.forecastProof?.readyForRecommendations;
   const stages = getSetupStages(overview);
   const provisionStage = stages.find((stage) => stage.id === "provision")!;
