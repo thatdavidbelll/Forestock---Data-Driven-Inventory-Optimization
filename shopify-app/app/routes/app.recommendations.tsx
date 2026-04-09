@@ -46,20 +46,34 @@ export default function RecommendationsPage() {
   return (
     <AppShell
       title="Recommendations"
-      subtitle="This page should translate the shared forecast output into an embedded Shopify decision queue. The forecast and recommendation logic remain the same backend logic used by the website."
+      subtitle="A sharper decision queue for merchant action. This surface translates shared forecast output into reorder priorities without introducing Shopify-side calculation."
       actions={<Badge tone={forecastTone}>{data.forecastStatus ?? "No forecast yet"}</Badge>}
     >
       <InfoBanner
-        title="Current recommendation contract"
-        body="This embedded page is intentionally a presentation layer over the existing backend recommendation output. The next expansion should be field parity with the website suggestions table, not a separate Shopify-side algorithm."
-        tone="subtle"
+        title="Queue posture"
+        body="This page is deliberately opinionated: surface urgency first, keep proof visible, and make it obvious when the queue is thin because setup or forecast conditions are weak."
+        tone={data.recommendations.length > 0 ? "accent" : "subtle"}
       />
 
-      <Section
-        title="Recommendation readiness"
-        description="Merchants need context before they trust a reorder queue."
-      >
-        <Grid columns={4}>
+      <Grid columns={2}>
+        <Card tone="accent">
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8, opacity: 0.82 }}>
+                Queue Snapshot
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.04em" }}>
+                {data.recommendations.length > 0 ? `${data.recommendations.length} items need review` : "No active queue yet"}
+              </div>
+            </div>
+            <Badge tone={forecastTone}>{data.forecastStatus ?? "Not run yet"}</Badge>
+          </div>
+          <div style={{ color: "rgba(224, 231, 255, 0.84)", lineHeight: 1.75 }}>
+            The queue should feel commercially legible: what is urgent, what it will cost, and whether the forecast evidence is fresh enough to act on.
+          </div>
+        </Card>
+
+        <Grid columns={2}>
           <MetricCard
             label="Forecast status"
             value={data.forecastStatus ?? "Not run yet"}
@@ -91,16 +105,16 @@ export default function RecommendationsPage() {
             tone={data.recommendations.length > 0 ? "accent" : "subtle"}
           />
         </Grid>
-      </Section>
+      </Grid>
 
       <Section
         title="Review queue"
-        description="Each recommendation should tell the merchant what needs reordering now, how urgent it is, and whether the output is fresh enough to trust. The page is ready to render the richer website fields when the Shopify endpoint exposes them."
+        description="Each card should answer the merchant’s decision in one pass: urgency, stock runway, recommended quantity, and commercial context."
       >
         {data.recommendations.length > 0 ? (
           <>
             <Card tone="subtle" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
+              <div style={{ fontSize: 14, lineHeight: 1.7, color: "rgba(226, 232, 240, 0.76)" }}>
                 Current payload coverage: product identity, urgency, suggested reorder quantity, days of stock, estimated order value, supplier, and generated timestamp.
                 The UI also supports stock, forecast bands, lead time, MOQ, and acknowledgement metadata when the backend exposes them on the Shopify route.
               </div>
@@ -112,13 +126,42 @@ export default function RecommendationsPage() {
                 <Card key={recommendation.id} tone={tone}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
-                      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 4 }}>{recommendation.productName}</div>
-                      <div style={{ fontSize: 14, color: "#6d7175" }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 6, lineHeight: 1.05, letterSpacing: "-0.04em" }}>{recommendation.productName}</div>
+                      <div style={{ fontSize: 14, color: "rgba(226, 232, 240, 0.74)" }}>
                         {recommendation.productSku}
                         {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
                       </div>
                     </div>
                     <Badge tone={tone}>{recommendation.urgency}</Badge>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                      gap: 12,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ padding: 14, borderRadius: 18, background: "rgba(15, 23, 42, 0.24)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6, opacity: 0.72 }}>Days Left</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.04em" }}>
+                        {recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown"}
+                      </div>
+                    </div>
+                    <div style={{ padding: 14, borderRadius: 18, background: "rgba(15, 23, 42, 0.24)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6, opacity: 0.72 }}>Reorder Qty</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.04em" }}>
+                        {recommendation.suggestedQty != null
+                          ? `${formatMetricNumber(recommendation.suggestedQty)}${recommendation.unit ? ` ${recommendation.unit}` : ""}`
+                          : "Unknown"}
+                      </div>
+                    </div>
+                    <div style={{ padding: 14, borderRadius: 18, background: "rgba(15, 23, 42, 0.24)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 6, opacity: 0.72 }}>Est. Value</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.04em" }}>
+                        {recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown"}
+                      </div>
+                    </div>
                   </div>
                   <KeyValueList
                     items={[
@@ -129,7 +172,6 @@ export default function RecommendationsPage() {
                             ? `${formatMetricNumber(recommendation.currentStock)}${recommendation.unit ? ` ${recommendation.unit}` : ""}`
                             : "Not available",
                       },
-                      { label: "Days of stock", value: recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown" },
                       {
                         label: "Forecast P50 / P90",
                         value:
@@ -148,14 +190,6 @@ export default function RecommendationsPage() {
                         label: "MOQ applied",
                         value: recommendation.moqApplied != null ? formatMetricNumber(recommendation.moqApplied) : "Not available",
                       },
-                      {
-                        label: "Suggested reorder qty",
-                        value:
-                          recommendation.suggestedQty != null
-                            ? `${formatMetricNumber(recommendation.suggestedQty)}${recommendation.unit ? ` ${recommendation.unit}` : ""}`
-                            : "Unknown",
-                      },
-                      { label: "Estimated order value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
                       { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
                       { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
                     ]}
@@ -174,7 +208,7 @@ export default function RecommendationsPage() {
                       />
                     </Card>
                   ) : null}
-                  <div style={{ marginTop: 12, fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
+                  <div style={{ marginTop: 12, fontSize: 14, lineHeight: 1.7, color: "rgba(226, 232, 240, 0.76)" }}>
                     This queue uses the same backend recommendation pipeline as the website. If the output looks weak, the correct fix is better synced catalog and order history, not alternate Shopify-side calculation.
                   </div>
                 </Card>

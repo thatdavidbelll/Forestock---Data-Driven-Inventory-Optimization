@@ -76,6 +76,19 @@ Important runtime decision:
   - an `APP_UNINSTALLED` webhook after the distribution switch
   - likely app identity change / stale install state
 
+## Current Session Findings — 2026-04-09
+
+- Local repo state is clean except for untracked `resume.txt`.
+- `shopify-app` still matches the reset-plan shape:
+  - embedded auth redirect helper exists
+  - debug auth logging exists behind `SHOPIFY_DEBUG_AUTH=true`
+  - no new normal-path manual shop-link dependency was introduced
+- Local validation gates passed:
+  - `npm run typecheck`
+  - `npm run build`
+- No unfinished local code change is indicated by the handoff state.
+- The remaining critical work is live environment validation, not local compilation repair.
+
 ## Next Step To Resume
 
 1. Uninstall the app from the dev store.
@@ -85,13 +98,23 @@ Important runtime decision:
    - `SHOPIFY_API_KEY`
    - `SHOPIFY_API_SECRET`
    - `SHOPIFY_APP_URL`
-5. Re-test:
+5. Enable `SHOPIFY_DEBUG_AUTH=true` temporarily if embedded auth still fails or lands on the wrong route.
+6. Re-test:
    - app opens from Shopify Admin
    - `Home`
    - `Setup`
    - catalog sync
    - recommendations
-6. Do not expect order-history import to fully work until protected customer data approval is granted.
+7. Capture evidence in:
+   - `docs/SHOPIFY_DEV_STORE_VALIDATION_PLAN.md`
+   - `docs/SHOPIFY_VALIDATION_EVIDENCE_TEMPLATE.md`
+8. Do not expect order-history import to fully work until protected customer data approval is granted.
+
+## Immediate Resume Decision
+
+If working locally only, no code change is currently required.
+
+If working against live Shopify/runtime, continue with reinstall + auth validation before touching broader setup/recommendation logic.
 
 ## If White Screen Persists
 
@@ -106,4 +129,3 @@ Check in this order:
 Next time, say:
 
 `Resume from docs/SHOPIFY_RESUME.md`
-

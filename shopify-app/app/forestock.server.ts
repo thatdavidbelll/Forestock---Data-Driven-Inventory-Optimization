@@ -89,7 +89,7 @@ type DisconnectResponse = {
   active: boolean;
 };
 
-type ForecastProof = {
+export type ForecastProof = {
   status: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -102,7 +102,7 @@ type ForecastProof = {
   readyForRecommendations: boolean;
 };
 
-type AppHomeOverviewResponse = {
+export type AppHomeOverviewResponse = {
   shopDomain: string;
   storeName: string;
   shopifyConnectionActive: boolean;

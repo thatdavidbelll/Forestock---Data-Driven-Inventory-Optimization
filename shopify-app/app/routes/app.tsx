@@ -26,7 +26,6 @@ export default function App() {
           { label: "Home", href: "/app" },
           { label: "Setup", href: "/app/setup" },
           { label: "Recommendations", href: "/app/recommendations" },
-          { label: "Support", href: "/app/additional" },
         ]}
       />
       <Outlet />

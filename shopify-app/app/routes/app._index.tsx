@@ -18,6 +18,7 @@ import {
 } from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockAppHome } from "../forestock.server";
+import { getSetupStages } from "../setup-state";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -37,22 +38,82 @@ export default function AppIndex() {
     forecastStatus: data.forecastStatus,
   });
   const forecastTone = toneForForecast(data.forecastStatus);
+  const stages = getSetupStages(data);
+  const nextStage = stages.find((stage) => stage.status !== "completed");
 
   return (
     <AppShell
-      title={data.storeName ? `${data.storeName} inventory command` : "Inventory command"}
-      subtitle="Use Shopify as the operating surface for setup, sync verification, and inventory decisions. Forecasting remains on the same backend logic used by the website."
+      title={data.storeName ? `${data.storeName} inventory radar` : "Inventory radar"}
+      subtitle="A modern Shopify command layer for sync confidence, forecast proof, and restock action. The UI stays thin; the forecast engine remains centralized in Forestock."
       actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
     >
       <InfoBanner
-        title="What this app should answer in one glance"
-        body="Are products synced, is order history usable, has the shared forecast engine produced a valid run, and which products need action now."
-        tone="subtle"
+        title="What should be obvious right now"
+        body={
+          nextStage
+            ? `${nextStage.step} is the current constraint: ${nextStage.summary}`
+            : "All setup stages are satisfied. The merchant should be able to act from the recommendation queue without leaving Shopify Admin."
+        }
+        tone={nextStage ? "accent" : "success"}
       />
+
+      <Grid columns={2}>
+        <Card tone="accent">
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+            <div>
+              <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8, opacity: 0.8 }}>
+                Command Board
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.04em" }}>
+                {readiness.tone === "success" ? "Review the queue" : "Finish setup before trusting reorder calls"}
+              </div>
+            </div>
+            <Badge tone={readiness.tone}>{readiness.label}</Badge>
+          </div>
+          <div style={{ marginBottom: 14, color: "rgba(224, 231, 255, 0.86)", lineHeight: 1.75 }}>
+            The merchant should not need to interpret backend internals. This surface should state whether the store is ready, what is missing, and where the highest inventory risk is now.
+          </div>
+          <InlineList items={data.nextActions} />
+        </Card>
+
+        {data.topRecommendation ? (
+          <Card tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "success"}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8, opacity: 0.82 }}>
+                  Risk Spotlight
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.04 }}>
+                  {data.topRecommendation.productName}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 14, color: "rgba(226, 232, 240, 0.82)" }}>
+                  {data.topRecommendation.productSku}
+                </div>
+              </div>
+              <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
+                {data.topRecommendation.urgency}
+              </Badge>
+            </div>
+            <KeyValueList
+              items={[
+                { label: "Days of stock", value: data.topRecommendation.daysOfStock ?? "Unknown" },
+                { label: "Suggested reorder", value: data.topRecommendation.suggestedQty ?? "Unknown" },
+                { label: "Estimated order value", value: data.topRecommendation.estimatedOrderValue ?? "Unknown" },
+                { label: "Generated", value: formatDateTime(data.topRecommendation.generatedAt) },
+              ]}
+            />
+          </Card>
+        ) : (
+          <EmptyState
+            title="No risk spotlight yet"
+            body="A highlighted recommendation appears here once catalog, order history, and forecast proof are strong enough to produce an actionable queue."
+          />
+        )}
+      </Grid>
 
       <Section
         title="Merchant readiness"
-        description="These are the four conditions that must be healthy before a merchant should trust reorder recommendations."
+        description="These four signals should tell the merchant whether Forestock is ready to influence buying decisions."
       >
         <Grid columns={4}>
           <MetricCard
@@ -94,59 +155,37 @@ export default function AppIndex() {
         </Grid>
       </Section>
 
-      <Grid columns={2}>
-        <Section
-          title="Next merchant action"
-          description="The embedded app should always make the next step obvious instead of forcing the merchant to interpret internal system state."
-        >
-          <Card tone={readiness.tone === "success" ? "success" : readiness.tone === "critical" ? "critical" : "warning"}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>
-                {readiness.tone === "success" ? "Review recommendations" : "Finish setup before acting"}
-              </div>
-              <Badge tone={readiness.tone}>{readiness.label}</Badge>
-            </div>
-            <InlineList items={data.nextActions} />
-          </Card>
-        </Section>
-
-        <Section
-          title="Current top risk"
-          description="The first thing a merchant should see is the highest-priority item, not a generic explanation of the system."
-        >
-          {data.topRecommendation ? (
-            <Card tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+      <Section
+        title="Setup runway"
+        description="Each stage should move cleanly from blocked to complete. Home should expose that sequence without forcing the merchant onto the setup page just to interpret progress."
+      >
+        <Grid columns={3}>
+          {stages.map((stage) => (
+            <Card key={stage.id} tone={stage.status === "completed" ? "success" : stage.status === "running" ? "accent" : stage.status === "failed" ? "critical" : "subtle"}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{data.topRecommendation.productName}</div>
-                  <div style={{ fontSize: 14, color: "#6d7175" }}>{data.topRecommendation.productSku}</div>
+                  <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6, color: "rgba(226, 232, 240, 0.66)" }}>
+                    {stage.step}
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.03em" }}>{stage.title}</div>
                 </div>
-                <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
-                  {data.topRecommendation.urgency}
+                <Badge tone={stage.status === "completed" ? "success" : stage.status === "running" ? "accent" : stage.status === "failed" ? "critical" : "subtle"}>
+                  {stage.status.replaceAll("_", " ")}
                 </Badge>
               </div>
-              <KeyValueList
-                items={[
-                  { label: "Days of stock", value: data.topRecommendation.daysOfStock ?? "Unknown" },
-                  { label: "Suggested reorder", value: data.topRecommendation.suggestedQty ?? "Unknown" },
-                  { label: "Estimated order value", value: data.topRecommendation.estimatedOrderValue ?? "Unknown" },
-                  { label: "Generated", value: formatDateTime(data.topRecommendation.generatedAt) },
-                ]}
-              />
+              <div style={{ fontSize: 14, lineHeight: 1.7, color: "rgba(226, 232, 240, 0.8)", marginBottom: 12 }}>
+                {stage.summary}
+              </div>
+              {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
             </Card>
-          ) : (
-            <EmptyState
-              title="No actionable recommendation yet"
-              body="This usually means setup is incomplete, sales history is too thin, or the forecast engine has not yet produced a usable completed run."
-            />
-          )}
-        </Section>
-      </Grid>
+          ))}
+        </Grid>
+      </Section>
 
       <Grid columns={2}>
         <Section
           title="Decision output"
-          description="Merchants need to know whether Forestock is surfacing a manageable queue or an urgent risk cluster."
+          description="The queue should feel like a controllable workload, not a black-box number dump."
         >
           <Grid columns={2}>
             <MetricCard
@@ -166,7 +205,7 @@ export default function AppIndex() {
 
         <Section
           title="Forecast proof"
-          description="The app should expose evidence of the same forecast engine used by the website, not a separate Shopify-only calculation."
+          description="Expose enough proof that the merchant can trust the recommendation queue without pretending Shopify runs a separate model."
         >
           {data.forecastProof ? (
             <Card tone={data.forecastProof.readyForRecommendations ? "success" : data.forecastProof.errorMessage ? "critical" : "warning"}>
@@ -198,8 +237,8 @@ export default function AppIndex() {
 
       <Grid columns={2}>
         <Section
-          title="Why trust may still be weak"
-          description="Convert vague hesitation into explicit blockers the merchant or operator can fix."
+          title="Trust blockers"
+          description="Convert vague hesitation into explicit conditions that can be fixed."
         >
           {data.recommendationReadinessReasons.length > 0 ? (
             <Card tone="warning">
@@ -216,8 +255,8 @@ export default function AppIndex() {
         </Section>
 
         <Section
-          title="Warnings to review"
-          description="These are the data-quality gaps that can still reduce confidence even when the basic pipeline looks healthy."
+          title="Data-quality watchlist"
+          description="These warnings should stay visible even when the overall setup state looks healthy."
         >
           {data.dataQualityWarnings.length > 0 ? (
             <Card tone="warning">
