@@ -28,11 +28,20 @@ function urgencyTone(urgency: string) {
   return "accent" as const;
 }
 
+function formatMetricNumber(value: number | null | undefined, suffix = "") {
+  if (value == null) return "Not available";
+  return `${Number(value).toFixed(1)}${suffix}`;
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const forecastTone = toneForForecast(data.forecastStatus);
   const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
   const highCount = data.recommendations.filter((recommendation) => recommendation.urgency === "HIGH").length;
+  const totalEstimatedOrderValue = data.recommendations.reduce(
+    (sum, recommendation) => sum + (recommendation.estimatedOrderValue ?? 0),
+    0,
+  );
 
   return (
     <AppShell
@@ -75,15 +84,28 @@ export default function RecommendationsPage() {
             hint="Important but less urgent"
             tone={highCount > 0 ? "warning" : "subtle"}
           />
+          <MetricCard
+            label="Estimated order value"
+            value={totalEstimatedOrderValue > 0 ? totalEstimatedOrderValue.toFixed(2) : "0.00"}
+            hint="Current queue total"
+            tone={data.recommendations.length > 0 ? "accent" : "subtle"}
+          />
         </Grid>
       </Section>
 
       <Section
         title="Review queue"
-        description="Each recommendation should tell the merchant what needs reordering now, how urgent it is, and whether the output is fresh enough to trust."
+        description="Each recommendation should tell the merchant what needs reordering now, how urgent it is, and whether the output is fresh enough to trust. The page is ready to render the richer website fields when the Shopify endpoint exposes them."
       >
         {data.recommendations.length > 0 ? (
-          <Grid columns={2}>
+          <>
+            <Card tone="subtle" style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
+                Current payload coverage: product identity, urgency, suggested reorder quantity, days of stock, estimated order value, supplier, and generated timestamp.
+                The UI also supports stock, forecast bands, lead time, MOQ, and acknowledgement metadata when the backend exposes them on the Shopify route.
+              </div>
+            </Card>
+            <Grid columns={2}>
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
               return (
@@ -91,26 +113,75 @@ export default function RecommendationsPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 4 }}>{recommendation.productName}</div>
-                      <div style={{ fontSize: 14, color: "#6d7175" }}>{recommendation.productSku}</div>
+                      <div style={{ fontSize: 14, color: "#6d7175" }}>
+                        {recommendation.productSku}
+                        {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
+                      </div>
                     </div>
                     <Badge tone={tone}>{recommendation.urgency}</Badge>
                   </div>
                   <KeyValueList
                     items={[
-                      { label: "Days of stock", value: recommendation.daysOfStock ?? "Unknown" },
-                      { label: "Suggested reorder qty", value: recommendation.suggestedQty ?? "Unknown" },
-                      { label: "Estimated order value", value: recommendation.estimatedOrderValue ?? "Unknown" },
+                      {
+                        label: "Current stock",
+                        value:
+                          recommendation.currentStock != null
+                            ? `${formatMetricNumber(recommendation.currentStock)}${recommendation.unit ? ` ${recommendation.unit}` : ""}`
+                            : "Not available",
+                      },
+                      { label: "Days of stock", value: recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown" },
+                      {
+                        label: "Forecast P50 / P90",
+                        value:
+                          recommendation.forecastP50 != null || recommendation.forecastP90 != null
+                            ? `${recommendation.forecastP50 != null ? formatMetricNumber(recommendation.forecastP50) : "—"} / ${recommendation.forecastP90 != null ? formatMetricNumber(recommendation.forecastP90) : "—"}`
+                            : "Not available",
+                      },
+                      {
+                        label: "Lead time",
+                        value:
+                          recommendation.leadTimeDaysAtGeneration != null
+                            ? `${recommendation.leadTimeDaysAtGeneration}d`
+                            : "Not available",
+                      },
+                      {
+                        label: "MOQ applied",
+                        value: recommendation.moqApplied != null ? formatMetricNumber(recommendation.moqApplied) : "Not available",
+                      },
+                      {
+                        label: "Suggested reorder qty",
+                        value:
+                          recommendation.suggestedQty != null
+                            ? `${formatMetricNumber(recommendation.suggestedQty)}${recommendation.unit ? ` ${recommendation.unit}` : ""}`
+                            : "Unknown",
+                      },
+                      { label: "Estimated order value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
                       { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
                       { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
                     ]}
                   />
+                  {recommendation.acknowledged ? (
+                    <Card tone="subtle" style={{ marginTop: 12 }}>
+                      <KeyValueList
+                        items={[
+                          { label: "Status", value: "Acknowledged" },
+                          { label: "At", value: formatDateTime(recommendation.acknowledgedAt) },
+                          { label: "Reason", value: recommendation.acknowledgedReason ?? "Not recorded" },
+                          { label: "Ordered qty", value: recommendation.quantityOrdered ?? "Not recorded" },
+                          { label: "Expected delivery", value: recommendation.expectedDelivery ?? "Not recorded" },
+                          { label: "Order reference", value: recommendation.orderReference ?? "Not recorded" },
+                        ]}
+                      />
+                    </Card>
+                  ) : null}
                   <div style={{ marginTop: 12, fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
                     This queue uses the same backend recommendation pipeline as the website. If the output looks weak, the correct fix is better synced catalog and order history, not alternate Shopify-side calculation.
                   </div>
                 </Card>
               );
             })}
-          </Grid>
+            </Grid>
+          </>
         ) : (
           <EmptyState
             title="No active recommendations yet"

@@ -1,73 +1,209 @@
-.index {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-  height: 100%;
-  width: 100%;
-  text-align: center;
-  padding: 1rem;
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(0, 91, 211, 0.12), transparent 32rem),
+    linear-gradient(180deg, #f6f6f7 0%, #eef1f4 100%);
+  color: #202223;
 }
 
-.heading,
-.text {
-  padding: 0;
-  margin: 0;
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 48px 20px 64px;
 }
 
-.text {
-  font-size: 1.2rem;
-  padding-bottom: 2rem;
-}
-
-.content {
+.hero {
   display: grid;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #d2d5d9;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(18, 28, 45, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.heroPanel {
+  padding: 32px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #005bd3;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heading {
+  margin: 18px 0 12px;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  max-width: 14ch;
+}
+
+.text {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #4b5563;
+  max-width: 64ch;
+}
+
+.heroList {
+  display: grid;
+  gap: 14px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.heroListItem {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.heroBullet {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+
+.heroListTitle {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.heroListBody {
+  margin: 0;
+  color: #6d7175;
+  line-height: 1.6;
+}
+
+.formPanel {
+  padding: 28px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.formHeading {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.formText {
+  margin: 0;
+  color: #6d7175;
+  line-height: 1.6;
 }
 
 .form {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin: 0 auto;
-  gap: 1rem;
+  display: grid;
+  gap: 16px;
 }
 
 .label {
   display: grid;
-  gap: 0.2rem;
-  max-width: 20rem;
-  text-align: left;
-  font-size: 1rem;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .input {
-  padding: 0.4rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #c9cccf;
+  background: #ffffff;
+  color: #202223;
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: 2px solid rgba(0, 91, 211, 0.25);
+  border-color: #005bd3;
+}
+
+.details {
+  font-size: 0.88rem;
+  color: #6d7175;
+  font-weight: 500;
 }
 
 .button {
-  padding: 0.4rem;
+  appearance: none;
+  border: 0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
-.list {
-  list-style: none;
-  padding: 0;
-  padding-top: 3rem;
+.button:hover {
+  background: #1f2937;
+}
+
+.smallPrint {
   margin: 0;
-  display: flex;
-  gap: 2rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #6d7175;
 }
 
-.list > li {
-  max-width: 20rem;
-  text-align: left;
+.proofGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
-@media only screen and (max-width: 50rem) {
-  .list {
-    display: block;
+.proofCard {
+  padding: 22px;
+}
+
+.proofTitle {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.proofBody {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: #6d7175;
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
   }
 
-  .list > li {
-    padding-bottom: 1rem;
+  .proofGrid {
+    grid-template-columns: 1fr;
   }
 }

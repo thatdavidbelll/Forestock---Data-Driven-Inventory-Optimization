@@ -126,13 +126,27 @@ type AppHomeOverviewResponse = {
 
 type RecommendationCard = {
   id: string;
+  productId?: string;
   productName: string;
   productSku: string;
+  productCategory?: string | null;
+  unit?: string | null;
   urgency: string;
   daysOfStock: number | null;
   suggestedQty: number | null;
+  forecastP50?: number | null;
+  forecastP90?: number | null;
+  currentStock?: number | null;
+  leadTimeDaysAtGeneration?: number | null;
+  moqApplied?: number | null;
   estimatedOrderValue: number | null;
   supplierName: string | null;
+  acknowledged?: boolean;
+  acknowledgedAt?: string | null;
+  acknowledgedReason?: string | null;
+  quantityOrdered?: number | null;
+  expectedDelivery?: string | null;
+  orderReference?: string | null;
   generatedAt: string | null;
 };
 

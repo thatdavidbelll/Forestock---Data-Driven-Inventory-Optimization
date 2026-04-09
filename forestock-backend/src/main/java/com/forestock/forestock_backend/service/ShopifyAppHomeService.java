@@ -1,8 +1,8 @@
 package com.forestock.forestock_backend.service;
 
+import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.domain.ForecastRun;
 import com.forestock.forestock_backend.domain.OrderSuggestion;
-import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.ShopifyConnection;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.enums.Urgency;
@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -152,7 +151,7 @@ public class ShopifyAppHomeService {
                     .build();
         }
 
-        List<RecommendationCard> recommendations = orderSuggestionRepository
+        List<SuggestionDto> recommendations = orderSuggestionRepository
                 .findByForecastRunIdAndAcknowledgedOrderByUrgencyAscDaysOfStockAsc(latestCompletedRun.getId(), false)
                 .stream()
                 .limit(20)
@@ -244,16 +243,30 @@ public class ShopifyAppHomeService {
                 .build();
     }
 
-    private RecommendationCard toRecommendation(OrderSuggestion suggestion) {
-        return RecommendationCard.builder()
+    private SuggestionDto toRecommendation(OrderSuggestion suggestion) {
+        return SuggestionDto.builder()
                 .id(suggestion.getId())
+                .productId(suggestion.getProduct().getId())
                 .productName(suggestion.getProduct().getName())
                 .productSku(suggestion.getProduct().getSku())
-                .urgency(suggestion.getUrgency().name())
+                .productCategory(suggestion.getProduct().getCategory())
+                .unit(suggestion.getProduct().getUnit())
+                .urgency(suggestion.getUrgency())
                 .daysOfStock(suggestion.getDaysOfStock())
                 .suggestedQty(suggestion.getSuggestedQty())
+                .forecastP50(suggestion.getForecastP50())
+                .forecastP90(suggestion.getForecastP90())
+                .currentStock(suggestion.getCurrentStock())
+                .leadTimeDaysAtGeneration(suggestion.getLeadTimeDaysAtGeneration())
+                .moqApplied(suggestion.getMoqApplied())
                 .estimatedOrderValue(suggestion.getEstimatedOrderValue())
                 .supplierName(suggestion.getProduct().getSupplierName())
+                .acknowledged(Boolean.TRUE.equals(suggestion.getAcknowledged()))
+                .acknowledgedAt(suggestion.getAcknowledgedAt())
+                .acknowledgedReason(suggestion.getAcknowledgedReason())
+                .quantityOrdered(suggestion.getQuantityOrdered())
+                .expectedDelivery(suggestion.getExpectedDelivery())
+                .orderReference(suggestion.getOrderReference())
                 .generatedAt(suggestion.getGeneratedAt())
                 .build();
     }
@@ -276,7 +289,7 @@ public class ShopifyAppHomeService {
             long criticalSuggestions,
             long highSuggestions,
             int totalActiveSuggestions,
-            RecommendationCard topRecommendation,
+            SuggestionDto topRecommendation,
             List<String> dataQualityWarnings,
             List<String> nextActions
     ) {
@@ -302,21 +315,7 @@ public class ShopifyAppHomeService {
             String shopDomain,
             String forecastStatus,
             LocalDateTime forecastCompletedAt,
-            List<RecommendationCard> recommendations
-    ) {
-    }
-
-    @Builder
-    public record RecommendationCard(
-            UUID id,
-            String productName,
-            String productSku,
-            String urgency,
-            BigDecimal daysOfStock,
-            BigDecimal suggestedQty,
-            BigDecimal estimatedOrderValue,
-            String supplierName,
-            LocalDateTime generatedAt
+            List<SuggestionDto> recommendations
     ) {
     }
 }
