@@ -93,6 +93,21 @@ type ForecastTriggerResponse = {
   message: string;
 };
 
+export type StoreConfigurationResponse = {
+  timezone: string;
+  currencySymbol: string;
+  forecastHorizonDays: number;
+  lookbackDays: number;
+  minHistoryDays: number;
+  seasonalityPeriod: number;
+  safetyStockMultiplier: number;
+  urgencyCriticalDays: number;
+  urgencyHighDays: number;
+  urgencyMediumDays: number;
+  autoForecastOnImport: boolean;
+  updatedAt: string | null;
+};
+
 export type ForecastProof = {
   status: string | null;
   startedAt: string | null;
@@ -355,6 +370,62 @@ export async function triggerForestockForecast(shopDomain: string): Promise<Fore
   return {
     message: responseBody.data || responseBody.message || "Forecast started in background",
   };
+}
+
+export async function getForestockStoreConfig(shopDomain: string): Promise<StoreConfigurationResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/config?shopDomain=${encodeURIComponent(shopDomain)}`,
+    {
+      headers: {
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+    },
+  );
+
+  const responseBody = (await response.json()) as {
+    message?: string;
+    data?: StoreConfigurationResponse;
+  };
+
+  if (!response.ok || !responseBody.data) {
+    throw new Error(responseBody.message || "Failed to load Forestock store config");
+  }
+
+  return responseBody.data;
+}
+
+export async function updateForestockStoreConfig(
+  shopDomain: string,
+  payload: Partial<Pick<StoreConfigurationResponse, "forecastHorizonDays">>,
+): Promise<StoreConfigurationResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/config?shopDomain=${encodeURIComponent(shopDomain)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const responseBody = (await response.json()) as {
+    message?: string;
+    data?: StoreConfigurationResponse;
+  };
+
+  if (!response.ok || !responseBody.data) {
+    throw new Error(responseBody.message || "Failed to update Forestock store config");
+  }
+
+  return responseBody.data;
 }
 
 export async function getForestockAppHome(shopDomain: string): Promise<AppHomeOverviewResponse> {

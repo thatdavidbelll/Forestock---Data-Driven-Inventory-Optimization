@@ -30,12 +30,29 @@ public class StoreConfigurationService {
         if (storeId == null) {
             throw new IllegalStateException("No store context");
         }
+        return getConfigDtoForStore(storeId);
+    }
+
+    @Transactional(readOnly = true)
+    public StoreConfigurationDto getConfigDtoForStore(UUID storeId) {
+        if (storeId == null) {
+            throw new IllegalStateException("No store context");
+        }
         return toDto(getConfigForStore(storeId));
     }
 
     @Transactional
     public StoreConfigurationDto updateCurrentConfig(UpdateStoreConfigRequest request) {
         UUID storeId = TenantContext.getStoreId();
+        if (storeId == null) {
+            throw new IllegalStateException("No store context");
+        }
+
+        return updateConfigForStore(storeId, request);
+    }
+
+    @Transactional
+    public StoreConfigurationDto updateConfigForStore(UUID storeId, UpdateStoreConfigRequest request) {
         if (storeId == null) {
             throw new IllegalStateException("No store context");
         }
