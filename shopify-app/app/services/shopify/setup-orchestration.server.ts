@@ -5,7 +5,6 @@ import {
 } from "../../forestock.server";
 import {
   SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
-  type ShopifySetupIntent,
   type ShopifySetupRunRequest,
   type ShopifySetupStepResult,
 } from "./setup-contract.server";
@@ -150,9 +149,3 @@ export async function runShopifySetupIntent({
     }
   }
 }
-
-export type {
-  ShopifySetupIntent,
-  ShopifySetupRunRequest,
-  ShopifySetupStepResult,
-} from "./setup-contract.server";
