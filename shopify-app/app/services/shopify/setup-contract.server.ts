@@ -1,7 +1,5 @@
 export const SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT = 60;
 
-export type ShopifySetupIntent = "provision" | "catalog" | "orders" | "forecast" | "full";
-
 export interface ShopifyGraphqlAdmin {
   graphql(
     query: string,
@@ -78,7 +76,7 @@ export type ShopifyOrderBackfillResult = {
 };
 
 export type ShopifySetupStepResult = {
-  intent: ShopifySetupIntent;
+  intent: "full";
   ok: boolean;
   message: string;
   provisioned?: ShopifyProvisionResult | null;
@@ -88,7 +86,6 @@ export type ShopifySetupStepResult = {
 };
 
 export type ShopifySetupRunRequest = {
-  intent: ShopifySetupIntent;
   admin: ShopifyGraphqlAdmin;
   shopDomain: string;
   shopName: string;

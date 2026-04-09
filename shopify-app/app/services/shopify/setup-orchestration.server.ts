@@ -14,7 +14,7 @@ import {
   collectHistoricalOrders,
 } from "./setup-collection.server";
 
-export async function runShopifyProvisionStep({
+async function runShopifyProvisionStep({
   shopDomain,
   shopName,
 }: {
@@ -28,7 +28,7 @@ export async function runShopifyProvisionStep({
   });
 
   return {
-    intent: "provision",
+    intent: "full",
     ok: true,
     message: "Workspace linkage completed.",
     provisioned: {
@@ -40,7 +40,7 @@ export async function runShopifyProvisionStep({
   };
 }
 
-export async function runShopifyCatalogSyncStep({
+async function runShopifyCatalogSyncStep({
   shopDomain,
   admin,
 }: {
@@ -54,14 +54,14 @@ export async function runShopifyCatalogSyncStep({
   });
 
   return {
-    intent: "catalog",
+    intent: "full",
     ok: true,
     message: "Catalog and inventory import completed.",
     catalogSync,
   };
 }
 
-export async function runShopifyOrderBackfillStep({
+async function runShopifyOrderBackfillStep({
   shopDomain,
   admin,
   historyDays = SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
@@ -77,14 +77,14 @@ export async function runShopifyOrderBackfillStep({
   });
 
   return {
-    intent: "orders",
+    intent: "full",
     ok: true,
     message: "Order history import completed.",
     orderBackfill,
   };
 }
 
-export async function runShopifyForecastStep({
+async function runShopifyForecastStep({
   shopDomain,
 }: {
   shopDomain: string;
@@ -92,7 +92,7 @@ export async function runShopifyForecastStep({
   const forecast = await triggerForestockForecast(shopDomain);
 
   return {
-    intent: "forecast",
+    intent: "full",
     ok: true,
     message: forecast.message,
     forecastTriggered: true,
@@ -110,63 +110,27 @@ export async function runShopifyFullSetup({
   shopName: string;
   historyDays?: number;
 }): Promise<ShopifySetupStepResult> {
-  const provisioned = await provisionForestockShop({
-    shopDomain,
-    shopName,
-    email: null,
-  });
-
-  const items = await collectCatalogItems(admin);
-  const catalogSync = await syncForestockCatalog({
-    shopDomain,
-    items,
-  });
-
-  const orders = await collectHistoricalOrders(admin, historyDays);
-  const orderBackfill = await backfillForestockOrders({
-    shopDomain,
-    orders,
-  });
-
-  const forecast = await triggerForestockForecast(shopDomain);
+  const provisionStep = await runShopifyProvisionStep({ shopDomain, shopName });
+  const catalogStep = await runShopifyCatalogSyncStep({ shopDomain, admin });
+  const ordersStep = await runShopifyOrderBackfillStep({ shopDomain, admin, historyDays });
+  const forecastStep = await runShopifyForecastStep({ shopDomain });
 
   return {
     intent: "full",
     ok: true,
-    message: forecast.message,
-    provisioned: {
-      storeName: provisioned.storeName,
-      storeSlug: provisioned.storeSlug,
-      createdStore: provisioned.createdStore,
-      adminUsername: provisioned.adminUsername,
-    },
-    catalogSync,
-    orderBackfill,
-    forecastTriggered: true,
+    message: forecastStep.message,
+    provisioned: provisionStep.provisioned,
+    catalogSync: catalogStep.catalogSync,
+    orderBackfill: ordersStep.orderBackfill,
+    forecastTriggered: forecastStep.forecastTriggered ?? true,
   };
 }
 
-export async function runShopifySetupIntent({
-  intent,
+export async function runShopifyAutomaticSetup({
   admin,
   shopDomain,
   shopName,
   historyDays = SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
 }: ShopifySetupRunRequest): Promise<ShopifySetupStepResult> {
-  switch (intent) {
-    case "provision":
-      return runShopifyProvisionStep({ shopDomain, shopName });
-    case "catalog":
-      return runShopifyCatalogSyncStep({ shopDomain, admin });
-    case "orders":
-      return runShopifyOrderBackfillStep({ shopDomain, admin, historyDays });
-    case "forecast":
-      return runShopifyForecastStep({ shopDomain });
-    case "full":
-      return runShopifyFullSetup({ admin, shopDomain, shopName, historyDays });
-    default: {
-      const exhaustiveCheck: never = intent;
-      throw new Error(`Unsupported Shopify setup intent: ${String(exhaustiveCheck)}`);
-    }
-  }
+  return runShopifyFullSetup({ admin, shopDomain, shopName, historyDays });
 }

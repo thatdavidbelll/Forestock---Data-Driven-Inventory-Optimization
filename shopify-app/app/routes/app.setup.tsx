@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -21,8 +22,7 @@ import { getSetupStages, type SetupStage } from "../setup-state";
 import { authenticate } from "../shopify.server";
 import {
   loadShopIdentity,
-  runShopifySetupIntent,
-  type ShopifySetupIntent,
+  runShopifyAutomaticSetup,
   type ShopifySetupStepResult,
 } from "../shopify-sync.server";
 
@@ -38,76 +38,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const identity = await loadShopIdentity(admin, session.shop);
-  const formData = await request.formData();
-  const intent = String(formData.get("intent") || "") as ShopifySetupIntent;
 
   try {
-    if (intent === "provision" || intent === "catalog" || intent === "orders" || intent === "forecast" || intent === "full") {
-      return await runShopifySetupIntent({
-        intent,
-        admin,
-        shopDomain: identity.shopDomain,
-        shopName: identity.shopName,
-      });
-    }
-
+    return await runShopifyAutomaticSetup({
+      admin,
+      shopDomain: identity.shopDomain,
+      shopName: identity.shopName,
+    });
+  } catch (error) {
     return {
       intent: "full",
       ok: false,
-      message: "Unknown setup action.",
-    } satisfies ActionData;
-  } catch (error) {
-    return {
-      intent: intent || "full",
-      ok: false,
-      message: error instanceof Error ? error.message : "Setup action failed.",
+      message: error instanceof Error ? error.message : "Automatic setup failed.",
     } satisfies ActionData;
   }
 };
-
-function StepResult({ data }: { data: ActionData | undefined }) {
-  if (!data) return null;
-
-  return (
-    <Card tone={data.ok ? "success" : "critical"}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 17, fontWeight: 800 }}>{data.message}</div>
-        <Badge tone={data.ok ? "success" : "critical"}>{data.ok ? "Completed" : "Failed"}</Badge>
-      </div>
-      {data.provisioned ? (
-        <KeyValueList
-          items={[
-            { label: "Workspace", value: data.provisioned.storeName },
-            { label: "Workspace slug", value: data.provisioned.storeSlug },
-            { label: "Admin username", value: data.provisioned.adminUsername ?? "Pending" },
-            { label: "Store created in this run", value: data.provisioned.createdStore ? "Yes" : "No" },
-          ]}
-        />
-      ) : null}
-      {data.catalogSync ? (
-        <KeyValueList
-          items={[
-            { label: "Products processed", value: data.catalogSync.processedItems },
-            { label: "Products created", value: data.catalogSync.createdProducts },
-            { label: "Products updated", value: data.catalogSync.updatedProducts },
-            { label: "Inventory snapshots created", value: data.catalogSync.inventorySnapshotsCreated },
-          ]}
-        />
-      ) : null}
-      {data.orderBackfill ? (
-        <KeyValueList
-          items={[
-            { label: "Orders imported", value: data.orderBackfill.importedOrders },
-            { label: "Duplicates skipped", value: data.orderBackfill.duplicateOrders },
-            { label: "Matched line items", value: data.orderBackfill.matchedLineItems },
-            { label: "Unmatched line items", value: data.orderBackfill.unmatchedLineItems },
-            { label: "Sales rows written", value: data.orderBackfill.salesRowsUpserted },
-          ]}
-        />
-      ) : null}
-    </Card>
-  );
-}
 
 function stepTone(status: SetupStage["status"]) {
   if (status === "completed") return "success" as const;
@@ -127,125 +72,92 @@ function stepStatusLabel(status: SetupStage["status"]) {
   return "Not started";
 }
 
-function StepStatusBadge({ status }: { status: SetupStage["status"] }) {
-  return <Badge tone={stepTone(status)}>{stepStatusLabel(status)}</Badge>;
-}
+function shouldAutoRunSetup(stages: SetupStage[]) {
+  const connection = stages.find((stage) => stage.id === "provision");
+  const catalog = stages.find((stage) => stage.id === "catalog");
+  const orders = stages.find((stage) => stage.id === "orders");
+  const forecast = stages.find((stage) => stage.id === "forecast");
 
-function ActionSection({
-  stage,
-  description,
-  buttonLabel,
-  intent,
-  fetcher,
-  disabled,
-}: {
-  stage: SetupStage;
-  description: string;
-  buttonLabel: string;
-  intent: ActionData["intent"];
-  fetcher: ReturnType<typeof useFetcher<ActionData>>;
-  disabled?: boolean;
-}) {
-  const busy = fetcher.state !== "idle";
-  const result = fetcher.data?.intent === intent ? fetcher.data : undefined;
-  const status = busy
-    ? "running"
-    : result
-      ? result.ok
-        ? "completed"
-        : "failed"
-      : stage.status;
-  const buttonTone = stage.status === "completed" ? "secondary" : "primary";
+  if (!connection || !catalog || !orders || !forecast) {
+    return false;
+  }
+
+  if (["running"].includes(forecast.status)) {
+    return false;
+  }
 
   return (
-    <Card tone={stepTone(status)}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 800, color: "#52606d", marginBottom: 6 }}>
-            {stage.step}
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{stage.title}</div>
-        </div>
-        <StepStatusBadge status={status} />
+    connection.status !== "completed" ||
+    catalog.status !== "completed" ||
+    orders.status !== "completed" ||
+    (forecast.status !== "completed" && forecast.status !== "running")
+  );
+}
+
+function SetupResult({ data }: { data: ActionData | undefined }) {
+  if (!data) return null;
+
+  return (
+    <Card tone={data.ok ? "success" : "critical"}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>{data.message}</div>
+        <Badge tone={data.ok ? "success" : "critical"}>{data.ok ? "Started" : "Failed"}</Badge>
       </div>
-      <div style={{ color: "#52606d", lineHeight: 1.7, marginBottom: 12 }}>{description}</div>
-      <div style={{ fontSize: 14, marginBottom: 14 }}>
-        <strong>Success looks like:</strong> {stage.successLooksLike}
-      </div>
-      <div style={{ marginBottom: 14 }}>
+      {data.provisioned || data.catalogSync || data.orderBackfill ? (
         <KeyValueList
           items={[
-            { label: "Current state", value: stepStatusLabel(status) },
-            { label: "State summary", value: stage.summary },
-            {
-              label: stage.evidenceLabel ?? "Evidence timestamp",
-              value: stage.evidenceAt ? formatDateTime(stage.evidenceAt) : "Not available",
-            },
+            { label: "Workspace", value: data.provisioned?.storeName ?? "Unchanged" },
+            { label: "Products processed", value: data.catalogSync?.processedItems ?? "Not available" },
+            { label: "Orders imported", value: data.orderBackfill?.importedOrders ?? "Not available" },
+            { label: "Sales rows written", value: data.orderBackfill?.salesRowsUpserted ?? "Not available" },
+            { label: "Forecast started", value: data.forecastTriggered ? "Yes" : "No" },
           ]}
         />
-      </div>
-      {stage.blockers.length > 0 ? (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Current blockers</div>
-          <InlineList items={stage.blockers} />
-        </div>
       ) : null}
-      <fetcher.Form method="post">
-        <input type="hidden" name="intent" value={intent} />
-        <ActionButton loading={busy} tone={buttonTone}>{disabled ? "Blocked" : buttonLabel}</ActionButton>
-      </fetcher.Form>
-      {result ? <div style={{ marginTop: 14 }}><StepResult data={result} /></div> : null}
     </Card>
   );
 }
 
 export default function SetupPage() {
   const { shopName, shopDomain, overview } = useLoaderData<typeof loader>();
-  const fullSetupFetcher = useFetcher<ActionData>();
-  const provisionFetcher = useFetcher<ActionData>();
-  const catalogFetcher = useFetcher<ActionData>();
-  const ordersFetcher = useFetcher<ActionData>();
-  const forecastFetcher = useFetcher<ActionData>();
+  const setupFetcher = useFetcher<ActionData>();
+  const autoSubmitted = useRef(false);
+
   const readiness = toneForReadiness({
     activeProductCount: overview.activeProductCount,
     hasSalesHistory: overview.hasSalesHistory,
     forecastStatus: overview.forecastStatus,
   });
-  const provisioned = overview.shopifyConnectionActive;
-  const catalogReady = overview.totalProductCount > 0;
-  const ordersReady = overview.hasSalesHistory;
-  const recommendationsReady = overview.recommendationReadinessReasons.length === 0 && overview.forecastProof?.readyForRecommendations;
   const stages = getSetupStages(overview);
-  const provisionStage = stages.find((stage) => stage.id === "provision")!;
-  const catalogStage = stages.find((stage) => stage.id === "catalog")!;
-  const ordersStage = stages.find((stage) => stage.id === "orders")!;
-  const forecastStage = stages.find((stage) => stage.id === "forecast")!;
-  const recommendationsStage = stages.find((stage) => stage.id === "recommendations")!;
   const nextSetupStage = stages.find((stage) => stage.status !== "completed");
+  const shouldAutoBootstrap = shouldAutoRunSetup(stages);
+
+  useEffect(() => {
+    if (autoSubmitted.current || !shouldAutoBootstrap || setupFetcher.state !== "idle") {
+      return;
+    }
+
+    autoSubmitted.current = true;
+    setupFetcher.submit({}, { method: "post" });
+  }, [setupFetcher, shouldAutoBootstrap]);
 
   return (
     <AppShell
       title="Setup"
-      subtitle="Guide the merchant from install to usable recommendations. This page should make linkage, imports, and forecast readiness explicit and recoverable."
+      subtitle="This page should do the work for the merchant. On first install it links the store, imports products and transactions, and starts the shared forecast automatically."
       actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
     >
       <InfoBanner
-        title="Forecast parity rule"
-        body="The Shopify app does not implement a separate forecast algorithm. It provisions data, exposes sync health, and displays the same backend forecast and recommendation output used by the website."
-        tone="subtle"
-      />
-
-      <InfoBanner
-        title="Canonical setup state"
+        title="Automatic bootstrap"
         body={
-          nextSetupStage
-            ? `${nextSetupStage.step}: ${nextSetupStage.title}. ${nextSetupStage.summary}`
-            : "All five setup stages are currently satisfied. The merchant can move to recommendation review with explicit forecast proof."
+          shouldAutoBootstrap
+            ? "Forestock starts setup automatically when this store is not ready yet. The merchant should not have to trigger catalog import, order import, and forecast as separate tasks."
+            : "The automatic bootstrap has already completed its core work for this store. Review the stage tracker below only if trust is still weak."
         }
-        tone={nextSetupStage ? stepTone(nextSetupStage.status) : "success"}
+        tone={shouldAutoBootstrap ? "accent" : "success"}
       />
 
-      <Section title="Shop identity" description="This is the Shopify store Forestock is linking and importing from.">
+      <Section title="Shop identity" description="This is the Shopify store Forestock is preparing automatically.">
         <Grid columns={3}>
           <MetricCard label="Shop name" value={shopName} tone="subtle" />
           <MetricCard label="Shop domain" value={shopDomain} tone="subtle" />
@@ -254,8 +166,42 @@ export default function SetupPage() {
       </Section>
 
       <Section
-        title="Canonical setup tracker"
-        description="Each stage has an explicit state, evidence timestamp when available, and retry path. This should behave like a state machine, not a loose checklist."
+        title="Bootstrap status"
+        description="This is the only primary setup action left: retry the automatic bootstrap if it fails or if the environment changed."
+      >
+        <Card tone={setupFetcher.state !== "idle" ? "accent" : shouldAutoBootstrap ? "warning" : "success"}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
+                {setupFetcher.state !== "idle"
+                  ? "Preparing store data..."
+                  : shouldAutoBootstrap
+                    ? "Automatic setup needs to finish"
+                    : "Automatic setup completed"}
+              </div>
+              <div style={{ color: "#52606d", lineHeight: 1.7, maxWidth: 760 }}>
+                {nextSetupStage
+                  ? `${nextSetupStage.step}: ${nextSetupStage.title}. ${nextSetupStage.summary}`
+                  : "Products, transactions, and forecast proof are already in place for this store."}
+              </div>
+            </div>
+            <setupFetcher.Form method="post">
+              <ActionButton loading={setupFetcher.state !== "idle"}>
+                {shouldAutoBootstrap ? "Retry automatic setup" : "Run setup again"}
+              </ActionButton>
+            </setupFetcher.Form>
+          </div>
+          {setupFetcher.data ? (
+            <div style={{ marginTop: 16 }}>
+              <SetupResult data={setupFetcher.data} />
+            </div>
+          ) : null}
+        </Card>
+      </Section>
+
+      <Section
+        title="Setup runway"
+        description="These stages remain visible for operator trust, but the merchant should not have to drive them manually."
       >
         <Grid columns={2}>
           {stages.map((stage) => (
@@ -267,7 +213,7 @@ export default function SetupPage() {
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 800 }}>{stage.title}</div>
                 </div>
-                <StepStatusBadge status={stage.status} />
+                <Badge tone={stepTone(stage.status)}>{stepStatusLabel(stage.status)}</Badge>
               </div>
               <div style={{ color: "#52606d", lineHeight: 1.7, marginBottom: 12 }}>{stage.summary}</div>
               <KeyValueList
@@ -281,7 +227,7 @@ export default function SetupPage() {
               />
               {stage.blockers.length > 0 ? (
                 <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Blockers</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Current blockers</div>
                   <InlineList items={stage.blockers} />
                 </div>
               ) : null}
@@ -291,73 +237,11 @@ export default function SetupPage() {
       </Section>
 
       <Section
-        title="Recommended first-run path"
-        description="Run the full setup for a fresh install. Use the individual controls only when you are retrying a failed stage or validating one part of the pipeline."
-      >
-        <Card tone="accent">
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Run complete setup</div>
-              <div style={{ color: "#52606d", lineHeight: 1.7, maxWidth: 760 }}>
-                This links the Forestock workspace, imports the Shopify catalog and inventory snapshot, and backfills the most recent 60 days of order history so the existing forecast engine has usable data.
-                It then starts a forecast run in the backend.
-              </div>
-            </div>
-            <fullSetupFetcher.Form method="post">
-              <input type="hidden" name="intent" value="full" />
-              <ActionButton loading={fullSetupFetcher.state !== "idle"}>Run complete setup</ActionButton>
-            </fullSetupFetcher.Form>
-          </div>
-          {fullSetupFetcher.data ? (
-            <div style={{ marginTop: 16 }}>
-              <StepResult data={fullSetupFetcher.data} />
-            </div>
-          ) : null}
-        </Card>
-      </Section>
-
-      <Section
-        title="Stage controls"
-        description="These controls intentionally mirror the state machine above. Use them to retry a blocked or failed stage without re-running unrelated work."
-      >
-        <Grid columns={2}>
-          <ActionSection
-            stage={provisionStage}
-            description="Create or reconnect the store workspace without importing catalog or order history yet."
-            buttonLabel="Link workspace"
-            intent="provision"
-            fetcher={provisionFetcher}
-          />
-          <ActionSection
-            stage={catalogStage}
-            description="Pull the live Shopify catalog and inventory positions into the backend so products can be forecasted and matched."
-            buttonLabel="Import catalog"
-            intent="catalog"
-            fetcher={catalogFetcher}
-          />
-          <ActionSection
-            stage={ordersStage}
-            description="Backfill the most recent 60 days of Shopify order history so the shared forecast engine has demand history to learn from."
-            buttonLabel="Import orders"
-            intent="orders"
-            fetcher={ordersFetcher}
-          />
-          <ActionSection
-            stage={forecastStage}
-            description="Start the backend forecast cycle after catalog and order history are ready so recommendations can be generated."
-            buttonLabel="Run forecast"
-            intent="forecast"
-            fetcher={forecastFetcher}
-          />
-        </Grid>
-      </Section>
-
-      <Section
         title="Forecast evidence"
-        description="Once a run has started, this card should show whether the backend actually processed products and finished cleanly."
+        description="The app still needs to prove that the shared backend forecast actually ran after the automatic bootstrap."
       >
         {overview.forecastProof ? (
-          <Card tone={stepTone(forecastStage.status)}>
+          <Card tone={overview.forecastProof.readyForRecommendations ? "success" : overview.forecastProof.errorMessage ? "critical" : "warning"}>
             <KeyValueList
               items={[
                 { label: "Status", value: overview.forecastProof.status ?? "Unknown" },
@@ -369,28 +253,28 @@ export default function SetupPage() {
             />
             {overview.recommendationReadinessReasons.length > 0 ? (
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Still blocking recommendation trust:</div>
+                <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Still blocking recommendation trust</div>
                 <InlineList items={overview.recommendationReadinessReasons} />
               </div>
             ) : null}
           </Card>
         ) : (
           <EmptyState
-            title={`${forecastStage.step}: ${forecastStage.title} missing`}
-            body="Imports alone are not enough. We still need evidence that a forecast has actually started or completed for this store before treating recommendations as trustworthy."
+            title="No forecast evidence yet"
+            body="If setup has already imported products and transactions, the next state change should be a running or completed forecast."
           />
         )}
       </Section>
 
       <Section
         title="Current setup evidence"
-        description="These signals summarize what the backend currently knows about this store after provisioning and sync activity."
+        description="These signals summarize what the backend currently knows about this store after automatic setup."
       >
         <Grid columns={4}>
-          <MetricCard label="Connection" value={provisioned ? "Linked" : "Pending"} tone={provisioned ? "success" : "warning"} />
-          <MetricCard label="Products mapped" value={overview.totalProductCount} hint={`${overview.activeProductCount} active`} tone={catalogReady ? "accent" : "warning"} />
-          <MetricCard label="Sales rows" value={overview.salesTransactionCount} hint={overview.latestSaleDate ? `Latest ${overview.latestSaleDate}` : "No sales history yet"} tone={ordersReady ? "success" : "warning"} />
-          <MetricCard label="Recommendation ready" value={recommendationsReady ? "Yes" : "No"} hint={recommendationsStage.summary} tone={recommendationsReady ? "success" : "warning"} />
+          <MetricCard label="Connection" value={overview.shopifyConnectionActive ? "Linked" : "Pending"} tone={overview.shopifyConnectionActive ? "success" : "warning"} />
+          <MetricCard label="Products mapped" value={overview.totalProductCount} hint={`${overview.activeProductCount} active`} tone={overview.totalProductCount > 0 ? "accent" : "warning"} />
+          <MetricCard label="Sales rows" value={overview.salesTransactionCount} hint={overview.latestSaleDate ? `Latest ${overview.latestSaleDate}` : "No sales history yet"} tone={overview.hasSalesHistory ? "success" : "warning"} />
+          <MetricCard label="Recommendation ready" value={overview.recommendationReadinessReasons.length === 0 && overview.forecastProof?.readyForRecommendations ? "Yes" : "No"} hint={nextSetupStage ? nextSetupStage.summary : "Automatic bootstrap complete"} tone={overview.recommendationReadinessReasons.length === 0 && overview.forecastProof?.readyForRecommendations ? "success" : "warning"} />
         </Grid>
       </Section>
     </AppShell>
