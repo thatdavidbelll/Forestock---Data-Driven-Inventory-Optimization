@@ -104,9 +104,11 @@ export function AppShell({
 export function NavTabs({
   items,
   currentPath,
+  search = "",
 }: {
   items: Array<{ label: string; href: string }>;
   currentPath: string;
+  search?: string;
 }) {
   return (
     <div
@@ -121,10 +123,11 @@ export function NavTabs({
     >
       {items.map((item) => {
         const active = currentPath === item.href;
+        const href = `${item.href}${search}`;
         return (
           <a
-            key={item.href}
-            href={item.href}
+            key={href}
+            href={href}
             style={{
               textDecoration: "none",
               padding: "10px 14px",

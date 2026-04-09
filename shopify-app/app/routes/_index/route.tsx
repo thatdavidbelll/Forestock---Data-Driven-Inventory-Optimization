@@ -5,10 +5,16 @@ import { login } from "../../shopify.server";
 
 import styles from "./styles.module.css";
 
+function hasShopifyEmbeddedContext(url: URL) {
+  return ["shop", "host", "embedded", "hmac", "id_token", "session"].some((key) =>
+    url.searchParams.has(key),
+  );
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
 
-  if (url.searchParams.get("shop")) {
+  if (hasShopifyEmbeddedContext(url)) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 

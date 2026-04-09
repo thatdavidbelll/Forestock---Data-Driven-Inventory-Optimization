@@ -21,6 +21,7 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <NavTabs
         currentPath={location.pathname}
+        search={location.search}
         items={[
           { label: "Home", href: "/app" },
           { label: "Setup", href: "/app/setup" },

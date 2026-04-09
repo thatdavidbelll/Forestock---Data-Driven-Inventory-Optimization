@@ -1,18 +1,35 @@
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData } from "react-router";
+import { Form, redirect, useActionData, useLoaderData } from "react-router";
 
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
 
+function shouldResumeEmbeddedAuth(request: Request) {
+  const url = new URL(request.url);
+  return ["shop", "host", "embedded", "hmac", "id_token", "session"].some((key) =>
+    url.searchParams.has(key),
+  );
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  if (shouldResumeEmbeddedAuth(request)) {
+    const url = new URL(request.url);
+    throw redirect(`/app?${url.searchParams.toString()}`);
+  }
+
   const errors = loginErrorMessage(await login(request));
 
   return { errors };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  if (shouldResumeEmbeddedAuth(request)) {
+    const url = new URL(request.url);
+    throw redirect(`/app?${url.searchParams.toString()}`);
+  }
+
   const errors = loginErrorMessage(await login(request));
 
   return {
