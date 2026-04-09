@@ -90,6 +90,15 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Upload backend compose file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: forestock-backend/docker-compose.prod.yml
+          target: /home/ubuntu/forestock/forestock-backend/
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
         env:
@@ -104,9 +113,6 @@ jobs:
           script: |
             set -e
             cd ~/forestock/forestock-backend
-
-            # Pull latest compose file and config changes
-            git -C ~/forestock pull origin main
 
             # Ensure AWS CLI is available without redownloading it on every deploy.
             if ! command -v aws >/dev/null 2>&1; then
