@@ -1,48 +1,32 @@
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, redirect, useActionData, useLoaderData } from "react-router";
-
-import { login } from "../../shopify.server";
-import { loginErrorMessage } from "./error.server";
-
-function shouldResumeEmbeddedAuth(request: Request) {
-  const url = new URL(request.url);
-  return ["shop", "host", "embedded", "hmac", "id_token", "session"].some((key) =>
-    url.searchParams.has(key),
-  );
-}
+import { redirect } from "react-router";
+import {
+  embeddedAppRedirectTarget,
+  hasShopifyEmbeddedContext,
+  logEmbeddedAuthContext,
+} from "../../embedded-auth.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  if (shouldResumeEmbeddedAuth(request)) {
-    const url = new URL(request.url);
-    throw redirect(`/app?${url.searchParams.toString()}`);
+  logEmbeddedAuthContext(request, "auth-login-loader");
+  const url = new URL(request.url);
+  if (hasShopifyEmbeddedContext(url)) {
+    throw redirect(embeddedAppRedirectTarget(url));
   }
-
-  const errors = loginErrorMessage(await login(request));
-
-  return { errors };
+  return null;
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  if (shouldResumeEmbeddedAuth(request)) {
-    const url = new URL(request.url);
-    throw redirect(`/app?${url.searchParams.toString()}`);
+  logEmbeddedAuthContext(request, "auth-login-action");
+  const url = new URL(request.url);
+  if (hasShopifyEmbeddedContext(url)) {
+    throw redirect(embeddedAppRedirectTarget(url));
   }
 
-  const errors = loginErrorMessage(await login(request));
-
-  return {
-    errors,
-  };
+  return null;
 };
 
 export default function Auth() {
-  const loaderData = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const [shop, setShop] = useState("");
-  const { errors } = actionData || loaderData;
-
   return (
     <AppProvider embedded={false}>
       <div
@@ -80,28 +64,29 @@ export default function Auth() {
               >
                 Forestock sign in
               </div>
-              <h1 style={{ margin: 0, fontSize: 30, lineHeight: 1.05, color: "#111827" }}>Open your Shopify workspace</h1>
+              <h1 style={{ margin: 0, fontSize: 30, lineHeight: 1.05, color: "#111827" }}>Open Forestock from Shopify Admin</h1>
               <p style={{ margin: "10px 0 0", color: "#6d7175", lineHeight: 1.6 }}>
-                Use the shop domain for a store where Forestock is installed. The app will continue the standard Shopify embedded auth flow from there.
+                This route is only a recovery surface. The normal flow is to open the app from Shopify Admin, where Forestock should already know the store context.
               </p>
             </div>
-
-            <Form method="post">
-              <s-section heading="Shop domain">
-                <s-text-field
-                  name="shop"
-                  label="Shop domain"
-                  details="example.myshopify.com"
-                  value={shop}
-                  onChange={(e) => setShop(e.currentTarget.value)}
-                  autocomplete="on"
-                  error={errors.shop}
-                ></s-text-field>
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-start" }}>
-                  <s-button type="submit">Continue to Shopify</s-button>
-                </div>
-              </s-section>
-            </Form>
+            <div
+              style={{
+                border: "1px solid #d2d5d9",
+                borderRadius: 18,
+                padding: 18,
+                background: "#f6f6f7",
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>Expected merchant path</div>
+              <div style={{ color: "#4b5563", lineHeight: 1.6 }}>
+                Shopify Admin {"->"} Apps and sales channels {"->"} Forestock {"->"} Open app
+              </div>
+              <div style={{ color: "#6d7175", lineHeight: 1.6 }}>
+                If you reached this page from Shopify Admin, the app likely lost embedded auth context or has a runtime configuration mismatch. That should be fixed in the app, not worked around by asking for a store link.
+              </div>
+            </div>
           </div>
         </div>
       </div>

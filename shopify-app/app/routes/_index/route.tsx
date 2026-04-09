@@ -1,21 +1,21 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { redirect, Form, useLoaderData } from "react-router";
+import { redirect, useLoaderData } from "react-router";
 
 import { login } from "../../shopify.server";
+import {
+  embeddedAppRedirectTarget,
+  hasShopifyEmbeddedContext,
+  logEmbeddedAuthContext,
+} from "../../embedded-auth.server";
 
 import styles from "./styles.module.css";
 
-function hasShopifyEmbeddedContext(url: URL) {
-  return ["shop", "host", "embedded", "hmac", "id_token", "session"].some((key) =>
-    url.searchParams.has(key),
-  );
-}
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  logEmbeddedAuthContext(request, "entry");
   const url = new URL(request.url);
 
   if (hasShopifyEmbeddedContext(url)) {
-    throw redirect(`/app?${url.searchParams.toString()}`);
+    throw redirect(embeddedAppRedirectTarget(url));
   }
 
   return { showForm: Boolean(login) };
@@ -60,25 +60,28 @@ export default function App() {
           </section>
 
           <aside className={`${styles.panel} ${styles.formPanel}`}>
-            <h2 className={styles.formHeading}>Open your store</h2>
+            <h2 className={styles.formHeading}>Open Forestock from Shopify Admin</h2>
             <p className={styles.formText}>
-              Enter the shop domain for a store where Forestock is installed.
+              Forestock is designed to start from the Shopify Admin app entry, where the shop context is already known.
             </p>
-            {showForm && (
-              <Form className={styles.form} method="post" action="/auth/login">
-                <label className={styles.label}>
-                  <span>Shop domain</span>
-                  <input className={styles.input} type="text" name="shop" placeholder="example.myshopify.com" autoComplete="on" />
-                  <span className={styles.details}>Use the full `myshopify.com` domain.</span>
-                </label>
-                <button className={styles.button} type="submit">
-                  Continue to Shopify
-                </button>
-              </Form>
-            )}
+            <div className={styles.infoStack}>
+              <div className={styles.infoCard}>
+                <p className={styles.infoTitle}>Normal path</p>
+                <p className={styles.infoBody}>Apps and sales channels {"->"} Forestock {"->"} Open app</p>
+              </div>
+              <div className={styles.infoCard}>
+                <p className={styles.infoTitle}>Why this matters</p>
+                <p className={styles.infoBody}>The embedded app should identify the store automatically. Manual shop-domain entry is only a fallback and should not be the primary experience.</p>
+              </div>
+            </div>
             <p className={styles.smallPrint}>
               Forecasting stays on the same backend logic used by Forestock on the web. This app is the Shopify operating surface for setup, sync, and recommendations.
             </p>
+            {showForm ? (
+              <p className={styles.smallPrint}>
+                If Shopify Admin still redirects here unexpectedly, that indicates an auth/config issue we should fix rather than asking the merchant for a store link.
+              </p>
+            ) : null}
           </aside>
         </div>
 
