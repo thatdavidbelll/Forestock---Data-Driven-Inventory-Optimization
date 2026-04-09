@@ -275,11 +275,9 @@ jobs:
           tar -czf shopify-app-deploy.tar.gz \
             -C shopify-app \
             build \
-            node_modules \
             package.json \
             package-lock.json \
             prisma \
-            app \
             public \
             .env
 
@@ -338,8 +336,9 @@ jobs:
             EOF
 
             cd ~/forestock/shopify-runtime
-            mkdir -p prisma
-            npx prisma db push
+            npm ci --omit=dev
+            npx prisma generate
+            npx prisma migrate deploy
 
             sudo systemctl daemon-reload
             sudo systemctl enable forestock-shopify

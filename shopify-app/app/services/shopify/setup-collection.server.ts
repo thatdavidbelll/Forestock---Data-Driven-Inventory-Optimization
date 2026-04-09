@@ -16,6 +16,15 @@ function buildOrderHistoryQuery(historyDays: number) {
     .slice(0, 10)}`;
 }
 
+function parseNumericShopifyGid(gid?: string | null): number | null {
+  if (!gid) {
+    return null;
+  }
+
+  const match = gid.match(/\/(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
 async function readGraphQLPayload<T>(response: Response, failureMessage: string) {
   const payload = (await response.json()) as {
     data?: T;
@@ -196,7 +205,7 @@ export async function collectHistoricalOrders(
               }
               lineItems(first: 100) {
                 nodes {
-                  legacyResourceId
+                  id
                   name
                   quantity
                   sku
@@ -244,7 +253,7 @@ export async function collectHistoricalOrders(
           } | null;
           lineItems?: {
             nodes?: Array<{
-              legacyResourceId?: string | null;
+              id?: string | null;
               name: string;
               quantity: number;
               sku?: string | null;
@@ -283,10 +292,8 @@ export async function collectHistoricalOrders(
           null,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt ?? null,
-        lineItems: (order.lineItems?.nodes ?? []).map((lineItem, index) => ({
-          shopifyLineItemId: lineItem.legacyResourceId
-            ? Number(lineItem.legacyResourceId)
-            : Number(`${order.legacyResourceId ?? 0}${String(index + 1).padStart(3, "0")}`),
+        lineItems: (order.lineItems?.nodes ?? []).map((lineItem) => ({
+          shopifyLineItemId: parseNumericShopifyGid(lineItem.id),
           shopifyVariantGid: lineItem.variant?.id ?? null,
           sku: lineItem.sku ?? null,
           title: lineItem.name,
