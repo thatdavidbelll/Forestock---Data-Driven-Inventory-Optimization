@@ -1,25 +1,26 @@
 import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
 
 const palette = {
-  bg: "#f5f7fb",
+  appBg: "#f6f6f7",
   surface: "#ffffff",
-  surfaceAlt: "#edf4f7",
-  border: "#d9e2ec",
-  text: "#102a43",
-  muted: "#52606d",
-  primary: "#183b56",
-  accent: "#0f9d8a",
-  accentSoft: "#e6f6f4",
-  warning: "#b7791f",
-  warningSoft: "#fff7e6",
-  critical: "#d64545",
-  criticalSoft: "#fdecec",
-  success: "#1f7a4f",
-  successSoft: "#eaf7ef",
+  surfaceSubtle: "#f1f2f4",
+  border: "#d2d5d9",
+  borderStrong: "#8c9196",
+  text: "#202223",
+  muted: "#6d7175",
+  blue: "#005bd3",
+  blueSoft: "#edf4ff",
+  green: "#008060",
+  greenSoft: "#e3f1df",
+  amber: "#b98900",
+  amberSoft: "#fef5ea",
+  red: "#d82c0d",
+  redSoft: "#fff1f1",
+  ink: "#111827",
 };
 
 const shadows = {
-  card: "0 10px 30px rgba(15, 23, 42, 0.06)",
+  card: "0 1px 0 rgba(22, 29, 37, 0.05), 0 2px 8px rgba(22, 29, 37, 0.06)",
 };
 
 export function AppShell({
@@ -33,38 +34,91 @@ export function AppShell({
   actions?: ReactNode;
 }>) {
   return (
-    <div style={{ background: palette.bg, minHeight: "100vh", color: palette.text }}>
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 20px 48px" }}>
-        <header
+    <div style={{ background: palette.appBg, minHeight: "100vh", color: palette.text }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px 40px" }}>
+        <div
           style={{
-            background: `linear-gradient(135deg, ${palette.primary} 0%, #24506f 100%)`,
-            color: "white",
-            borderRadius: 24,
+            background: palette.surface,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 18,
             padding: "24px 24px 20px",
             boxShadow: shadows.card,
             marginBottom: 20,
           }}
         >
-          <div style={{ display: "flex", gap: 16, justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
             <div>
-              <div style={{ fontSize: 12, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.75, fontWeight: 700 }}>
-                Forestock for Shopify
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: palette.muted,
+                  marginBottom: 10,
+                }}
+              >
+                Forestock embedded app
               </div>
-              <h1 style={{ margin: "8px 0 10px", fontSize: 30, lineHeight: 1.15 }}>{title}</h1>
-              {subtitle ? <p style={{ margin: 0, maxWidth: 760, color: "rgba(255,255,255,0.86)", fontSize: 15 }}>{subtitle}</p> : null}
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: 30,
+                  lineHeight: 1.1,
+                  color: palette.ink,
+                }}
+              >
+                {title}
+              </h1>
+              {subtitle ? (
+                <p
+                  style={{
+                    margin: "10px 0 0",
+                    maxWidth: 760,
+                    fontSize: 15,
+                    lineHeight: 1.6,
+                    color: palette.muted,
+                  }}
+                >
+                  {subtitle}
+                </p>
+              ) : null}
             </div>
-            {actions ? <div>{actions}</div> : null}
+            {actions ? <div style={{ display: "flex", alignItems: "center", gap: 10 }}>{actions}</div> : null}
           </div>
-        </header>
+        </div>
         {children}
       </div>
     </div>
   );
 }
 
-export function NavTabs({ items, currentPath }: { items: Array<{ label: string; href: string }>; currentPath: string }) {
+export function NavTabs({
+  items,
+  currentPath,
+}: {
+  items: Array<{ label: string; href: string }>;
+  currentPath: string;
+}) {
   return (
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        flexWrap: "wrap",
+        margin: "20px auto 16px",
+        maxWidth: 1200,
+        padding: "0 20px",
+      }}
+    >
       {items.map((item) => {
         const active = currentPath === item.href;
         return (
@@ -75,12 +129,12 @@ export function NavTabs({ items, currentPath }: { items: Array<{ label: string; 
               textDecoration: "none",
               padding: "10px 14px",
               borderRadius: 999,
-              fontWeight: 700,
               fontSize: 14,
-              color: active ? "white" : palette.primary,
-              background: active ? palette.primary : "white",
-              border: `1px solid ${active ? palette.primary : palette.border}`,
-              boxShadow: active ? shadows.card : "none",
+              fontWeight: 700,
+              color: active ? palette.blue : palette.text,
+              background: active ? palette.blueSoft : palette.surface,
+              border: `1px solid ${active ? "#bfdbfe" : palette.border}`,
+              boxShadow: active ? "inset 0 0 0 1px rgba(0, 91, 211, 0.08)" : "none",
             }}
           >
             {item.label}
@@ -91,19 +145,30 @@ export function NavTabs({ items, currentPath }: { items: Array<{ label: string; 
   );
 }
 
-export function Section({ title, description, children }: PropsWithChildren<{ title: string; description?: string }>) {
+export function Section({
+  title,
+  description,
+  children,
+}: PropsWithChildren<{ title: string; description?: string }>) {
   return (
     <section style={{ marginBottom: 20 }}>
       <div style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: "0 0 6px", fontSize: 21 }}>{title}</h2>
-        {description ? <p style={{ margin: 0, color: palette.muted, fontSize: 14 }}>{description}</p> : null}
+        <h2 style={{ margin: 0, fontSize: 20, lineHeight: 1.2 }}>{title}</h2>
+        {description ? (
+          <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.6, color: palette.muted }}>
+            {description}
+          </p>
+        ) : null}
       </div>
       {children}
     </section>
   );
 }
 
-export function Grid({ columns = 2, children }: PropsWithChildren<{ columns?: 2 | 3 | 4 }>) {
+export function Grid({
+  columns = 2,
+  children,
+}: PropsWithChildren<{ columns?: 2 | 3 | 4 }>) {
   return (
     <div
       style={{
@@ -122,20 +187,27 @@ export function Grid({ columns = 2, children }: PropsWithChildren<{ columns?: 2 
   );
 }
 
-export function Card({ children, tone = "default", style }: PropsWithChildren<{ tone?: "default" | "accent" | "success" | "warning" | "critical" | "subtle"; style?: CSSProperties }>) {
+export function Card({
+  children,
+  tone = "default",
+  style,
+}: PropsWithChildren<{
+  tone?: "default" | "accent" | "success" | "warning" | "critical" | "subtle";
+  style?: CSSProperties;
+}>) {
   const toneStyles: Record<string, CSSProperties> = {
     default: { background: palette.surface, border: `1px solid ${palette.border}` },
-    accent: { background: palette.accentSoft, border: `1px solid #bfeae3` },
-    success: { background: palette.successSoft, border: `1px solid #c9e9d4` },
-    warning: { background: palette.warningSoft, border: `1px solid #f0d8a7` },
-    critical: { background: palette.criticalSoft, border: `1px solid #f2b5b5` },
-    subtle: { background: palette.surfaceAlt, border: `1px solid ${palette.border}` },
+    accent: { background: palette.blueSoft, border: "1px solid #bfdbfe" },
+    success: { background: palette.greenSoft, border: "1px solid #bad8b0" },
+    warning: { background: palette.amberSoft, border: "1px solid #f1d4a0" },
+    critical: { background: palette.redSoft, border: "1px solid #f2b8b5" },
+    subtle: { background: palette.surfaceSubtle, border: `1px solid ${palette.border}` },
   };
 
   return (
     <div
       style={{
-        borderRadius: 20,
+        borderRadius: 16,
         padding: 18,
         boxShadow: shadows.card,
         ...toneStyles[tone],
@@ -147,40 +219,88 @@ export function Card({ children, tone = "default", style }: PropsWithChildren<{ 
   );
 }
 
-export function MetricCard({ label, value, hint, tone = "default" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "default" | "accent" | "success" | "warning" | "critical" | "subtle" }) {
+export function MetricCard({
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  tone?: "default" | "accent" | "success" | "warning" | "critical" | "subtle";
+}) {
   return (
     <Card tone={tone}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: palette.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: palette.muted,
+          marginBottom: 10,
+        }}
+      >
         {label}
       </div>
-      <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1, marginBottom: hint ? 8 : 0 }}>{value}</div>
-      {hint ? <div style={{ fontSize: 14, color: palette.muted }}>{hint}</div> : null}
+      <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.1, marginBottom: hint ? 8 : 0 }}>{value}</div>
+      {hint ? <div style={{ fontSize: 14, color: palette.muted, lineHeight: 1.5 }}>{hint}</div> : null}
     </Card>
   );
 }
 
-export function Badge({ children, tone = "default" }: PropsWithChildren<{ tone?: "default" | "success" | "warning" | "critical" | "accent" }>) {
+export function Badge({
+  children,
+  tone = "default",
+}: PropsWithChildren<{ tone?: "default" | "success" | "warning" | "critical" | "accent" | "subtle" }>) {
   const styles: Record<string, CSSProperties> = {
-    default: { background: "#eef2f6", color: palette.primary },
-    success: { background: palette.successSoft, color: palette.success },
-    warning: { background: palette.warningSoft, color: palette.warning },
-    critical: { background: palette.criticalSoft, color: palette.critical },
-    accent: { background: palette.accentSoft, color: palette.accent },
+    default: { background: "#eef0f1", color: palette.text },
+    subtle: { background: palette.surfaceSubtle, color: palette.text },
+    success: { background: palette.greenSoft, color: palette.green },
+    warning: { background: palette.amberSoft, color: palette.amber },
+    critical: { background: palette.redSoft, color: palette.red },
+    accent: { background: palette.blueSoft, color: palette.blue },
   };
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800, ...styles[tone] }}>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 800,
+        ...styles[tone],
+      }}
+    >
       {children}
     </span>
   );
 }
 
-export function KeyValueList({ items }: { items: Array<{ label: string; value: ReactNode }> }) {
+export function KeyValueList({
+  items,
+}: {
+  items: Array<{ label: string; value: ReactNode }>;
+}) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
-      {items.map((item) => (
-        <div key={item.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, borderBottom: `1px solid ${palette.border}`, paddingBottom: 10 }}>
-          <div style={{ color: palette.muted, fontSize: 14 }}>{item.label}</div>
+      {items.map((item, index) => (
+        <div
+          key={`${item.label}-${index}`}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 16,
+            paddingBottom: 10,
+            borderBottom: `1px solid ${palette.border}`,
+          }}
+        >
+          <div style={{ fontSize: 14, color: palette.muted }}>{item.label}</div>
           <div style={{ fontSize: 14, fontWeight: 700, textAlign: "right" }}>{item.value}</div>
         </div>
       ))}
@@ -188,13 +308,13 @@ export function KeyValueList({ items }: { items: Array<{ label: string; value: R
   );
 }
 
-export function ActionButton({ children, loading, tone = "primary" }: PropsWithChildren<{ loading?: boolean; tone?: "primary" | "secondary" }>) {
+export function ActionButton({
+  children,
+  loading,
+  tone = "primary",
+}: PropsWithChildren<{ loading?: boolean; tone?: "primary" | "secondary" }>) {
   return (
-    <s-button
-      type="submit"
-      loading={loading}
-      variant={tone === "secondary" ? "secondary" : undefined}
-    >
+    <s-button type="submit" loading={loading} variant={tone === "secondary" ? "secondary" : undefined}>
       {loading ? "Running..." : children}
     </s-button>
   );
@@ -204,8 +324,42 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <Card tone="subtle">
       <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{title}</div>
-      <div style={{ color: palette.muted, lineHeight: 1.6 }}>{body}</div>
+      <div style={{ fontSize: 14, lineHeight: 1.6, color: palette.muted }}>{body}</div>
     </Card>
+  );
+}
+
+export function InfoBanner({
+  title,
+  body,
+  tone = "accent",
+  actions,
+}: {
+  title: string;
+  body: ReactNode;
+  tone?: "accent" | "success" | "warning" | "critical" | "subtle";
+  actions?: ReactNode;
+}) {
+  return (
+    <Card tone={tone} style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{title}</div>
+          <div style={{ fontSize: 14, lineHeight: 1.6, color: tone === "subtle" ? palette.muted : palette.text }}>{body}</div>
+        </div>
+        {actions ? <div style={{ display: "flex", alignItems: "center" }}>{actions}</div> : null}
+      </div>
+    </Card>
+  );
+}
+
+export function InlineList({ items }: { items: string[] }) {
+  return (
+    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
   );
 }
 
@@ -214,7 +368,9 @@ export function formatDateTime(value: string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
-export function toneForForecast(status: string | null | undefined): "default" | "success" | "warning" | "critical" | "accent" {
+export function toneForForecast(
+  status: string | null | undefined,
+): "default" | "success" | "warning" | "critical" | "accent" {
   if (!status) return "warning";
   const normalized = status.toUpperCase();
   if (normalized.includes("COMPLETED")) return "success";
@@ -233,10 +389,17 @@ export function toneForReadiness({
   forecastStatus: string | null;
 }): { label: string; tone: "success" | "warning" | "critical" | "accent" } {
   if (forecastStatus?.toUpperCase().includes("COMPLETED") && activeProductCount > 0 && hasSalesHistory) {
-    return { label: "Forecast ready", tone: "success" };
+    return { label: "Recommendations ready", tone: "success" };
+  }
+  if (forecastStatus?.toUpperCase().includes("RUNNING") || forecastStatus?.toUpperCase().includes("PENDING")) {
+    return { label: "Forecast running", tone: "accent" };
   }
   if (activeProductCount > 0 || hasSalesHistory) {
     return { label: "Needs completion", tone: "warning" };
   }
   return { label: "Needs setup", tone: "critical" };
+}
+
+export function toneForBoolean(value: boolean, positiveTone: "success" | "accent" = "success") {
+  return value ? positiveTone : "warning";
 }

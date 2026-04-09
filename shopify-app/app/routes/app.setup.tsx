@@ -1,7 +1,21 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { ActionButton, AppShell, Badge, Card, EmptyState, Grid, KeyValueList, Section, formatDateTime } from "../components";
+import {
+  ActionButton,
+  AppShell,
+  Badge,
+  Card,
+  EmptyState,
+  Grid,
+  InfoBanner,
+  InlineList,
+  KeyValueList,
+  MetricCard,
+  Section,
+  formatDateTime,
+  toneForReadiness,
+} from "../components";
 import { getForestockAppHome } from "../forestock.server";
 import { authenticate } from "../shopify.server";
 import {
@@ -479,6 +493,21 @@ function StepResult({ data }: { data: ActionData | undefined }) {
   );
 }
 
+function StepStatusBadge({
+  completed,
+  failed,
+  running,
+}: {
+  completed: boolean;
+  failed?: boolean;
+  running?: boolean;
+}) {
+  if (running) return <Badge tone="accent">Running</Badge>;
+  if (failed) return <Badge tone="critical">Needs attention</Badge>;
+  if (completed) return <Badge tone="success">Completed</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
+}
+
 function ActionSection({
   step,
   title,
@@ -487,6 +516,7 @@ function ActionSection({
   intent,
   fetcher,
   successLooksLike,
+  complete,
 }: {
   step: string;
   title: string;
@@ -495,9 +525,11 @@ function ActionSection({
   intent: ActionData["intent"];
   fetcher: ReturnType<typeof useFetcher<ActionData>>;
   successLooksLike: string;
+  complete: boolean;
 }) {
   const busy = fetcher.state !== "idle";
   const result = fetcher.data?.intent === intent ? fetcher.data : undefined;
+  const failed = Boolean(result && !result.ok);
 
   return (
     <Card>
@@ -508,7 +540,7 @@ function ActionSection({
           </div>
           <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
         </div>
-        <Badge tone={result?.ok ? "success" : result && !result.ok ? "critical" : "accent"}>{result?.ok ? "Done" : result && !result.ok ? "Needs attention" : "Ready"}</Badge>
+        <StepStatusBadge completed={complete || Boolean(result?.ok)} failed={failed} running={busy} />
       </div>
       <div style={{ color: "#52606d", lineHeight: 1.7, marginBottom: 12 }}>{description}</div>
       <div style={{ fontSize: 14, marginBottom: 14 }}>
@@ -529,31 +561,47 @@ export default function SetupPage() {
   const provisionFetcher = useFetcher<ActionData>();
   const catalogFetcher = useFetcher<ActionData>();
   const ordersFetcher = useFetcher<ActionData>();
+  const readiness = toneForReadiness({
+    activeProductCount: overview.activeProductCount,
+    hasSalesHistory: overview.hasSalesHistory,
+    forecastStatus: overview.forecastStatus,
+  });
+  const provisioned = overview.shopifyConnectionActive;
+  const catalogReady = overview.totalProductCount > 0;
+  const ordersReady = overview.hasSalesHistory;
+  const forecastReady = Boolean(overview.forecastProof);
+  const recommendationsReady = overview.recommendationReadinessReasons.length === 0 && overview.forecastProof?.readyForRecommendations;
 
   return (
     <AppShell
-      title="Setup and sync"
-      subtitle="Use this page to make the Shopify-to-Forestock pipeline explicit. Each step should leave visible evidence, not just the feeling that something might have happened."
-      actions={<Badge tone="accent">Operator flow</Badge>}
+      title="Setup"
+      subtitle="Guide the merchant from install to usable recommendations. This page should make linkage, imports, and forecast readiness explicit and recoverable."
+      actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
     >
-      <Section title="Shop identity" description="This is the shop Forestock will link and import from.">
-        <Card tone="subtle">
-          <KeyValueList
-            items={[
-              { label: "Shop name", value: shopName },
-              { label: "Shop domain", value: shopDomain },
-            ]}
-          />
-        </Card>
+      <InfoBanner
+        title="Forecast parity rule"
+        body="The Shopify app does not implement a separate forecast algorithm. It provisions data, exposes sync health, and displays the same backend forecast and recommendation output used by the website."
+        tone="subtle"
+      />
+
+      <Section title="Shop identity" description="This is the Shopify store Forestock is linking and importing from.">
+        <Grid columns={3}>
+          <MetricCard label="Shop name" value={shopName} tone="subtle" />
+          <MetricCard label="Shop domain" value={shopDomain} tone="subtle" />
+          <MetricCard label="Current state" value={readiness.label} tone={readiness.tone} />
+        </Grid>
       </Section>
 
-      <Section title="Recommended path" description="Run the whole flow if this is a first install. Use individual steps only when fixing or re-running a specific part.">
+      <Section
+        title="Recommended first-run path"
+        description="Run the full setup for a fresh install. Use the individual controls only when you are retrying a failed step or validating a single sync stage."
+      >
         <Card tone="accent">
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Run complete setup</div>
               <div style={{ color: "#52606d", lineHeight: 1.7, maxWidth: 760 }}>
-                This links the Forestock workspace, imports the Shopify catalog and inventory, and backfills the most recent 60 days of order history in one operator action.
+                This links the Forestock workspace, imports the Shopify catalog and inventory snapshot, and backfills the most recent 60 days of order history so the existing forecast engine has usable data.
               </div>
             </div>
             <fullSetupFetcher.Form method="post">
@@ -561,38 +609,48 @@ export default function SetupPage() {
               <ActionButton loading={fullSetupFetcher.state !== "idle"}>Run complete setup</ActionButton>
             </fullSetupFetcher.Form>
           </div>
-          {fullSetupFetcher.data ? <div style={{ marginTop: 16 }}><StepResult data={fullSetupFetcher.data} /></div> : null}
+          {fullSetupFetcher.data ? (
+            <div style={{ marginTop: 16 }}>
+              <StepResult data={fullSetupFetcher.data} />
+            </div>
+          ) : null}
         </Card>
       </Section>
 
-      <Section title="Step-by-step controls" description="Use these when validating specific parts of the flow or when one step needs to be retried.">
+      <Section
+        title="Setup tracker"
+        description="A merchant or operator should be able to tell which stages are complete, which can be retried, and whether recommendations are actually trustworthy."
+      >
         <Grid columns={2}>
           <ActionSection
             step="Step 1"
-            title="Link workspace"
-            description="Create or reconnect the Forestock workspace for this Shopify store without importing data."
+            title="Link store to Forestock"
+            description="Create or reconnect the store workspace without importing catalog or order history yet."
             buttonLabel="Link workspace"
             intent="provision"
             fetcher={provisionFetcher}
-            successLooksLike="The store is linked to a Forestock workspace and you get a clear workspace identity back."
+            successLooksLike="The store is linked to a Forestock workspace and the connection remains active."
+            complete={provisioned}
           />
           <ActionSection
             step="Step 2"
             title="Import catalog and inventory"
-            description="Pull the live Shopify catalog and inventory positions into Forestock."
+            description="Pull the live Shopify catalog and inventory positions into the backend so products can be forecasted and matched."
             buttonLabel="Import catalog"
             intent="catalog"
             fetcher={catalogFetcher}
             successLooksLike="Products are processed, created or updated, and inventory snapshots are recorded."
+            complete={catalogReady}
           />
           <ActionSection
             step="Step 3"
             title="Import order history"
-            description="Backfill the most recent 60 days of Shopify order history so recommendations have sales context."
+            description="Backfill the most recent 60 days of Shopify order history so the shared forecast engine has demand history to learn from."
             buttonLabel="Import orders"
             intent="orders"
             fetcher={ordersFetcher}
             successLooksLike="Orders are imported, line items are matched, and sales rows are written for forecasting."
+            complete={ordersReady}
           />
           {overview.forecastProof ? (
             <Card tone={overview.forecastProof.readyForRecommendations ? "success" : overview.forecastProof.errorMessage ? "critical" : "warning"}>
@@ -612,11 +670,7 @@ export default function SetupPage() {
               {overview.recommendationReadinessReasons.length > 0 ? (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>Still blocking recommendation trust:</div>
-                  <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
-                    {overview.recommendationReadinessReasons.map((reason: string) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
+                  <InlineList items={overview.recommendationReadinessReasons} />
                 </div>
               ) : null}
             </Card>
@@ -626,6 +680,18 @@ export default function SetupPage() {
               body="Imports alone are not enough. We still need evidence that a forecast has actually started or completed for this store before treating recommendations as trustworthy."
             />
           )}
+        </Grid>
+      </Section>
+
+      <Section
+        title="Current setup evidence"
+        description="These signals summarize what the backend currently knows about this store after provisioning and sync activity."
+      >
+        <Grid columns={4}>
+          <MetricCard label="Connection" value={provisioned ? "Linked" : "Pending"} tone={provisioned ? "success" : "warning"} />
+          <MetricCard label="Products mapped" value={overview.totalProductCount} hint={`${overview.activeProductCount} active`} tone={catalogReady ? "accent" : "warning"} />
+          <MetricCard label="Sales rows" value={overview.salesTransactionCount} hint={overview.latestSaleDate ? `Latest ${overview.latestSaleDate}` : "No sales history yet"} tone={ordersReady ? "success" : "warning"} />
+          <MetricCard label="Recommendation ready" value={recommendationsReady ? "Yes" : "No"} hint={forecastReady ? "Forecast evidence found" : "Forecast evidence missing"} tone={recommendationsReady ? "success" : "warning"} />
         </Grid>
       </Section>
     </AppShell>

@@ -19,17 +19,15 @@ export default function App() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <div style={{ padding: "20px 20px 0" }}>
-        <NavTabs
-          currentPath={location.pathname}
-          items={[
-            { label: "Overview", href: "/app" },
-            { label: "Setup & Sync", href: "/app/setup" },
-            { label: "Recommendations", href: "/app/recommendations" },
-            { label: "How it works", href: "/app/additional" },
-          ]}
-        />
-      </div>
+      <NavTabs
+        currentPath={location.pathname}
+        items={[
+          { label: "Home", href: "/app" },
+          { label: "Setup", href: "/app/setup" },
+          { label: "Recommendations", href: "/app/recommendations" },
+          { label: "Support", href: "/app/additional" },
+        ]}
+      />
       <Outlet />
     </AppProvider>
   );

@@ -1,7 +1,19 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { AppShell, Badge, Card, EmptyState, formatDateTime, Grid, KeyValueList, MetricCard, Section, toneForForecast } from "../components";
+import {
+  AppShell,
+  Badge,
+  Card,
+  EmptyState,
+  formatDateTime,
+  Grid,
+  InfoBanner,
+  KeyValueList,
+  MetricCard,
+  Section,
+  toneForForecast,
+} from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockRecommendations } from "../forestock.server";
 
@@ -10,47 +22,90 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return getForestockRecommendations(session.shop);
 };
 
+function urgencyTone(urgency: string) {
+  if (urgency === "CRITICAL") return "critical" as const;
+  if (urgency === "HIGH") return "warning" as const;
+  return "accent" as const;
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const forecastTone = toneForForecast(data.forecastStatus);
+  const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
+  const highCount = data.recommendations.filter((recommendation) => recommendation.urgency === "HIGH").length;
 
   return (
     <AppShell
       title="Recommendations"
-      subtitle="This page should help a merchant trust why Forestock is suggesting a reorder, not just list numbers without context."
+      subtitle="This page should translate the shared forecast output into an embedded Shopify decision queue. The forecast and recommendation logic remain the same backend logic used by the website."
       actions={<Badge tone={forecastTone}>{data.forecastStatus ?? "No forecast yet"}</Badge>}
     >
-      <Section title="Forecast context" description="Recommendations are only as useful as the forecast and sales history behind them.">
-        <Grid columns={3}>
-          <MetricCard label="Forecast status" value={data.forecastStatus ?? "Not run yet"} hint={`Completed: ${formatDateTime(data.forecastCompletedAt)}`} tone={forecastTone === "success" ? "success" : forecastTone === "critical" ? "critical" : forecastTone === "accent" ? "accent" : "warning"} />
-          <MetricCard label="Open recommendations" value={data.recommendations.length} hint={data.recommendations.length > 0 ? "Products currently needing attention" : "Nothing actionable surfaced yet"} tone={data.recommendations.length > 0 ? "accent" : "subtle"} />
-          <MetricCard label="Merchant trust" value={data.recommendations.length > 0 ? "Building" : "Low"} hint={data.recommendations.length > 0 ? "There is decision output to review" : "Missing setup, forecast, or sales context"} tone={data.recommendations.length > 0 ? "success" : "warning"} />
+      <InfoBanner
+        title="Current recommendation contract"
+        body="This embedded page is intentionally a presentation layer over the existing backend recommendation output. The next expansion should be field parity with the website suggestions table, not a separate Shopify-side algorithm."
+        tone="subtle"
+      />
+
+      <Section
+        title="Recommendation readiness"
+        description="Merchants need context before they trust a reorder queue."
+      >
+        <Grid columns={4}>
+          <MetricCard
+            label="Forecast status"
+            value={data.forecastStatus ?? "Not run yet"}
+            hint={`Completed ${formatDateTime(data.forecastCompletedAt)}`}
+            tone={forecastTone === "default" ? "warning" : forecastTone}
+          />
+          <MetricCard
+            label="Open recommendations"
+            value={data.recommendations.length}
+            hint={data.recommendations.length > 0 ? "Products currently needing review" : "No active queue yet"}
+            tone={data.recommendations.length > 0 ? "accent" : "subtle"}
+          />
+          <MetricCard
+            label="Critical items"
+            value={criticalCount}
+            hint="Immediate stockout exposure"
+            tone={criticalCount > 0 ? "critical" : "subtle"}
+          />
+          <MetricCard
+            label="High priority"
+            value={highCount}
+            hint="Important but less urgent"
+            tone={highCount > 0 ? "warning" : "subtle"}
+          />
         </Grid>
       </Section>
 
-      <Section title="Priority reorder list" description="Each card should tell a merchant what to buy, why, and how urgent the problem is.">
+      <Section
+        title="Review queue"
+        description="Each recommendation should tell the merchant what needs reordering now, how urgent it is, and whether the output is fresh enough to trust."
+      >
         {data.recommendations.length > 0 ? (
           <Grid columns={2}>
             {data.recommendations.map((recommendation) => {
-              const tone = recommendation.urgency === "CRITICAL" ? "critical" : recommendation.urgency === "HIGH" ? "warning" : "accent";
+              const tone = urgencyTone(recommendation.urgency);
               return (
                 <Card key={recommendation.id} tone={tone}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 20, fontWeight: 800 }}>{recommendation.productName}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 4 }}>{recommendation.productName}</div>
+                      <div style={{ fontSize: 14, color: "#6d7175" }}>{recommendation.productSku}</div>
+                    </div>
                     <Badge tone={tone}>{recommendation.urgency}</Badge>
                   </div>
                   <KeyValueList
                     items={[
-                      { label: "SKU", value: recommendation.productSku },
                       { label: "Days of stock", value: recommendation.daysOfStock ?? "Unknown" },
-                      { label: "Suggested reorder quantity", value: recommendation.suggestedQty ?? "Unknown" },
+                      { label: "Suggested reorder qty", value: recommendation.suggestedQty ?? "Unknown" },
                       { label: "Estimated order value", value: recommendation.estimatedOrderValue ?? "Unknown" },
                       { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
                       { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
                     ]}
                   />
-                  <div style={{ marginTop: 12, color: "#52606d", lineHeight: 1.6 }}>
-                    This recommendation should be reviewed against your latest Shopify sales reality. If it feels off, validate setup, imports, and recent order history before acting.
+                  <div style={{ marginTop: 12, fontSize: 14, lineHeight: 1.6, color: "#4b5563" }}>
+                    This queue uses the same backend recommendation pipeline as the website. If the output looks weak, the correct fix is better synced catalog and order history, not alternate Shopify-side calculation.
                   </div>
                 </Card>
               );
@@ -58,8 +113,8 @@ export default function RecommendationsPage() {
           </Grid>
         ) : (
           <EmptyState
-            title="No active recommendations are ready yet"
-            body="Complete setup, import sales history, and confirm a completed forecast before expecting reliable reorder suggestions here."
+            title="No active recommendations yet"
+            body="Complete setup, import usable order history, and confirm a completed forecast before expecting trustworthy restocking recommendations here."
           />
         )}
       </Section>
