@@ -79,6 +79,9 @@ Recommended production direction:
 - use a dedicated PostgreSQL/Neon database or schema for Shopify app sessions
 - do not rely on SQLite for production session storage
 
+If the Partner app identity changes, such as switching to a new custom distribution app,
+expect to uninstall and reinstall on the dev store so embedded auth/session state resets cleanly.
+
 ## Important files
 
 - `shopify.app.toml` — app name, URLs, scopes, and webhook subscriptions
