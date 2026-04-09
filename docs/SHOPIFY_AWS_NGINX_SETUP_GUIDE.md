@@ -187,14 +187,14 @@ SHOPIFY_API_KEY=<shopify client id>
 SHOPIFY_API_SECRET=<shopify client secret>
 SHOPIFY_APP_URL=https://shopify.forestock.ro
 SCOPES=read_products,read_inventory,read_orders
-DATABASE_URL=file:dev.sqlite
+DATABASE_URL=postgresql://<user>:<password>@<host>/<shopify_sessions_db>?sslmode=require
 FORESTOCK_API_BASE_URL=https://api.forestock.ro
 FORESTOCK_PROVISIONING_SECRET=<shared provisioning secret>
 ```
 
 Notes:
-- For production-ish hosting, you may eventually want a non-SQLite session store.
-- For initial controlled rollout, SQLite may still be acceptable if the host is single-instance and carefully managed, but it is not ideal for scale or resilience.
+- Prefer PostgreSQL-compatible session storage for the Shopify app runtime.
+- Keep Shopify app session storage separate from the backend’s canonical business tables unless you are doing that deliberately with a managed schema boundary.
 
 ---
 

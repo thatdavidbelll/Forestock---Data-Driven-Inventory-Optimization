@@ -32,7 +32,7 @@ Prerequisites:
 - Shopify CLI
 - a Shopify app configured in the Partner Dashboard
 - a reachable Forestock backend
-- a database for Prisma session storage
+- a PostgreSQL-compatible database for Prisma session storage
 
 Install dependencies:
 
@@ -57,7 +57,7 @@ npm run build
 
 ## Runtime configuration
 
-See `.env.example` for the required variables.
+See `.env.local.example` for the required variables.
 
 Key values:
 
@@ -68,6 +68,16 @@ Key values:
 - `DATABASE_URL`
 - `FORESTOCK_API_BASE_URL`
 - `FORESTOCK_PROVISIONING_SECRET`
+
+## Session storage direction
+
+The Shopify app uses its own Prisma session store, separate from the backend business data model.
+
+Recommended production direction:
+
+- keep canonical Shopify business data in the backend PostgreSQL database
+- use a dedicated PostgreSQL/Neon database or schema for Shopify app sessions
+- do not rely on SQLite for production session storage
 
 ## Important files
 

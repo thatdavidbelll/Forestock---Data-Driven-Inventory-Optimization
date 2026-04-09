@@ -47,8 +47,11 @@ Minimum fields to fill:
 - `SHOPIFY_APP_URL`
 - `FORESTOCK_API_BASE_URL`
 - `FORESTOCK_PROVISIONING_SECRET`
+- `DATABASE_URL`
 
-For local validation, `DATABASE_URL=file:dev.sqlite` is acceptable.
+Recommended direction:
+- use PostgreSQL-compatible session storage here as well
+- Neon is acceptable for non-production validation if you want parity with the target production shape
 
 ### 2. Backend local env
 Create `forestock-backend/.env` from `forestock-backend/.env.local.shopify.example`.
@@ -68,6 +71,10 @@ The backend dev profile already provides Shopify test secrets:
 - `FORESTOCK_API_BASE_URL=http://localhost:8080`
 - `FORESTOCK_FRONTEND_URL=http://localhost:5173`
 - `FORESTOCK_PROVISIONING_SECRET=dev-provisioning-secret`
+
+### Shopify app session storage
+- preferred: a dedicated Neon/PostgreSQL database or schema for the Shopify app session table
+- avoid relying on SQLite outside short-lived local experiments
 
 ### If the Shopify app must call a non-local backend
 Set `FORESTOCK_API_BASE_URL` to a reachable non-production backend URL instead.
