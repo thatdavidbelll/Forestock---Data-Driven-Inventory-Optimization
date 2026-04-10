@@ -9,6 +9,7 @@ import com.forestock.forestock_backend.dto.response.StoreConfigurationDto;
 import com.forestock.forestock_backend.dto.response.StoreDto;
 import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
+import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.RegisterService;
 import com.forestock.forestock_backend.service.StoreConfigurationService;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class StoreController {
     private final RegisterService registerService;
     private final StoreRepository storeRepository;
     private final StoreConfigurationService storeConfigurationService;
+    private final ForecastTriggerService forecastTriggerService;
 
     /** Public endpoint — registers a new store + admin user. */
     @PostMapping("/api/register")
@@ -86,8 +88,9 @@ public class StoreController {
     public ResponseEntity<ApiResponse<StoreConfigurationDto>> updateStoreConfig(
             @Valid @RequestBody UpdateStoreConfigRequest request) {
         try {
-            return ResponseEntity.ok(ApiResponse.success("Store configuration updated",
-                    storeConfigurationService.updateCurrentConfig(request)));
+            StoreConfigurationDto updated = storeConfigurationService.updateCurrentConfig(request);
+            forecastTriggerService.triggerForCurrentStore("store-config-updated");
+            return ResponseEntity.ok(ApiResponse.success("Store configuration updated", updated));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (IllegalStateException e) {

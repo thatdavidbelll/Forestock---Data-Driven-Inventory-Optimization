@@ -23,7 +23,6 @@ public class StoreConfigurationService {
     private final StoreConfigurationRepository storeConfigurationRepository;
     private final StoreRepository storeRepository;
     private final AuditLogService auditLogService;
-    private final ForecastTriggerService forecastTriggerService;
 
     @Transactional(readOnly = true)
     public StoreConfigurationDto getCurrentConfig() {
@@ -82,7 +81,6 @@ public class StoreConfigurationService {
                 "Updated forecast/restocking configuration for store " + saved.getStore().getSlug()
         );
         log.info("Updated store configuration for store {}", saved.getStore().getId());
-        forecastTriggerService.triggerForStore(saved.getStore().getId(), "store-config-updated");
         return toDto(saved);
     }
 

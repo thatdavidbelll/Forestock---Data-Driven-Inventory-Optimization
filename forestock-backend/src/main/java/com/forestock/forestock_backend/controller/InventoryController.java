@@ -4,6 +4,8 @@ import com.forestock.forestock_backend.dto.request.InventoryUpdateRequest;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.InventoryDto;
 import com.forestock.forestock_backend.dto.response.SlowMoverDto;
+import com.forestock.forestock_backend.security.TenantContext;
+import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.InventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class InventoryController {
 
     private final InventoryService inventoryService;
+    private final ForecastTriggerService forecastTriggerService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<InventoryDto>>> getCurrentStock() {
@@ -51,6 +54,7 @@ public class InventoryController {
                     request.getAdjustmentReason(),
                     request.getAdjustmentNote()
             );
+            forecastTriggerService.triggerForStore(TenantContext.getStoreId(), "inventory-updated");
             return ResponseEntity.ok(ApiResponse.success("Stock updated", result));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));

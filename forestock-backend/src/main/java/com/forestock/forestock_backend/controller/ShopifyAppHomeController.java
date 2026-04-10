@@ -6,6 +6,7 @@ import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.StoreConfigurationDto;
 import com.forestock.forestock_backend.repository.ShopifyConnectionRepository;
 import com.forestock.forestock_backend.service.ForecastOrchestrator;
+import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.ShopifyAppHomeService;
 import com.forestock.forestock_backend.service.StoreConfigurationService;
 import jakarta.validation.Valid;
@@ -31,6 +32,7 @@ public class ShopifyAppHomeController {
     private final ShopifyAppHomeService shopifyAppHomeService;
     private final ShopifyConnectionRepository shopifyConnectionRepository;
     private final ForecastOrchestrator forecastOrchestrator;
+    private final ForecastTriggerService forecastTriggerService;
     private final StoreConfigurationService storeConfigurationService;
     private final ShopifyProperties shopifyProperties;
 
@@ -88,9 +90,11 @@ public class ShopifyAppHomeController {
         }
 
         try {
+            StoreConfigurationDto updated = storeConfigurationService.updateConfigForStore(connection.getStore().getId(), request);
+            forecastTriggerService.triggerForStore(connection.getStore().getId(), "store-config-updated");
             return ResponseEntity.ok(ApiResponse.success(
                     "Store configuration updated",
-                    storeConfigurationService.updateConfigForStore(connection.getStore().getId(), request)));
+                    updated));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
