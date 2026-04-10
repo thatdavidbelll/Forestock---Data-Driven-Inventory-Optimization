@@ -15,20 +15,20 @@ export default function App() {
         />
         <style>{`
           :root {
-            --fs-indigo: #4F46E5;
-            --fs-violet: #7C3AED;
-            --fs-sky: #38BDF8;
-            --fs-base: #0F172A;
-            --fs-white: #F8FAFC;
-            --fs-surface: rgba(15, 23, 42, 0.82);
-            --fs-surface-strong: rgba(15, 23, 42, 0.94);
-            --fs-surface-muted: rgba(30, 41, 59, 0.78);
-            --fs-border: rgba(148, 163, 184, 0.16);
-            --fs-text: #E2E8F0;
-            --fs-text-muted: rgba(226, 232, 240, 0.86);
-            --fs-success: #22D3EE;
-            --fs-warning: #F59E0B;
-            --fs-critical: #F87171;
+            --fs-indigo: #2f6fed;
+            --fs-violet: #6b7cff;
+            --fs-sky: #78a6ff;
+            --fs-base: #f5f7fa;
+            --fs-white: #ffffff;
+            --fs-surface: #ffffff;
+            --fs-surface-strong: #ffffff;
+            --fs-surface-muted: #f8fafc;
+            --fs-border: #d9dee7;
+            --fs-text: #1f2937;
+            --fs-text-muted: #5b6472;
+            --fs-success: #2f7d5c;
+            --fs-warning: #a06800;
+            --fs-critical: #bf3f45;
           }
 
           * {

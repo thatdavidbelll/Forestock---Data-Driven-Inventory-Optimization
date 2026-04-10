@@ -18,9 +18,9 @@ const palette = {
 };
 
 const shadows = {
-  shell: "0 20px 56px rgba(15, 23, 42, 0.28)",
-  card: "0 10px 28px rgba(15, 23, 42, 0.18)",
-  glow: "0 0 0 1px rgba(124, 58, 237, 0.14), 0 16px 40px rgba(79, 70, 229, 0.14)",
+  shell: "0 10px 28px rgba(15, 23, 42, 0.06)",
+  card: "0 4px 14px rgba(15, 23, 42, 0.05)",
+  glow: "0 0 0 1px rgba(47, 111, 237, 0.08), 0 10px 24px rgba(15, 23, 42, 0.05)",
 };
 
 const layoutWidth = 1220;
@@ -28,46 +28,46 @@ const layoutWidth = 1220;
 function toneColors(tone: "default" | "accent" | "success" | "warning" | "critical" | "subtle") {
   if (tone === "accent") {
     return {
-      background: "linear-gradient(145deg, rgba(79, 70, 229, 0.28), rgba(56, 189, 248, 0.2))",
-      border: "1px solid rgba(56, 189, 248, 0.26)",
-      text: palette.white,
-      muted: "rgba(224, 231, 255, 0.9)",
+      background: "#eef4ff",
+      border: "1px solid rgba(47, 111, 237, 0.14)",
+      text: palette.text,
+      muted: "#456289",
     };
   }
   if (tone === "success") {
     return {
-      background: "linear-gradient(145deg, rgba(14, 116, 144, 0.24), rgba(56, 189, 248, 0.16))",
-      border: "1px solid rgba(56, 189, 248, 0.24)",
-      text: palette.white,
-      muted: "rgba(224, 242, 254, 0.88)",
+      background: "#eef8f2",
+      border: "1px solid rgba(47, 125, 92, 0.14)",
+      text: palette.text,
+      muted: "#466d5b",
     };
   }
   if (tone === "warning") {
     return {
-      background: "linear-gradient(145deg, rgba(124, 58, 237, 0.2), rgba(245, 158, 11, 0.18))",
-      border: "1px solid rgba(245, 158, 11, 0.22)",
-      text: palette.white,
-      muted: "rgba(254, 240, 138, 0.88)",
+      background: "#fff7e8",
+      border: "1px solid rgba(160, 104, 0, 0.16)",
+      text: palette.text,
+      muted: "#7f5a14",
     };
   }
   if (tone === "critical") {
     return {
-      background: "linear-gradient(145deg, rgba(127, 29, 29, 0.35), rgba(124, 58, 237, 0.18))",
-      border: "1px solid rgba(248, 113, 113, 0.24)",
-      text: palette.white,
-      muted: "rgba(254, 202, 202, 0.88)",
+      background: "#fff0f1",
+      border: "1px solid rgba(191, 63, 69, 0.16)",
+      text: palette.text,
+      muted: "#8c4b4e",
     };
   }
   if (tone === "subtle") {
     return {
-      background: "linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(148, 163, 184, 0.04))",
+      background: palette.surfaceMuted,
       border: `1px solid ${palette.border}`,
       text: palette.text,
       muted: palette.textMuted,
     };
   }
   return {
-    background: `linear-gradient(180deg, ${palette.surface}, rgba(15, 23, 42, 0.72))`,
+    background: palette.surface,
     border: `1px solid ${palette.border}`,
     text: palette.text,
     muted: palette.textMuted,
@@ -89,47 +89,22 @@ export function AppShell({
       style={{
         minHeight: "100vh",
         color: palette.text,
-      background:
-          "radial-gradient(circle at top left, rgba(124, 58, 237, 0.16), transparent 24%), radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 26%), linear-gradient(180deg, rgba(15, 23, 42, 0.99), rgba(15, 23, 42, 1))",
+        background: "linear-gradient(180deg, #f7f8fb 0%, #f2f4f7 100%)",
       }}
     >
       <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "0 20px 48px" }}>
         <div
           style={{
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: 32,
-            padding: "28px 26px 30px",
-            marginBottom: 24,
+            borderRadius: 24,
+            padding: "24px 24px 26px",
+            margin: "20px 0 24px",
             border: `1px solid ${palette.border}`,
-            background:
-              "linear-gradient(145deg, rgba(79, 70, 229, 0.14), rgba(15, 23, 42, 0.95) 36%, rgba(124, 58, 237, 0.14) 100%)",
+            background: palette.surface,
             boxShadow: shadows.shell,
           }}
         >
           <div
             style={{
-              position: "absolute",
-              inset: "auto -60px -90px auto",
-              width: 280,
-              height: 280,
-              background: "radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 68%)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              inset: "-120px auto auto -80px",
-              width: 260,
-              height: 260,
-              background: "radial-gradient(circle, rgba(124, 58, 237, 0.18), transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "relative",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "flex-start",
@@ -142,29 +117,28 @@ export function AppShell({
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 8,
-                  padding: "7px 12px",
+                  padding: "6px 10px",
                   borderRadius: 999,
-                  marginBottom: 14,
-                  border: "1px solid rgba(56, 189, 248, 0.2)",
-                  background: "rgba(15, 23, 42, 0.42)",
-                  color: "rgba(224, 231, 255, 0.92)",
+                  marginBottom: 12,
+                  border: `1px solid ${palette.border}`,
+                  background: palette.surfaceMuted,
+                  color: palette.textMuted,
                   fontSize: 12,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "0.04em",
                   textTransform: "uppercase",
                   fontWeight: 700,
                 }}
               >
-                Forestock Embedded Command Surface
+                Forestock
               </div>
               <h1
                 style={{
                   margin: 0,
                   fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-                  fontSize: "clamp(2rem, 4vw, 3.8rem)",
-                  lineHeight: 0.98,
-                  letterSpacing: "-0.04em",
-                  color: palette.white,
+                  fontSize: "clamp(1.9rem, 4vw, 3.2rem)",
+                  lineHeight: 1.02,
+                  letterSpacing: "-0.03em",
+                  color: palette.text,
                 }}
               >
                 {title}
@@ -175,8 +149,8 @@ export function AppShell({
                     margin: "14px 0 0",
                     maxWidth: 760,
                     fontSize: 16,
-                    lineHeight: 1.7,
-                    color: "rgba(226, 232, 240, 0.92)",
+                    lineHeight: 1.6,
+                    color: palette.textMuted,
                   }}
                 >
                   {subtitle}
@@ -208,11 +182,10 @@ export function NavTabs({
           display: "inline-flex",
           gap: 10,
           flexWrap: "wrap",
-          padding: 10,
-          borderRadius: 18,
+          padding: 8,
+          borderRadius: 16,
           border: `1px solid ${palette.border}`,
-          background: "rgba(15, 23, 42, 0.88)",
-          backdropFilter: "blur(16px)",
+          background: palette.surface,
           boxShadow: shadows.card,
         }}
       >
@@ -225,17 +198,17 @@ export function NavTabs({
               href={href}
               style={{
                 textDecoration: "none",
-                padding: "12px 18px",
+                padding: "10px 16px",
                 borderRadius: 12,
                 fontSize: 15,
-                fontWeight: 700,
+                fontWeight: 600,
                 letterSpacing: "-0.01em",
-                color: active ? palette.white : "rgba(226, 232, 240, 0.92)",
+                color: active ? palette.text : palette.textMuted,
                 background: active
-                  ? "linear-gradient(135deg, rgba(79, 70, 229, 0.92), rgba(124, 58, 237, 0.92))"
-                  : "rgba(255, 255, 255, 0.05)",
-                border: active ? "1px solid rgba(191, 219, 254, 0.18)" : "1px solid transparent",
-                boxShadow: active ? "0 10px 24px rgba(79, 70, 229, 0.24)" : "none",
+                  ? "#edf2fb"
+                  : "transparent",
+                border: active ? "1px solid rgba(47, 111, 237, 0.12)" : "1px solid transparent",
+                boxShadow: "none",
               }}
             >
               {item.label}
@@ -259,16 +232,16 @@ export function Section({
           style={{
             margin: 0,
             fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-            fontSize: 24,
+            fontSize: 22,
             lineHeight: 1.15,
             letterSpacing: "-0.03em",
-            color: palette.white,
+            color: palette.text,
           }}
         >
           {title}
         </h2>
         {description ? (
-          <p style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.7, color: "rgba(226, 232, 240, 0.88)" }}>{description}</p>
+          <p style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.6, color: palette.textMuted }}>{description}</p>
         ) : null}
       </div>
       {children}
@@ -311,9 +284,7 @@ export function Card({
   return (
     <div
       style={{
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 20,
+        borderRadius: 18,
         padding: 22,
         background: toneStyle.background,
         border: toneStyle.border,
@@ -322,20 +293,7 @@ export function Card({
         ...style,
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: "-30% auto auto 65%",
-          width: 180,
-          height: 180,
-          background:
-            tone === "accent"
-              ? "radial-gradient(circle, rgba(56, 189, 248, 0.12), transparent 70%)"
-              : "radial-gradient(circle, rgba(255, 255, 255, 0.04), transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
-      <div style={{ position: "relative" }}>{children}</div>
+      <div>{children}</div>
     </div>
   );
 }
@@ -360,9 +318,9 @@ export function MetricCard({
           fontSize: 12,
           fontWeight: 700,
           textTransform: "uppercase",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.04em",
           color: toneStyle.muted,
-          marginBottom: 16,
+          marginBottom: 14,
         }}
       >
         {label}
@@ -370,7 +328,7 @@ export function MetricCard({
       <div
         style={{
           fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-          fontSize: 32,
+          fontSize: 30,
           fontWeight: 700,
           lineHeight: 1.05,
           letterSpacing: "-0.03em",
@@ -390,34 +348,34 @@ export function Badge({
 }: PropsWithChildren<{ tone?: "default" | "success" | "warning" | "critical" | "accent" | "subtle" }>) {
   const styles: Record<string, CSSProperties> = {
     default: {
-      background: "rgba(148, 163, 184, 0.12)",
+      background: "#f3f4f6",
       color: palette.text,
       border: `1px solid ${palette.border}`,
     },
     subtle: {
-      background: "rgba(255, 255, 255, 0.04)",
+      background: "#f8fafc",
       color: palette.text,
       border: `1px solid ${palette.border}`,
     },
     success: {
-      background: "rgba(56, 189, 248, 0.12)",
-      color: "#bff4ff",
-      border: "1px solid rgba(56, 189, 248, 0.18)",
+      background: "#eef8f2",
+      color: palette.success,
+      border: "1px solid rgba(47, 125, 92, 0.14)",
     },
     warning: {
-      background: "rgba(245, 158, 11, 0.14)",
-      color: "#fde68a",
-      border: "1px solid rgba(245, 158, 11, 0.2)",
+      background: "#fff7e8",
+      color: palette.warning,
+      border: "1px solid rgba(160, 104, 0, 0.16)",
     },
     critical: {
-      background: "rgba(248, 113, 113, 0.14)",
-      color: "#fecaca",
-      border: "1px solid rgba(248, 113, 113, 0.2)",
+      background: "#fff0f1",
+      color: palette.critical,
+      border: "1px solid rgba(191, 63, 69, 0.16)",
     },
     accent: {
-      background: "linear-gradient(135deg, rgba(79, 70, 229, 0.24), rgba(124, 58, 237, 0.24))",
-      color: palette.white,
-      border: "1px solid rgba(124, 58, 237, 0.22)",
+      background: "#eef4ff",
+      color: palette.indigo,
+      border: "1px solid rgba(47, 111, 237, 0.14)",
     },
   };
 
@@ -427,12 +385,12 @@ export function Badge({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "7px 12px",
+        padding: "6px 10px",
         borderRadius: 999,
         fontSize: 12,
-        fontWeight: 800,
+        fontWeight: 700,
         textTransform: "uppercase",
-        letterSpacing: "0.08em",
+        letterSpacing: "0.04em",
         ...styles[tone],
       }}
     >
@@ -457,11 +415,11 @@ export function KeyValueList({
             alignItems: "flex-start",
             gap: 18,
             paddingBottom: 12,
-            borderBottom: "1px solid rgba(148, 163, 184, 0.16)",
+            borderBottom: `1px solid ${palette.border}`,
           }}
         >
-          <div style={{ fontSize: 14, color: "rgba(226, 232, 240, 0.84)", lineHeight: 1.55 }}>{item.label}</div>
-          <div style={{ fontSize: 14, fontWeight: 700, textAlign: "right", lineHeight: 1.5, color: palette.white }}>
+          <div style={{ fontSize: 14, color: palette.textMuted, lineHeight: 1.55 }}>{item.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, textAlign: "right", lineHeight: 1.5, color: palette.text }}>
             {item.value}
           </div>
         </div>
@@ -492,12 +450,12 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
           fontWeight: 700,
           letterSpacing: "-0.03em",
           marginBottom: 10,
-          color: palette.white,
+          color: palette.text,
         }}
       >
         {title}
       </div>
-      <div style={{ fontSize: 15, lineHeight: 1.7, color: "rgba(226, 232, 240, 0.88)" }}>{body}</div>
+      <div style={{ fontSize: 15, lineHeight: 1.6, color: palette.textMuted }}>{body}</div>
     </Card>
   );
 }
@@ -541,7 +499,7 @@ export function InfoBanner({
 
 export function InlineList({ items }: { items: string[] }) {
   return (
-    <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.75, color: "rgba(226, 232, 240, 0.9)" }}>
+    <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, color: palette.textMuted }}>
       {items.map((item) => (
         <li key={item} style={{ marginBottom: 4 }}>
           {item}

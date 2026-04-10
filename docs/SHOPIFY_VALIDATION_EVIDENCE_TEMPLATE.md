@@ -16,6 +16,7 @@ Create one filled copy per validation run, or append multiple runs with clear ti
 - **Forestock backend URL under test:**
 - **Database environment:**
 - **Commit / branch:**
+- **Protected customer data approval status:** approved / pending / rejected / unknown
 - **Notes:**
 
 ---
@@ -46,7 +47,7 @@ Create one filled copy per validation run, or append multiple runs with clear ti
 - **Timestamp:**
 - **Expected:** Historical Shopify orders populate Forestock sales meaningfully.
 - **Actual:**
-- **Status:** PASS / FAIL / PASS_WITH_CAVEAT
+- **Status:** PASS / FAIL / PASS_WITH_CAVEAT / BLOCKED_EXTERNAL
 - **Screenshots:**
 - **App logs:**
 - **Backend logs:**
@@ -81,7 +82,7 @@ Create one filled copy per validation run, or append multiple runs with clear ti
 ### 4e. Order create
 - **Timestamp:**
 - **Actual:**
-- **Status:** PASS / FAIL / PASS_WITH_CAVEAT
+- **Status:** PASS / FAIL / PASS_WITH_CAVEAT / BLOCKED_EXTERNAL
 - **Evidence:**
 
 ### Webhook summary
@@ -133,6 +134,7 @@ Create one filled copy per validation run, or append multiple runs with clear ti
 - **Current scopes:** `read_products`, `read_inventory`, `read_orders`
 - **Are current scopes sufficient?** yes / no / unknown
 - **Are any scopes unnecessary?** yes / no / unknown
+- **Protected customer data dependency recorded?** yes / no
 - **Notes:**
 
 ## Submission Artifact Check

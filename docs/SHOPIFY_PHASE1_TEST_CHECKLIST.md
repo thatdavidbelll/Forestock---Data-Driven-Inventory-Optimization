@@ -29,7 +29,7 @@ Do not advance to the next step unless the current step is validated.
 - [ ] Store identity loads from Shopify Admin API
 - [ ] Provision step links shop to backend workspace
 - [ ] Catalog sync imports products/inventory
-- [ ] Order backfill imports historical orders
+- [ ] Order backfill imports historical orders, or is explicitly recorded as blocked by Shopify protected customer data approval
 - [ ] Full setup runs all three in sequence
 - [ ] Failed step shows deterministic error state
 - [ ] Failed step can be retried without corrupting state
@@ -45,10 +45,17 @@ Do not advance to the next step unless the current step is validated.
 
 - [ ] Product create/update/delete routes are reachable
 - [ ] Inventory update route is reachable
-- [ ] Order create route is reachable
+- [ ] Order create route is reachable, or the missing protected customer data approval is captured as the blocking cause
 - [ ] Webhook-driven updates reflect in backend state
 
-## 6. Regression Gate
+## 6. External Dependency Gate
+
+- [ ] Shopify protected customer data approval status is recorded for this run
+- [ ] If approval is missing, order-history import is marked `BLOCKED_EXTERNAL` instead of `FAIL`
+- [ ] If approval is missing, `ORDERS_CREATE` webhook registration is marked `BLOCKED_EXTERNAL` instead of `FAIL`
+- [ ] Non-order flows are still validated independently
+
+## 7. Regression Gate
 
 - [ ] `npm run typecheck` passes in `shopify-app`
 - [ ] Focused backend tests pass for Shopify recommendation contract

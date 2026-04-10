@@ -8,6 +8,9 @@ Validate that a Shopify merchant can:
 4. optionally activate standalone web access
 5. survive uninstall/reinstall without broken state
 
+Current known external constraint:
+- Without Shopify protected customer data approval, order-history import and `ORDERS_CREATE` webhook validation cannot fully pass in a real store. Record those cases as externally blocked, not product regressions.
+
 ## Environment
 
 ### Target environment
@@ -97,6 +100,9 @@ Prove products and inventory are imported into Forestock from Shopify.
 ### Objective
 Prove Forestock can ingest historical Shopify orders into sales history.
 
+### Gating note
+If Shopify protected customer data approval is not granted for the app under test, this scenario is expected to be blocked externally.
+
 ### Steps
 1. Ensure dev store has representative historical orders
 2. Load app/setup page
@@ -117,12 +123,16 @@ Prove Forestock can ingest historical Shopify orders into sales history.
 
 ### Pass/fail
 - Pass if order history lands in Forestock as expected
-- Fail if backfill fails, duplicates uncontrollably, or does not populate sales meaningfully
+- Mark `BLOCKED_EXTERNAL` if Shopify approval is missing and order access is denied before Forestock logic can run
+- Fail if backfill fails, duplicates uncontrollably, or does not populate sales meaningfully despite required approval being present
 
 ## Scenario 4 — Ongoing webhook updates
 
 ### Objective
 Prove live Shopify changes propagate after install.
+
+### Gating note
+`ORDERS_CREATE` webhook validation depends on Shopify protected customer data approval. Product and inventory webhook checks should still run even if order webhook validation is externally blocked.
 
 ### Steps
 1. Create a product in Shopify
@@ -145,7 +155,8 @@ Prove live Shopify changes propagate after install.
 
 ### Pass/fail
 - Pass if webhook-driven changes are processed correctly
-- Fail if events are dropped, rejected, or produce obviously bad data state
+- Mark the order-create subtest `BLOCKED_EXTERNAL` if Shopify rejects order webhook registration due to missing approval
+- Fail if non-blocked events are dropped, rejected, or produce obviously bad data state
 
 ## Scenario 5 — Standalone access request + activation
 
