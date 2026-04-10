@@ -107,7 +107,7 @@ export default function SetupPage() {
                     ? "Setup still needs to finish"
                     : "Setup completed"}
               </div>
-              <div style={{ color: "rgba(226, 232, 240, 0.92)", lineHeight: 1.65, maxWidth: 760, fontSize: 15 }}>
+              <div style={{ color: "#475569", lineHeight: 1.65, maxWidth: 760, fontSize: 15 }}>
                 {setupBlockedExternally
                   ? setupFetcher.data?.externalBlock?.message ??
                     "Shopify approval is still blocking order import."
@@ -149,10 +149,10 @@ export default function SetupPage() {
                 <div style={{ fontSize: 19, fontWeight: 800 }}>{stage.title}</div>
                 <Badge tone={stepTone(stage.status)}>{stage.status.replaceAll("_", " ")}</Badge>
               </div>
-              <div style={{ color: "rgba(226, 232, 240, 0.9)", lineHeight: 1.65, marginBottom: 12, fontSize: 15 }}>{stage.summary}</div>
+              <div style={{ color: "#475569", lineHeight: 1.65, marginBottom: 12, fontSize: 15 }}>{stage.summary}</div>
               {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
               {stage.evidenceAt ? (
-                <div style={{ marginTop: 10, fontSize: 14, color: "rgba(226, 232, 240, 0.88)" }}>
+                <div style={{ marginTop: 10, fontSize: 14, color: "#64748b" }}>
                   {stage.evidenceLabel ?? "Evidence"}: {formatDateTime(stage.evidenceAt)}
                 </div>
               ) : null}

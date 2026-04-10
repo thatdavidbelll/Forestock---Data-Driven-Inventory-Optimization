@@ -60,7 +60,7 @@ export default function RecommendationsPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
                     <div>
                       <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 6, lineHeight: 1.05 }}>{recommendation.productName}</div>
-                      <div style={{ fontSize: 15, color: "rgba(226, 232, 240, 0.92)" }}>
+                      <div style={{ fontSize: 15, color: "#475569" }}>
                         {recommendation.productSku}
                         {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
                       </div>

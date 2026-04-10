@@ -70,7 +70,7 @@ export default function SettingsPage() {
               tone="accent"
             />
             <div>
-              <label htmlFor="forecastHorizonDays" style={{ display: "block", marginBottom: 8, fontSize: 15, fontWeight: 700, color: "rgba(226, 232, 240, 0.94)" }}>
+              <label htmlFor="forecastHorizonDays" style={{ display: "block", marginBottom: 8, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
                 Horizon days
               </label>
               <input
@@ -82,7 +82,7 @@ export default function SettingsPage() {
                 defaultValue={config.forecastHorizonDays}
                 style={{ width: "100%" }}
               />
-              <div style={{ marginTop: 8, fontSize: 14, color: "rgba(226, 232, 240, 0.88)" }}>
+              <div style={{ marginTop: 8, fontSize: 14, color: "#64748b" }}>
                 Choose a value between 7 and 365 days.
               </div>
             </div>

@@ -18,9 +18,9 @@ const palette = {
 };
 
 const shadows = {
-  shell: "0 10px 28px rgba(15, 23, 42, 0.06)",
-  card: "0 4px 14px rgba(15, 23, 42, 0.05)",
-  glow: "0 0 0 1px rgba(47, 111, 237, 0.08), 0 10px 24px rgba(15, 23, 42, 0.05)",
+  shell: "0 18px 44px rgba(79, 70, 229, 0.08)",
+  card: "0 10px 26px rgba(15, 23, 42, 0.06)",
+  glow: "0 0 0 1px rgba(79, 70, 229, 0.1), 0 18px 38px rgba(15, 23, 42, 0.08)",
 };
 
 const layoutWidth = 1220;
@@ -28,34 +28,34 @@ const layoutWidth = 1220;
 function toneColors(tone: "default" | "accent" | "success" | "warning" | "critical" | "subtle") {
   if (tone === "accent") {
     return {
-      background: "#eef4ff",
-      border: "1px solid rgba(47, 111, 237, 0.14)",
+      background: "linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(56, 189, 248, 0.14) 100%)",
+      border: "1px solid rgba(79, 70, 229, 0.16)",
       text: palette.text,
-      muted: "#456289",
+      muted: palette.textMuted,
     };
   }
   if (tone === "success") {
     return {
-      background: "#eef8f2",
-      border: "1px solid rgba(47, 125, 92, 0.14)",
+      background: "linear-gradient(135deg, rgba(19, 121, 91, 0.1) 0%, rgba(56, 189, 248, 0.08) 100%)",
+      border: "1px solid rgba(19, 121, 91, 0.16)",
       text: palette.text,
-      muted: "#466d5b",
+      muted: palette.textMuted,
     };
   }
   if (tone === "warning") {
     return {
-      background: "#fff7e8",
-      border: "1px solid rgba(160, 104, 0, 0.16)",
+      background: "linear-gradient(135deg, rgba(180, 83, 9, 0.1) 0%, rgba(124, 58, 237, 0.08) 100%)",
+      border: "1px solid rgba(180, 83, 9, 0.18)",
       text: palette.text,
-      muted: "#7f5a14",
+      muted: palette.textMuted,
     };
   }
   if (tone === "critical") {
     return {
-      background: "#fff0f1",
-      border: "1px solid rgba(191, 63, 69, 0.16)",
+      background: "linear-gradient(135deg, rgba(190, 18, 60, 0.1) 0%, rgba(124, 58, 237, 0.08) 100%)",
+      border: "1px solid rgba(190, 18, 60, 0.18)",
       text: palette.text,
-      muted: "#8c4b4e",
+      muted: palette.textMuted,
     };
   }
   if (tone === "subtle") {
@@ -89,7 +89,8 @@ export function AppShell({
       style={{
         minHeight: "100vh",
         color: palette.text,
-        background: "linear-gradient(180deg, #f7f8fb 0%, #f2f4f7 100%)",
+        background:
+          "radial-gradient(circle at top left, rgba(124, 58, 237, 0.14) 0, transparent 34%), radial-gradient(circle at top right, rgba(56, 189, 248, 0.16) 0, transparent 28%), linear-gradient(180deg, #f8faff 0%, #eef2ff 100%)",
       }}
     >
       <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "0 20px 48px" }}>
@@ -121,8 +122,8 @@ export function AppShell({
                   borderRadius: 999,
                   marginBottom: 12,
                   border: `1px solid ${palette.border}`,
-                  background: palette.surfaceMuted,
-                  color: palette.textMuted,
+                  background: "linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(56, 189, 248, 0.12) 100%)",
+                  color: palette.indigo,
                   fontSize: 12,
                   letterSpacing: "0.04em",
                   textTransform: "uppercase",
@@ -205,10 +206,10 @@ export function NavTabs({
                 letterSpacing: "-0.01em",
                 color: active ? palette.text : palette.textMuted,
                 background: active
-                  ? "#edf2fb"
+                  ? "linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(56, 189, 248, 0.12) 100%)"
                   : "transparent",
-                border: active ? "1px solid rgba(47, 111, 237, 0.12)" : "1px solid transparent",
-                boxShadow: "none",
+                border: active ? "1px solid rgba(79, 70, 229, 0.14)" : "1px solid transparent",
+                boxShadow: active ? shadows.glow : "none",
               }}
             >
               {item.label}
@@ -348,34 +349,34 @@ export function Badge({
 }: PropsWithChildren<{ tone?: "default" | "success" | "warning" | "critical" | "accent" | "subtle" }>) {
   const styles: Record<string, CSSProperties> = {
     default: {
-      background: "#f3f4f6",
-      color: palette.text,
-      border: `1px solid ${palette.border}`,
-    },
-    subtle: {
       background: "#f8fafc",
       color: palette.text,
       border: `1px solid ${palette.border}`,
     },
+    subtle: {
+      background: "#f1f5f9",
+      color: palette.text,
+      border: `1px solid ${palette.border}`,
+    },
     success: {
-      background: "#eef8f2",
+      background: "rgba(19, 121, 91, 0.1)",
       color: palette.success,
-      border: "1px solid rgba(47, 125, 92, 0.14)",
+      border: "1px solid rgba(19, 121, 91, 0.16)",
     },
     warning: {
-      background: "#fff7e8",
+      background: "rgba(180, 83, 9, 0.1)",
       color: palette.warning,
-      border: "1px solid rgba(160, 104, 0, 0.16)",
+      border: "1px solid rgba(180, 83, 9, 0.16)",
     },
     critical: {
-      background: "#fff0f1",
+      background: "rgba(190, 18, 60, 0.1)",
       color: palette.critical,
-      border: "1px solid rgba(191, 63, 69, 0.16)",
+      border: "1px solid rgba(190, 18, 60, 0.16)",
     },
     accent: {
-      background: "#eef4ff",
+      background: "linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(56, 189, 248, 0.14) 100%)",
       color: palette.indigo,
-      border: "1px solid rgba(47, 111, 237, 0.14)",
+      border: "1px solid rgba(79, 70, 229, 0.16)",
     },
   };
 

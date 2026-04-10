@@ -59,7 +59,7 @@ export default function AppIndex() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.05 }}>{data.topRecommendation.productName}</div>
-                <div style={{ marginTop: 8, fontSize: 15, color: "rgba(226, 232, 240, 0.94)" }}>{data.topRecommendation.productSku}</div>
+                <div style={{ marginTop: 8, fontSize: 15, color: "#475569" }}>{data.topRecommendation.productSku}</div>
               </div>
               <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
                 {data.topRecommendation.urgency}
