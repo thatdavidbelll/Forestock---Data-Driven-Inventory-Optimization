@@ -182,17 +182,25 @@ export function NavTabs({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700 }}>
-          <img
-            src="/forestock-logo.png"
-            alt="Forestock"
+          <div
             style={{
               width: 108,
               height: 32,
-              objectFit: "contain",
-              objectPosition: "left center",
-              display: "block",
+              borderRadius: 10,
+              overflow: "hidden",
             }}
-          />
+          >
+            <img
+              src="/forestock-logo.png"
+              alt="Forestock"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          </div>
         </div>
         <div
           style={{
