@@ -12,7 +12,6 @@ import {
   KeyValueList,
   MetricCard,
   Section,
-  SummarySplit,
 } from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockRecommendations } from "../forestock.server";
@@ -59,35 +58,52 @@ export default function RecommendationsPage() {
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
               return (
-                <Card key={recommendation.id}>
-                  <SummarySplit
-                    title={recommendation.productName}
-                    body={
-                      <>
-                        <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>
-                          {recommendation.productSku}
-                          {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
-                        </div>
-                        Review this recommendation to confirm reorder quantity and stock risk before purchasing.
-                      </>
-                    }
-                    aside={<Badge tone={tone}>{recommendation.urgency}</Badge>}
-                  />
-                  <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
+                <Card key={recommendation.id} style={{ padding: 20 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontFamily: '"Space Grotesk", "Manrope", sans-serif',
+                          fontSize: 24,
+                          lineHeight: 1.06,
+                          letterSpacing: "-0.04em",
+                          fontWeight: 700,
+                          color: "#0F172A",
+                          marginBottom: 8,
+                        }}
+                      >
+                        {recommendation.productName}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#6B7280" }}>
+                        {recommendation.productSku}
+                        {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
+                      </div>
+                    </div>
+                    <Badge tone={tone}>{recommendation.urgency}</Badge>
+                  </div>
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
                     <Grid columns={2}>
                       <MetricCard label="Days left" value={recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown"} tone="subtle" />
                       <MetricCard label="Reorder qty" value={recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown"} tone="subtle" />
                     </Grid>
                   </div>
-                  <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
-                  <KeyValueList
-                    items={[
-                      { label: "Current stock", value: recommendation.currentStock != null ? formatMetricNumber(recommendation.currentStock) : "Not available" },
-                      { label: "Estimated value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
-                      { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
-                      { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
-                    ]}
-                  />
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
+                    <KeyValueList
+                      items={[
+                        { label: "Current stock", value: recommendation.currentStock != null ? formatMetricNumber(recommendation.currentStock) : "Not available" },
+                        { label: "Estimated value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
+                        { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
+                        { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
+                      ]}
+                    />
                   </div>
                 </Card>
               );
