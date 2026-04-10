@@ -36,6 +36,7 @@ public class ShopifyOrderBackfillService {
     private final ShopifyOrderLineItemRepository shopifyOrderLineItemRepository;
     private final ProductRepository productRepository;
     private final AuditLogService auditLogService;
+    private final ForecastTriggerService forecastTriggerService;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
@@ -149,7 +150,7 @@ public class ShopifyOrderBackfillService {
                 )
         );
 
-        return BackfillResult.builder()
+        BackfillResult result = BackfillResult.builder()
                 .shopDomain(shopDomain)
                 .importedOrders(importedOrders)
                 .duplicateOrders(duplicateOrders)
@@ -157,6 +158,12 @@ public class ShopifyOrderBackfillService {
                 .unmatchedLineItems(unmatchedLineItems)
                 .salesRowsUpserted(salesRowsUpserted)
                 .build();
+
+        if (salesRowsUpserted > 0 || importedOrders > 0) {
+            forecastTriggerService.triggerForStore(storeId, "shopify-order-backfill");
+        }
+
+        return result;
     }
 
     private Product findMatchedProduct(Map<String, Product> productsByVariantGid,

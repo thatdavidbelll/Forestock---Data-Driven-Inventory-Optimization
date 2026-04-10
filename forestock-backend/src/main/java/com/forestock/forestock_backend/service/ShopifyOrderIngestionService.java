@@ -43,8 +43,7 @@ public class ShopifyOrderIngestionService {
     private final ShopifyWebhookFailureRepository failureRepository;
     private final ShopifyConnectionRepository connectionRepository;
     private final ProductRepository productRepository;
-    private final StoreConfigurationService storeConfigurationService;
-    private final ForecastOrchestrator forecastOrchestrator;
+    private final ForecastTriggerService forecastTriggerService;
     private final AuditLogService auditLogService;
     private final ShopifyProperties shopifyProperties;
     private final JdbcTemplate jdbcTemplate;
@@ -167,14 +166,7 @@ public class ShopifyOrderIngestionService {
         );
 
         if (shopifyProperties.isAutoForecastOnWebhook() && matched > 0) {
-            try {
-                if (Boolean.TRUE.equals(storeConfigurationService.getCurrentConfig().getAutoForecastOnImport())) {
-                    forecastOrchestrator.runForecast(storeId, "shopify-webhook");
-                    log.info("Forecast triggered by Shopify webhook for store {}", storeId);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to trigger forecast after Shopify order for store {}: {}", storeId, e.getMessage());
-            }
+            forecastTriggerService.triggerForStore(storeId, "shopify-webhook-order");
         }
 
         return ShopifyIngestionResult.success(shopifyOrderId, matched, unmatched, salesUpserted);
@@ -254,4 +246,3 @@ public class ShopifyOrderIngestionService {
         return objectMapper.createObjectNode().put("rawPayload", rawPayload);
     }
 }
-

@@ -29,6 +29,7 @@ public class ShopifyCatalogSyncService {
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
     private final AuditLogService auditLogService;
+    private final ForecastTriggerService forecastTriggerService;
 
     @Transactional
     public CatalogSyncResult syncCatalog(CatalogSyncRequest request) {
@@ -71,13 +72,19 @@ public class ShopifyCatalogSyncService {
                 )
         );
 
-        return CatalogSyncResult.builder()
+        CatalogSyncResult result = CatalogSyncResult.builder()
                 .shopDomain(shopDomain)
                 .processedItems(request.items().size())
                 .createdProducts(createdProducts)
                 .updatedProducts(updatedProducts)
                 .inventorySnapshotsCreated(inventorySnapshotsCreated)
                 .build();
+
+        if (createdProducts > 0 || updatedProducts > 0 || inventorySnapshotsCreated > 0) {
+            forecastTriggerService.triggerForStore(store.getId(), "shopify-catalog-sync");
+        }
+
+        return result;
     }
 
     @Transactional
@@ -107,11 +114,17 @@ public class ShopifyCatalogSyncService {
                 String.format("Deactivated %d product rows for Shopify product %s", deactivatedCount, normalizedProductGid)
         );
 
-        return ProductDeactivateResult.builder()
+        ProductDeactivateResult result = ProductDeactivateResult.builder()
                 .shopDomain(normalizedShopDomain)
                 .shopifyProductGid(normalizedProductGid)
                 .deactivatedProducts(deactivatedCount)
                 .build();
+
+        if (deactivatedCount > 0) {
+            forecastTriggerService.triggerForStore(connection.getStore().getId(), "shopify-product-deactivate");
+        }
+
+        return result;
     }
 
     @Transactional
@@ -139,13 +152,19 @@ public class ShopifyCatalogSyncService {
                 String.format("Inventory synced from Shopify to %s (%s)", quantity, normalizedInventoryItemGid)
         );
 
-        return InventorySyncResult.builder()
+        InventorySyncResult result = InventorySyncResult.builder()
                 .shopDomain(normalizedShopDomain)
                 .productId(product.getId())
                 .shopifyInventoryItemGid(normalizedInventoryItemGid)
                 .inventorySnapshotCreated(createdSnapshot)
                 .quantity(quantity != null ? quantity : BigDecimal.ZERO)
                 .build();
+
+        if (createdSnapshot) {
+            forecastTriggerService.triggerForStore(connection.getStore().getId(), "shopify-inventory-sync");
+        }
+
+        return result;
     }
 
     private SyncOutcome upsertCatalogItem(Store store, ShopifyCatalogItem item) {

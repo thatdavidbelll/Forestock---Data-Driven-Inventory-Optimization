@@ -8,9 +8,10 @@ import {
   EmptyState,
   formatDateTime,
   Grid,
-  InfoBanner,
   KeyValueList,
+  MetricCard,
   Section,
+  SummarySplit,
 } from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockRecommendations } from "../forestock.server";
@@ -38,17 +39,13 @@ export default function RecommendationsPage() {
   return (
     <AppShell
       title="Recommendations"
-      subtitle="A short queue of products that currently need review."
+      subtitle="A compact review queue with the most urgent products surfaced first."
     >
-      <InfoBanner
-        title="Queue summary"
-        body={
-          data.recommendations.length > 0
-            ? `${data.recommendations.length} products need review, including ${criticalCount} critical items.`
-            : "No active recommendations yet."
-        }
-        tone={data.recommendations.length > 0 ? "accent" : "subtle"}
-      />
+      <Grid columns={3}>
+        <MetricCard label="In queue" value={data.recommendations.length} hint="Products needing review now" />
+        <MetricCard label="Critical" value={criticalCount} hint="Highest urgency recommendations" tone={criticalCount > 0 ? "critical" : "subtle"} />
+        <MetricCard label="Forecast status" value={data.forecastStatus ?? "Pending"} hint={data.forecastCompletedAt ? `Updated ${formatDateTime(data.forecastCompletedAt)}` : "No completed forecast yet"} tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "warning"} />
+      </Grid>
 
       <Section title="Queue" description="Keep the list direct and easy to scan.">
         {data.recommendations.length > 0 ? (
@@ -56,27 +53,36 @@ export default function RecommendationsPage() {
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
               return (
-                <Card key={recommendation.id} tone={tone}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 6, lineHeight: 1.05 }}>{recommendation.productName}</div>
-                      <div style={{ fontSize: 15, color: "#475569" }}>
-                        {recommendation.productSku}
-                        {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
-                      </div>
-                    </div>
-                    <Badge tone={tone}>{recommendation.urgency}</Badge>
+                <Card key={recommendation.id}>
+                  <SummarySplit
+                    title={recommendation.productName}
+                    body={
+                      <>
+                        <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>
+                          {recommendation.productSku}
+                          {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
+                        </div>
+                        Review this recommendation to confirm reorder quantity and stock risk before purchasing.
+                      </>
+                    }
+                    aside={<Badge tone={tone}>{recommendation.urgency}</Badge>}
+                  />
+                  <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
+                    <Grid columns={2}>
+                      <MetricCard label="Days left" value={recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown"} tone="subtle" />
+                      <MetricCard label="Reorder qty" value={recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown"} tone="subtle" />
+                    </Grid>
                   </div>
+                  <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
                   <KeyValueList
                     items={[
-                      { label: "Days left", value: recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown" },
-                      { label: "Reorder qty", value: recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown" },
                       { label: "Current stock", value: recommendation.currentStock != null ? formatMetricNumber(recommendation.currentStock) : "Not available" },
                       { label: "Estimated value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
                       { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
                       { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
                     ]}
                   />
+                  </div>
                 </Card>
               );
             })}

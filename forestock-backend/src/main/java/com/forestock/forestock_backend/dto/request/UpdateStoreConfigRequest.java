@@ -18,8 +18,8 @@ public class UpdateStoreConfigRequest {
     @Size(max = 5)
     private String currencySymbol;
 
-    @Min(7)
-    @Max(365)
+    @Min(3)
+    @Max(90)
     private Integer forecastHorizonDays;
 
     @Min(90)

@@ -11,6 +11,7 @@ import com.forestock.forestock_backend.repository.SalesTransactionRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.AuditLogService;
+import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.ProductBulkImportService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
@@ -41,6 +42,7 @@ public class ProductController {
     private final OrderSuggestionRepository orderSuggestionRepository;
     private final AuditLogService auditLogService;
     private final ProductBulkImportService productBulkImportService;
+    private final ForecastTriggerService forecastTriggerService;
 
     // ── Read ─────────────────────────────────────────────────────────────────
 
@@ -142,6 +144,7 @@ public class ProductController {
         Product saved = productRepository.save(product);
         auditLogService.log("PRODUCT_CREATED", "Product", saved.getId().toString(),
                 "Created product '" + saved.getSku() + "' (" + saved.getName() + ")");
+        forecastTriggerService.triggerForStore(storeId, "product-created");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Product created", toDto(saved)));
     }
@@ -207,6 +210,8 @@ public class ProductController {
                             after,
                             extra
                     );
+                    UUID productStoreId = saved.getStore() != null ? saved.getStore().getId() : TenantContext.getStoreId();
+                    forecastTriggerService.triggerForStore(productStoreId, "product-updated");
                     return ResponseEntity.ok(ApiResponse.success(toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -230,6 +235,8 @@ public class ProductController {
                     Product saved = productRepository.save(p);
                     auditLogService.log("PRODUCT_RESTORED", "Product", saved.getId().toString(),
                             "Restored product '" + saved.getSku() + "'");
+                    UUID productStoreId = saved.getStore() != null ? saved.getStore().getId() : TenantContext.getStoreId();
+                    forecastTriggerService.triggerForStore(productStoreId, "product-restored");
                     return ResponseEntity.ok(ApiResponse.success("Product restored", toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -254,6 +261,8 @@ public class ProductController {
                     productRepository.save(p);
                     auditLogService.log("PRODUCT_DEACTIVATED", "Product", p.getId().toString(),
                             "Deactivated product '" + p.getSku() + "'");
+                    UUID productStoreId = p.getStore() != null ? p.getStore().getId() : TenantContext.getStoreId();
+                    forecastTriggerService.triggerForStore(productStoreId, "product-deactivated");
                     return ResponseEntity.ok(ApiResponse.<Void>success("Product deactivated", null));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)

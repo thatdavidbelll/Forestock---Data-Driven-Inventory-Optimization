@@ -7,8 +7,11 @@ import {
   Card,
   EmptyState,
   formatDateTime,
+  Grid,
   KeyValueList,
+  MetricCard,
   Section,
+  SummarySplit,
 } from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockAppHome } from "../forestock.server";
@@ -37,6 +40,7 @@ export default function AppIndex() {
   return (
     <AppShell
       title={data.storeName || "Forestock"}
+      subtitle="A focused overview of the recommendation that needs attention first, with the forecast state behind it."
       actions={
         data.topRecommendation ? (
           <Badge
@@ -53,26 +57,47 @@ export default function AppIndex() {
         ) : undefined
       }
     >
-      <Section title="Top recommendation" description="Start with this product.">
+      <Section title="Snapshot" description="The core signals merchants need without extra noise.">
+        <Grid columns={3}>
+          <MetricCard label="Active products" value={data.activeProductCount} hint={`${data.totalProductCount} total in catalog`} />
+          <MetricCard label="Sales history" value={data.hasSalesHistory ? "Connected" : "Missing"} hint={`${data.salesTransactionCount} transactions`} tone={data.hasSalesHistory ? "success" : "warning"} />
+          <MetricCard label="Forecast status" value={data.forecastStatus ?? "Not started"} hint={data.forecastCompletedAt ? `Updated ${formatDateTime(data.forecastCompletedAt)}` : "Awaiting forecast output"} tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : data.forecastStatus?.toUpperCase().includes("RUNNING") ? "accent" : "warning"} />
+        </Grid>
+      </Section>
+
+      <Section title="Top recommendation" description="Start here if you only review one item right now.">
         {data.topRecommendation ? (
-          <Card tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "success"}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.05 }}>{data.topRecommendation.productName}</div>
-                <div style={{ marginTop: 8, fontSize: 15, color: "#475569" }}>{data.topRecommendation.productSku}</div>
-              </div>
-              <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
-                {data.topRecommendation.urgency}
-              </Badge>
-            </div>
-            <KeyValueList
-              items={[
-                { label: "Days of stock", value: data.topRecommendation.daysOfStock ?? "Unknown" },
-                { label: "Suggested reorder", value: data.topRecommendation.suggestedQty ?? "Unknown" },
-                { label: "Estimated value", value: data.topRecommendation.estimatedOrderValue ?? "Unknown" },
-                { label: "Generated", value: formatDateTime(data.topRecommendation.generatedAt) },
-              ]}
+          <Card>
+            <SummarySplit
+              title={data.topRecommendation.productName}
+              body={
+                <>
+                  <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>{data.topRecommendation.productSku}</div>
+                  This product currently carries the highest restocking priority based on stock cover, demand, and the latest forecast output.
+                </>
+              }
+              aside={
+                <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
+                  {data.topRecommendation.urgency}
+                </Badge>
+              }
             />
+            <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
+              <Grid columns={4}>
+                <MetricCard label="Days of stock" value={data.topRecommendation.daysOfStock ?? "Unknown"} tone="subtle" />
+                <MetricCard label="Suggested reorder" value={data.topRecommendation.suggestedQty ?? "Unknown"} tone="subtle" />
+                <MetricCard label="Estimated value" value={data.topRecommendation.estimatedOrderValue ?? "Unknown"} tone="subtle" />
+                <MetricCard label="Generated" value={formatDateTime(data.topRecommendation.generatedAt)} tone="subtle" />
+              </Grid>
+            </div>
+            <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
+              <KeyValueList
+                items={[
+                  { label: "Priority", value: data.topRecommendation.urgency },
+                  { label: "SKU", value: data.topRecommendation.productSku },
+                ]}
+              />
+            </div>
           </Card>
         ) : (
           <EmptyState

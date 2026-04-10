@@ -5,9 +5,8 @@ import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.SalesImportPreviewDto;
 import com.forestock.forestock_backend.dto.response.SalesTransactionDto;
 import com.forestock.forestock_backend.security.TenantContext;
-import com.forestock.forestock_backend.service.ForecastOrchestrator;
+import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.SalesIngestionService;
-import com.forestock.forestock_backend.service.StoreConfigurationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,8 +30,7 @@ import java.util.UUID;
 public class SalesController {
 
     private final SalesIngestionService salesIngestionService;
-    private final ForecastOrchestrator forecastOrchestrator;
-    private final StoreConfigurationService storeConfigurationService;
+    private final ForecastTriggerService forecastTriggerService;
 
     // ── Import ────────────────────────────────────────────────────────────────
 
@@ -57,9 +55,8 @@ public class SalesController {
 
         try {
             SalesIngestionService.ImportResult result = salesIngestionService.importCsv(file, overwriteExisting);
-            if (result.imported() > 0 && Boolean.TRUE.equals(storeConfigurationService.getCurrentConfig().getAutoForecastOnImport())) {
-                UUID storeId = TenantContext.getStoreId();
-                forecastOrchestrator.runForecast(storeId, "auto-import");
+            if (result.imported() > 0) {
+                forecastTriggerService.triggerForCurrentStore("sales-import");
             }
             Map<String, Object> data = Map.of(
                     "imported", result.imported(),
@@ -171,6 +168,9 @@ public class SalesController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> deleteBySku(@PathVariable String sku) {
         try {
             SalesIngestionService.DeleteResult result = salesIngestionService.deleteBySku(sku);
+            if (result.deleted() > 0) {
+                forecastTriggerService.triggerForCurrentStore("sales-delete-by-sku");
+            }
             return ResponseEntity.ok(ApiResponse.success(
                     "Deleted all transactions for SKU '" + sku + "'",
                     Map.of("deleted", result.deleted())));
@@ -193,6 +193,9 @@ public class SalesController {
         }
         try {
             SalesIngestionService.DeleteResult result = salesIngestionService.deleteByDateRange(from, to);
+            if (result.deleted() > 0) {
+                forecastTriggerService.triggerForCurrentStore("sales-delete-by-range");
+            }
             return ResponseEntity.ok(ApiResponse.success(
                     String.format("Deleted transactions between %s and %s", from, to),
                     Map.of("deleted", result.deleted())));
@@ -216,6 +219,9 @@ public class SalesController {
         }
         try {
             SalesIngestionService.DeleteResult result = salesIngestionService.deleteBySkuAndDateRange(sku, from, to);
+            if (result.deleted() > 0) {
+                forecastTriggerService.triggerForCurrentStore("sales-delete-by-sku-range");
+            }
             return ResponseEntity.ok(ApiResponse.success(
                     String.format("Deleted %d transactions for SKU '%s' between %s and %s",
                             result.deleted(), sku, from, to),
@@ -234,6 +240,9 @@ public class SalesController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> deleteAll() {
         try {
             SalesIngestionService.DeleteResult result = salesIngestionService.deleteAllForStore();
+            if (result.deleted() > 0) {
+                forecastTriggerService.triggerForCurrentStore("sales-delete-all");
+            }
             return ResponseEntity.ok(ApiResponse.success(
                     "All transactions deleted for this store",
                     Map.of("deleted", result.deleted())));

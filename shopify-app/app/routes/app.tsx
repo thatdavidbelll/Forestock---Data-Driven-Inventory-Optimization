@@ -19,17 +19,25 @@ export default function App() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <NavTabs
-        currentPath={location.pathname}
-        search={location.search}
-        items={[
-          { label: "Home", href: "/app" },
-          { label: "Setup", href: "/app/setup" },
-          { label: "Recommendations", href: "/app/recommendations" },
-          { label: "Settings", href: "/app/settings" },
-        ]}
-      />
-      <Outlet />
+      <div
+        style={{
+          minHeight: "100vh",
+          background:
+            "linear-gradient(180deg, rgba(79, 70, 229, 0.03) 0%, rgba(255, 255, 255, 0) 160px), linear-gradient(180deg, #f4f5f7 0%, #f7f7f8 100%)",
+        }}
+      >
+        <NavTabs
+          currentPath={location.pathname}
+          search={location.search}
+          items={[
+            { label: "Home", href: "/app" },
+            { label: "Setup", href: "/app/setup" },
+            { label: "Recommendations", href: "/app/recommendations" },
+            { label: "Settings", href: "/app/settings" },
+          ]}
+        />
+        <Outlet />
+      </div>
     </AppProvider>
   );
 }

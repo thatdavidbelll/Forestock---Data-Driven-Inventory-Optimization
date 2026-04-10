@@ -16,19 +16,19 @@ export default function App() {
         <style>{`
           :root {
             --fs-indigo: #4F46E5;
-            --fs-violet: #7C3AED;
-            --fs-sky: #38BDF8;
-            --fs-base: #f6f8ff;
+            --fs-violet: #6D28D9;
+            --fs-sky: #E0E7FF;
+            --fs-base: #F4F5F7;
             --fs-white: #ffffff;
             --fs-surface: #ffffff;
-            --fs-surface-strong: #fdfdff;
-            --fs-surface-muted: #eef2ff;
-            --fs-border: #d8ddf3;
-            --fs-text: #0f172a;
-            --fs-text-muted: #475569;
-            --fs-success: #13795b;
-            --fs-warning: #b45309;
-            --fs-critical: #be123c;
+            --fs-surface-strong: #FCFCFD;
+            --fs-surface-muted: #F8FAFC;
+            --fs-border: #E5E7EB;
+            --fs-text: #111827;
+            --fs-text-muted: #6B7280;
+            --fs-success: #1F7A5C;
+            --fs-warning: #A16207;
+            --fs-critical: #B42318;
           }
 
           * {
@@ -46,6 +46,7 @@ export default function App() {
             font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             color: var(--fs-text);
             text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
           }
 
           a {

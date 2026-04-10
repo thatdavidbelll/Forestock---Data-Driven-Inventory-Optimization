@@ -43,6 +43,7 @@ public class ProductBulkImportService {
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
     private final AuditLogService auditLogService;
+    private final ForecastTriggerService forecastTriggerService;
 
     public record ImportResult(int imported, int skipped, List<String> errors) {}
 
@@ -130,6 +131,9 @@ public class ProductBulkImportService {
                 null,
                 "Imported " + imported + " products, skipped " + skipped + ", errors=" + errors.size() + ", updateExisting=" + updateExisting
         );
+        if (imported > 0) {
+            forecastTriggerService.triggerForStore(storeId, "product-bulk-import");
+        }
         log.info("Product import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.size());
         return new ImportResult(imported, skipped, errors);
     }

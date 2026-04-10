@@ -41,6 +41,7 @@ public class InventoryService {
     private final SalesTransactionRepository salesTransactionRepository;
     private final StoreConfigurationService storeConfigurationService;
     private final AuditLogService auditLogService;
+    private final ForecastTriggerService forecastTriggerService;
 
     /**
      * Returns current stock for all active products in the current tenant's store.
@@ -127,6 +128,7 @@ public class InventoryService {
                 extra
         );
         log.info("Stock updated: product={}, qty={}", product.getSku(), quantity);
+        forecastTriggerService.triggerForStore(store.getId(), "inventory-updated");
         return toDto(saved, resolveP50Daily(productId, storeId));
     }
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -5,9 +6,12 @@ import {
   AppShell,
   Badge,
   Card,
-  InfoBanner,
+  FieldLabel,
+  InputFrame,
   MetricCard,
+  RangeInput,
   Section,
+  ValuePill,
 } from "../components";
 import {
   getForestockStoreConfig,
@@ -16,7 +20,7 @@ import {
 import { authenticate } from "../shopify.server";
 
 type ActionData =
-  | { ok: true; message: string }
+  | { ok: true; message: string; config: Awaited<ReturnType<typeof getForestockStoreConfig>> }
   | { ok: false; message: string };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -30,9 +34,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const forecastHorizonDays = Number(formData.get("forecastHorizonDays"));
 
+  if (!Number.isFinite(forecastHorizonDays)) {
+    return { ok: false, message: "Forecast horizon must be a number." } satisfies ActionData;
+  }
+
+  if (forecastHorizonDays < 3 || forecastHorizonDays > 90) {
+    return { ok: false, message: "Forecast horizon must be between 3 and 90 days." } satisfies ActionData;
+  }
+
   try {
-    await updateForestockStoreConfig(session.shop, { forecastHorizonDays });
-    return { ok: true, message: "Forecast horizon updated." } satisfies ActionData;
+    const config = await updateForestockStoreConfig(session.shop, { forecastHorizonDays });
+    return { ok: true, message: `Forecast horizon updated to ${config.forecastHorizonDays} days.`, config } satisfies ActionData;
   } catch (error) {
     return {
       ok: false,
@@ -44,48 +56,51 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function SettingsPage() {
   const { config } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
+  const effectiveConfig = actionData?.ok ? actionData.config : config;
+  const [forecastHorizonDays, setForecastHorizonDays] = useState(
+    Math.min(90, Math.max(3, effectiveConfig.forecastHorizonDays)),
+  );
+
+  useEffect(() => {
+    setForecastHorizonDays(Math.min(90, Math.max(3, effectiveConfig.forecastHorizonDays)));
+  }, [effectiveConfig.forecastHorizonDays]);
 
   return (
     <AppShell
       title="Settings"
-      subtitle="Keep settings minimal in Shopify. Forecast horizon is the one store control merchants should be able to adjust here."
+      subtitle="A minimal settings surface designed around the single forecast control merchants actually need."
       actions={<Badge tone="subtle">Store config</Badge>}
     >
-      <InfoBanner
-        title="Minimal settings surface"
-        body="This page only exposes the forecast horizon. More advanced configuration can stay out of Shopify until there is a strong merchant need for it."
-        tone="subtle"
-      />
-
       <Section
         title="Forecast horizon"
         description="This changes how many days the shared backend forecast projects forward for this store."
       >
-        <Card>
-          <form method="post" style={{ display: "grid", gap: 18 }}>
+        <Card style={{ maxWidth: 760 }}>
+          <form method="post" style={{ display: "grid", gap: 20 }}>
             <MetricCard
               label="Current horizon"
-              value={`${config.forecastHorizonDays} days`}
-              hint={config.updatedAt ? `Updated ${new Date(config.updatedAt).toLocaleString()}` : "Using current store configuration"}
+              value={`${forecastHorizonDays} days`}
+              hint={effectiveConfig.updatedAt ? `Updated ${new Date(effectiveConfig.updatedAt).toLocaleString()}` : "Using current store configuration"}
               tone="accent"
             />
-            <div>
-              <label htmlFor="forecastHorizonDays" style={{ display: "block", marginBottom: 8, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-                Horizon days
-              </label>
-              <input
+            <InputFrame>
+              <FieldLabel htmlFor="forecastHorizonDays">Horizon days</FieldLabel>
+              <RangeInput
                 id="forecastHorizonDays"
                 name="forecastHorizonDays"
-                type="range"
-                min="7"
-                max="365"
-                defaultValue={config.forecastHorizonDays}
-                style={{ width: "100%" }}
+                min="3"
+                max="90"
+                step="1"
+                value={forecastHorizonDays}
+                onChange={setForecastHorizonDays}
               />
-              <div style={{ marginTop: 8, fontSize: 14, color: "#64748b" }}>
-                Choose a value between 7 and 365 days.
+              <div style={{ marginTop: 14 }}>
+                <ValuePill>{forecastHorizonDays} days</ValuePill>
               </div>
-            </div>
+              <div style={{ marginTop: 8, fontSize: 14, color: "#64748b" }}>
+                Choose a value between 3 and 90 days.
+              </div>
+            </InputFrame>
             <div>
               <s-button type="submit">Save horizon</s-button>
             </div>
