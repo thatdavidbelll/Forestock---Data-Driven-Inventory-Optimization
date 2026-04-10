@@ -3,7 +3,6 @@ import { redirect, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   AppShell,
-  Badge,
   Card,
   EmptyState,
   ErrorState,
@@ -49,31 +48,7 @@ export default function AppIndex() {
   return (
     <AppShell
       title={data.storeName || "Forestock"}
-      subtitle="A focused overview of the recommendation that needs attention first, with the forecast state behind it."
-      actions={
-        data.topRecommendation ? (
-          <Badge
-            tone={
-              data.topRecommendation.urgency === "CRITICAL"
-                ? "critical"
-                : data.topRecommendation.urgency === "HIGH"
-                  ? "warning"
-                  : "accent"
-            }
-          >
-            {data.topRecommendation.urgency}
-          </Badge>
-        ) : undefined
-      }
     >
-      <Section title="Snapshot" description="The core signals merchants need without extra noise.">
-        <Grid columns={3}>
-          <MetricCard label="Active products" value={data.activeProductCount} hint={`${data.totalProductCount} total in catalog`} />
-          <MetricCard label="Sales history" value={data.hasSalesHistory ? "Connected" : "Missing"} hint={`${data.salesTransactionCount} transactions`} tone={data.hasSalesHistory ? "success" : "warning"} />
-          <MetricCard label="Forecast status" value={data.forecastStatus ?? "Not started"} hint={data.forecastCompletedAt ? `Updated ${formatDateTime(data.forecastCompletedAt)}` : "Awaiting forecast output"} tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : data.forecastStatus?.toUpperCase().includes("RUNNING") ? "accent" : "warning"} />
-        </Grid>
-      </Section>
-
       <Section title="Top recommendation" description="Start here if you only review one item right now.">
         {data.topRecommendation ? (
           <Card>
@@ -84,11 +59,6 @@ export default function AppIndex() {
                   <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>{data.topRecommendation.productSku}</div>
                   This product currently carries the highest restocking priority based on stock cover, demand, and the latest forecast output.
                 </>
-              }
-              aside={
-                <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
-                  {data.topRecommendation.urgency}
-                </Badge>
               }
             />
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
@@ -102,7 +72,6 @@ export default function AppIndex() {
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
               <KeyValueList
                 items={[
-                  { label: "Priority", value: data.topRecommendation.urgency },
                   { label: "SKU", value: data.topRecommendation.productSku },
                 ]}
               />

@@ -77,7 +77,6 @@ export default function SettingsPage() {
   return (
     <AppShell
       title="Settings"
-      subtitle="A minimal settings surface designed around the single forecast control merchants actually need."
       actions={<Badge tone="subtle">Store config</Badge>}
     >
       <Section

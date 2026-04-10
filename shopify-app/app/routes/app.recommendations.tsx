@@ -46,10 +46,7 @@ export default function RecommendationsPage() {
   const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
 
   return (
-    <AppShell
-      title="Recommendations"
-      subtitle="A compact review queue with the most urgent products surfaced first."
-    >
+    <AppShell title="Recommendations">
       <Grid columns={3}>
         <MetricCard label="In queue" value={data.recommendations.length} hint="Products needing review now" />
         <MetricCard label="Critical" value={criticalCount} hint="Highest urgency recommendations" tone={criticalCount > 0 ? "critical" : "subtle"} />

@@ -103,7 +103,6 @@ export default function SetupPage() {
   return (
     <AppShell
       title="Setup"
-      subtitle="A clean status view for store readiness, data import, and forecast progress."
       actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
     >
       <Section title="Setup status" description="We handle the setup for you.">
