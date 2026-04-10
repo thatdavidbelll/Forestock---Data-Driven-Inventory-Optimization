@@ -55,10 +55,7 @@ public class SecurityConfig {
             "/api/webhooks/shopify/**",
             "/actuator/health",
             "/actuator/health/**",
-            "/error",               // Spring error dispatch
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/v3/api-docs/**"
+            "/error"
     };
 
     @Bean
@@ -81,6 +78,7 @@ public class SecurityConfig {
                     .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/shopify/config").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/shopify/app-home").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/shopify/recommendations").permitAll()
+                    .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").hasRole("SUPER_ADMIN")
                     // Platform-level admin: only SUPER_ADMIN can create stores or access admin panel
                     .requestMatchers("/api/register").hasRole("SUPER_ADMIN")
                     .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")

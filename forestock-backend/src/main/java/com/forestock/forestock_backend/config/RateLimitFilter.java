@@ -61,9 +61,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             while (!queue.isEmpty() && (now - queue.peekFirst()) > WINDOW_MS) {
                 queue.pollFirst();
             }
-            if (queue.isEmpty() && existing != null) {
-                return null;
-            }
             if (queue.size() >= MAX_REQUESTS) {
                 return queue;
             }
@@ -72,6 +69,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return queue;
         });
         boolean allowed = allowedRef[0];
+        requestLog.entrySet().removeIf(e -> {
+            Deque<Long> q = e.getValue();
+            return q.isEmpty() || (now - q.peekFirst()) > WINDOW_MS;
+        });
 
         if (allowed) {
             filterChain.doFilter(request, response);

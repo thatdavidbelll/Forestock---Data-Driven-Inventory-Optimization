@@ -158,10 +158,12 @@ public class AuthController {
             AppUser user = userRepository.findWithStoreByUsername(username).orElseThrow();
             UUID storeIdForRefresh = user.getStore() != null ? user.getStore().getId() : null;
             String newAccessToken = jwtService.generateAccessToken(userDetails, user.getRole(), storeIdForRefresh);
+            String newRefreshToken = jwtService.generateRefreshToken(userDetails, user.getRole(), storeIdForRefresh);
+            tokenBlacklistService.blacklist(refreshTokenJti, jwtService.getRemainingTtl(refreshToken));
 
             return ResponseEntity.ok(ApiResponse.success(AuthResponse.builder()
                     .accessToken(newAccessToken)
-                    .refreshToken(refreshToken)
+                    .refreshToken(newRefreshToken)
                     .tokenType("Bearer")
                     .expiresInSeconds(8 * 3600L)
                     .username(username)

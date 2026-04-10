@@ -49,7 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       resetAnalytics()
       localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
       localStorage.removeItem('username')
       localStorage.removeItem('role')
       sessionStorage.removeItem('refreshToken')

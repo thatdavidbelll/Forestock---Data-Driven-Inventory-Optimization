@@ -43,9 +43,10 @@ public class ForecastService {
     @Transactional(readOnly = true)
     public ForecastRunDto getLatestCompletedRun() {
         UUID storeId = TenantContext.getStoreId();
-        return (storeId != null
-                ? forecastRunRepository.findTopByStoreIdAndStatusOrderByFinishedAtDesc(storeId, ForecastStatus.COMPLETED)
-                : forecastRunRepository.findTopByStatusOrderByFinishedAtDesc(ForecastStatus.COMPLETED))
+        if (storeId == null) {
+            throw new IllegalStateException("No store context");
+        }
+        return forecastRunRepository.findTopByStoreIdAndStatusOrderByFinishedAtDesc(storeId, ForecastStatus.COMPLETED)
                 .map(this::toDto)
                 .orElseThrow(() -> new NoSuchElementException("No completed forecast run found"));
     }

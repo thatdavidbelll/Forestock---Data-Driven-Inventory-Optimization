@@ -5,7 +5,12 @@ interface RetryConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
 }
 
-let refreshPromise: Promise<string> | null = null
+interface RefreshResult {
+  accessToken: string
+  refreshToken?: string
+}
+
+let refreshPromise: Promise<RefreshResult> | null = null
 let authHandlers: {
   logout: (() => Promise<void>) | null
   updateAccessToken: ((token: string) => void) | null
@@ -55,20 +60,23 @@ api.interceptors.response.use(
               .post(`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/auth/refresh`, null, {
                 headers: { Authorization: `Bearer ${refreshToken}` },
               })
-              .then((response) => response.data.data.accessToken as string)
+              .then((response) => ({
+                accessToken: response.data.data.accessToken as string,
+                refreshToken: response.data.data.refreshToken as string | undefined,
+              }))
               .finally(() => {
                 refreshPromise = null
               })
           }
 
-          const newAccessToken = await refreshPromise
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await refreshPromise
+          if (newRefreshToken) sessionStorage.setItem('refreshToken', newRefreshToken)
           authHandlers.updateAccessToken?.(newAccessToken)
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
           return api(originalRequest)
         } catch {
           await authHandlers.logout?.()
           localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
           localStorage.removeItem('username')
           localStorage.removeItem('role')
           sessionStorage.removeItem('refreshToken')
@@ -85,7 +93,6 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/login')
     ) {
       localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
       localStorage.removeItem('username')
       localStorage.removeItem('role')
       sessionStorage.removeItem('refreshToken')
