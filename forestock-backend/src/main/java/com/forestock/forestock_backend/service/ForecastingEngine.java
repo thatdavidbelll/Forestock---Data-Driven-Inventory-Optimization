@@ -37,9 +37,10 @@ public class ForecastingEngine {
         double[] data = history.stream().mapToDouble(Double::doubleValue).toArray();
         int minHistoryDays = configuration.getMinHistoryDays();
         int seasonalityPeriod = configuration.getSeasonalityPeriod();
+        long observedSalesDays = history.stream().filter(value -> value != null && value > 0).count();
 
-        if (data.length < minHistoryDays) {
-            log.debug("Insufficient history ({} days), falling back to SMA", data.length);
+        if (observedSalesDays < minHistoryDays) {
+            log.debug("Insufficient sales history ({} observed sales days), falling back to SMA", observedSalesDays);
             return simpleMovingAverage(data, horizonDays);
         }
 

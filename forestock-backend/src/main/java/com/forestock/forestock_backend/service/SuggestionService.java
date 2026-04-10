@@ -141,6 +141,8 @@ public class SuggestionService {
                 .moqApplied(s.getMoqApplied())
                 .estimatedOrderValue(s.getEstimatedOrderValue())
                 .supplierName(s.getProduct().getSupplierName())
+                .lowConfidence(Boolean.TRUE.equals(s.getLowConfidence()))
+                .historyDaysAtGeneration(s.getHistoryDaysAtGeneration())
                 .urgency(s.getUrgency())
                 .acknowledged(Boolean.TRUE.equals(s.getAcknowledged()))
                 .acknowledgedAt(s.getAcknowledgedAt())

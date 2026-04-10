@@ -57,7 +57,9 @@ export default function AppIndex() {
               body={
                 <>
                   <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>{data.topRecommendation.productSku}</div>
-                  This product currently carries the highest restocking priority based on stock cover, demand, and the latest forecast output.
+                  {data.topRecommendation.lowConfidence
+                    ? `This recommendation is based on limited sales history${data.topRecommendation.historyDaysAtGeneration != null ? ` (${data.topRecommendation.historyDaysAtGeneration} observed sales days)` : ""}, so treat the reorder quantity as directional.`
+                    : "This product currently carries the highest restocking priority based on stock cover, demand, and the latest forecast output."}
                 </>
               }
             />
@@ -73,6 +75,14 @@ export default function AppIndex() {
               <KeyValueList
                 items={[
                   { label: "SKU", value: data.topRecommendation.productSku },
+                  ...(data.topRecommendation.lowConfidence
+                    ? [{
+                        label: "Confidence",
+                        value: data.topRecommendation.historyDaysAtGeneration != null
+                          ? `Low (${data.topRecommendation.historyDaysAtGeneration} sales days observed)`
+                          : "Low",
+                      }]
+                    : []),
                 ]}
               />
             </div>

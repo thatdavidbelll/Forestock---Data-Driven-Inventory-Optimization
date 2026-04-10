@@ -86,6 +86,11 @@ export default function RecommendationsPage() {
                         {recommendation.productSku}
                         {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
                       </div>
+                      {recommendation.lowConfidence ? (
+                        <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5, color: "#92400E" }}>
+                          Low confidence{recommendation.historyDaysAtGeneration != null ? ` • ${recommendation.historyDaysAtGeneration} sales days observed` : ""}
+                        </div>
+                      ) : null}
                     </div>
                     <Badge tone={tone}>{recommendation.urgency}</Badge>
                   </div>

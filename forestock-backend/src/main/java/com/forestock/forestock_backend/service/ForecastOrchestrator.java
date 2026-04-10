@@ -133,11 +133,14 @@ public class ForecastOrchestrator {
             log.info("Processing {} active products for store {}", products.size(), store.getSlug());
 
             Map<UUID, ForecastResult> forecastResults = new HashMap<>();
+            Map<UUID, Integer> historyDaysByProduct = new HashMap<>();
             int productsWithInsufficientData = 0;
             for (Product product : products) {
                 List<SalesTransaction> productSales = salesByProduct.getOrDefault(product.getId(), List.of());
                 List<Double> timeSeries = buildTimeSeries(productSales, from, LocalDate.now());
-                if (timeSeries.size() < configuration.getMinHistoryDays()) {
+                int historyDays = (int) timeSeries.stream().filter(value -> value > 0).count();
+                historyDaysByProduct.put(product.getId(), historyDays);
+                if (historyDays < configuration.getMinHistoryDays()) {
                     productsWithInsufficientData++;
                 }
                 ForecastResult result = forecastingEngine.forecast(timeSeries, horizonDays, configuration);
@@ -154,7 +157,7 @@ public class ForecastOrchestrator {
             }
 
             List<OrderSuggestion> suggestions = suggestionEngine.generate(
-                    products, currentStock, forecastResults, run, horizonDays, configuration);
+                    products, currentStock, forecastResults, historyDaysByProduct, run, horizonDays, configuration);
 
             s3ExportService.backupSalesData(allSales, run.getId());
             s3ExportService.uploadForecastResults(forecastResults, run.getId());

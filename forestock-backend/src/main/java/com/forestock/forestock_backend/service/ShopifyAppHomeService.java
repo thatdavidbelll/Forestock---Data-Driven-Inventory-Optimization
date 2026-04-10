@@ -261,6 +261,8 @@ public class ShopifyAppHomeService {
                 .moqApplied(suggestion.getMoqApplied())
                 .estimatedOrderValue(suggestion.getEstimatedOrderValue())
                 .supplierName(suggestion.getProduct().getSupplierName())
+                .lowConfidence(Boolean.TRUE.equals(suggestion.getLowConfidence()))
+                .historyDaysAtGeneration(suggestion.getHistoryDaysAtGeneration())
                 .acknowledged(Boolean.TRUE.equals(suggestion.getAcknowledged()))
                 .acknowledgedAt(suggestion.getAcknowledgedAt())
                 .acknowledgedReason(suggestion.getAcknowledgedReason())

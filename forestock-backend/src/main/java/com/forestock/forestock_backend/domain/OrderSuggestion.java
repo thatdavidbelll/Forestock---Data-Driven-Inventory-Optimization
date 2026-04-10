@@ -58,6 +58,13 @@ public class OrderSuggestion {
     @Column(name = "estimated_order_value", precision = 14, scale = 2)
     private BigDecimal estimatedOrderValue;
 
+    @Builder.Default
+    @Column(name = "low_confidence", nullable = false)
+    private Boolean lowConfidence = false;
+
+    @Column(name = "history_days_at_generation")
+    private Integer historyDaysAtGeneration;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private Urgency urgency;

@@ -103,7 +103,16 @@ export default function SetupPage() {
   return (
     <AppShell
       title="Setup"
-      actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
+      actions={
+        <>
+          <Badge tone={readiness.tone}>{readiness.label}</Badge>
+          <setupFetcher.Form method="post">
+            <ActionButton loading={setupFetcher.state !== "idle"}>
+              {shouldAutoBootstrap ? "Retry setup" : "Run setup again"}
+            </ActionButton>
+          </setupFetcher.Form>
+        </>
+      }
     >
       <Section title="Setup status" description="We handle the setup for you.">
         <Card>
@@ -124,13 +133,6 @@ export default function SetupPage() {
                 : nextSetupStage
                   ? `${nextSetupStage.title}: ${nextSetupStage.summary}`
                   : "Everything needed for recommendations is in place."
-            }
-            aside={
-              <setupFetcher.Form method="post">
-                <ActionButton loading={setupFetcher.state !== "idle"}>
-                  {shouldAutoBootstrap ? "Retry setup" : "Run setup again"}
-                </ActionButton>
-              </setupFetcher.Form>
             }
           />
           <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>

@@ -44,6 +44,7 @@ public class SuggestionEngine {
             List<Product> products,
             Map<UUID, BigDecimal> currentStockMap,
             Map<UUID, ForecastResult> forecastMap,
+            Map<UUID, Integer> historyDaysMap,
             ForecastRun forecastRun,
             int horizonDays,
             StoreConfiguration configuration) {
@@ -61,6 +62,8 @@ public class SuggestionEngine {
             BigDecimal currentStock = currentStockMap.getOrDefault(product.getId(), BigDecimal.ZERO);
             BigDecimal p50 = BigDecimal.valueOf(forecast.p50Total());
             BigDecimal p90 = p50.multiply(safetyStockMultiplier).setScale(2, RoundingMode.HALF_UP);
+            int historyDays = historyDaysMap.getOrDefault(product.getId(), 0);
+            boolean lowConfidence = historyDays > 0 && historyDays < configuration.getMinHistoryDays();
             int leadTimeDays = product.getLeadTimeDays() != null ? product.getLeadTimeDays() : 0;
 
             BigDecimal dailyDemand = p50.divide(BigDecimal.valueOf(horizonDays), 4, RoundingMode.HALF_UP);
@@ -68,6 +71,9 @@ public class SuggestionEngine {
             BigDecimal effectiveTarget = p90.add(leadTimeBuffer);
             BigDecimal rawSuggested = effectiveTarget.subtract(currentStock);
             if (rawSuggested.compareTo(BigDecimal.ZERO) < 0) rawSuggested = BigDecimal.ZERO;
+            if (lowConfidence) {
+                rawSuggested = applyLowConfidenceDampening(rawSuggested, historyDays, configuration.getMinHistoryDays());
+            }
 
             BigDecimal moqApplied = null;
             BigDecimal suggested;
@@ -110,6 +116,8 @@ public class SuggestionEngine {
                     .leadTimeDaysAtGeneration(leadTimeDays)
                     .moqApplied(moqApplied)
                     .estimatedOrderValue(estimatedOrderValue)
+                    .lowConfidence(lowConfidence)
+                    .historyDaysAtGeneration(historyDays > 0 ? historyDays : null)
                     .urgency(urgency)
                     .build();
 
@@ -133,10 +141,21 @@ public class SuggestionEngine {
             Map<UUID, ForecastResult> forecastMap,
             ForecastRun forecastRun,
             int horizonDays) {
+        return generate(products, currentStockMap, forecastMap, Map.of(), forecastRun, horizonDays);
+    }
+
+    @Transactional
+    public List<OrderSuggestion> generate(
+            List<Product> products,
+            Map<UUID, BigDecimal> currentStockMap,
+            Map<UUID, ForecastResult> forecastMap,
+            Map<UUID, Integer> historyDaysMap,
+            ForecastRun forecastRun,
+            int horizonDays) {
         StoreConfiguration fallbackConfiguration = StoreConfiguration.builder()
                 .store(forecastRun.getStore() != null ? forecastRun.getStore() : Store.builder().build())
                 .build();
-        return generate(products, currentStockMap, forecastMap, forecastRun, horizonDays, fallbackConfiguration);
+        return generate(products, currentStockMap, forecastMap, historyDaysMap, forecastRun, horizonDays, fallbackConfiguration);
     }
 
     private Urgency computeUrgency(BigDecimal daysOfStock, StoreConfiguration configuration) {
@@ -145,5 +164,15 @@ public class SuggestionEngine {
         if (days < configuration.getUrgencyHighDays()) return Urgency.HIGH;
         if (days < configuration.getUrgencyMediumDays()) return Urgency.MEDIUM;
         return Urgency.LOW;
+    }
+
+    private BigDecimal applyLowConfidenceDampening(BigDecimal rawSuggested, int historyDays, int minHistoryDays) {
+        if (rawSuggested.compareTo(BigDecimal.ZERO) <= 0 || minHistoryDays <= 0) {
+            return rawSuggested;
+        }
+
+        BigDecimal confidenceRatio = BigDecimal.valueOf(historyDays)
+                .divide(BigDecimal.valueOf(minHistoryDays), 4, RoundingMode.HALF_UP);
+        return rawSuggested.multiply(confidenceRatio).setScale(2, RoundingMode.HALF_UP);
     }
 }

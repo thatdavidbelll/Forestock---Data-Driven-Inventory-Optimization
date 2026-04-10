@@ -160,6 +160,8 @@ type RecommendationCard = {
   moqApplied?: number | null;
   estimatedOrderValue: number | null;
   supplierName: string | null;
+  lowConfidence?: boolean;
+  historyDaysAtGeneration?: number | null;
   acknowledged?: boolean;
   acknowledgedAt?: string | null;
   acknowledgedReason?: string | null;
@@ -205,7 +207,18 @@ async function readApiResponse<T>(response: Response): Promise<{ message?: strin
 
   try {
     const text = await response.text();
-    return { message: text || response.statusText };
+    const normalized = text.trim();
+    const titleMatch = normalized.match(/<title>([^<]+)<\/title>/i);
+    const paragraphMatch = normalized.match(/<p>([^<]+)<\/p>/i);
+
+    if (titleMatch || paragraphMatch) {
+      const parts = [titleMatch?.[1], paragraphMatch?.[1]]
+        .filter((value): value is string => Boolean(value && value.trim()))
+        .map((value) => value.replace(/\s+/g, " ").trim());
+      return { message: parts.join(" — ") || response.statusText };
+    }
+
+    return { message: normalized || response.statusText };
   } catch {
     return { message: response.statusText || "Forestock API request failed" };
   }

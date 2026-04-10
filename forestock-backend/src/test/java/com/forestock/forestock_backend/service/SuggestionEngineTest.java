@@ -3,6 +3,7 @@ package com.forestock.forestock_backend.service;
 import com.forestock.forestock_backend.domain.ForecastRun;
 import com.forestock.forestock_backend.domain.OrderSuggestion;
 import com.forestock.forestock_backend.domain.Product;
+import com.forestock.forestock_backend.domain.StoreConfiguration;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
@@ -178,5 +179,29 @@ class SuggestionEngineTest {
         assertThat(result.get(0).getUrgency()).isEqualTo(Urgency.CRITICAL);
         assertThat(result.get(1).getUrgency()).isEqualTo(Urgency.HIGH);
         assertThat(result.get(2).getUrgency()).isEqualTo(Urgency.LOW);
+    }
+
+    @Test
+    void lowConfidence_suggestions_are_dampened_when_history_is_sparse() {
+        Map<UUID, BigDecimal> stock = Map.of(product.getId(), BigDecimal.valueOf(1));
+        Map<UUID, ForecastResult> forecast = Map.of(
+                product.getId(), new ForecastResult(28, 33.6, List.of()));
+        Map<UUID, Integer> historyDays = Map.of(product.getId(), 2);
+
+        StoreConfiguration configuration = StoreConfiguration.builder()
+                .minHistoryDays(30)
+                .safetyStockMultiplier(BigDecimal.valueOf(1.20))
+                .urgencyCriticalDays(2)
+                .urgencyHighDays(5)
+                .urgencyMediumDays(10)
+                .build();
+
+        List<OrderSuggestion> result = suggestionEngine.generate(
+                List.of(product), stock, forecast, historyDays, forecastRun, 14, configuration);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getLowConfidence()).isTrue();
+        assertThat(result.get(0).getHistoryDaysAtGeneration()).isEqualTo(2);
+        assertThat(result.get(0).getSuggestedQty()).isEqualByComparingTo(new BigDecimal("3.00"));
     }
 }
