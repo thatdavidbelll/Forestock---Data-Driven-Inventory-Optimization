@@ -481,3 +481,80 @@ export async function getForestockRecommendations(shopDomain: string): Promise<R
   }
   return responseBody.data;
 }
+
+export async function notifyCustomerDataRequest(payload: {
+  shopDomain: string;
+  customerId: number;
+  customerEmail: string | null;
+  ordersRequestedCount: number | null;
+}): Promise<void> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/gdpr/customers/data-request`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const responseBody = await readApiResponse<void>(response);
+  if (!response.ok) {
+    throw new Error(
+      responseBody.message || "Failed to log GDPR customer data request",
+    );
+  }
+}
+
+export async function redactCustomerData(payload: {
+  shopDomain: string;
+  customerId: number;
+  customerEmail: string | null;
+  ordersToRedact: number[];
+}): Promise<void> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/shopify/gdpr/customers/redact`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forestock-Shopify-Secret": provisioningSecret,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const responseBody = await readApiResponse<void>(response);
+  if (!response.ok) {
+    throw new Error(responseBody.message || "Failed to redact customer data");
+  }
+}
+
+export async function redactShopData(payload: {
+  shopDomain: string;
+}): Promise<void> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(`${apiBaseUrl}/api/shopify/gdpr/shop/redact`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forestock-Shopify-Secret": provisioningSecret,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseBody = await readApiResponse<void>(response);
+  if (!response.ok) {
+    throw new Error(responseBody.message || "Failed to redact shop data");
+  }
+}
