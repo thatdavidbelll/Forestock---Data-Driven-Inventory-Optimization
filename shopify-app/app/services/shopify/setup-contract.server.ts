@@ -75,6 +75,12 @@ export type ShopifyOrderBackfillResult = {
   salesRowsUpserted: number;
 };
 
+export type ShopifySetupExternalBlock = {
+  step: "orders";
+  code: "SHOPIFY_PROTECTED_CUSTOMER_DATA_REQUIRED";
+  message: string;
+};
+
 export type ShopifySetupStepResult = {
   intent: "full";
   ok: boolean;
@@ -83,6 +89,7 @@ export type ShopifySetupStepResult = {
   catalogSync?: ShopifyCatalogSyncResult | null;
   orderBackfill?: ShopifyOrderBackfillResult | null;
   forecastTriggered?: boolean | null;
+  externalBlock?: ShopifySetupExternalBlock | null;
 };
 
 export type ShopifySetupRunRequest = {

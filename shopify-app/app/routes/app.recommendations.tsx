@@ -10,9 +10,7 @@ import {
   Grid,
   InfoBanner,
   KeyValueList,
-  MetricCard,
   Section,
-  toneForForecast,
 } from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockRecommendations } from "../forestock.server";
@@ -35,14 +33,12 @@ function formatMetricNumber(value: number | null | undefined, suffix = "") {
 
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
-  const forecastTone = toneForForecast(data.forecastStatus);
   const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
 
   return (
     <AppShell
       title="Recommendations"
       subtitle="A short queue of products that currently need review."
-      actions={<Badge tone={forecastTone}>{data.forecastStatus ?? "No forecast yet"}</Badge>}
     >
       <InfoBanner
         title="Queue summary"
@@ -92,23 +88,6 @@ export default function RecommendationsPage() {
           />
         )}
       </Section>
-
-      <Section title="Forecast proof" description="Leave one compact proof block here so the queue stays trustworthy.">
-        <Grid columns={2}>
-          <MetricCard
-            label="Forecast status"
-            value={data.forecastStatus ?? "Not run yet"}
-            hint={`Completed ${formatDateTime(data.forecastCompletedAt)}`}
-            tone={forecastTone === "default" ? "warning" : forecastTone}
-          />
-          <MetricCard
-            label="Open recommendations"
-            value={data.recommendations.length}
-            hint={data.recommendations.length > 0 ? "Products currently needing review" : "No active queue yet"}
-            tone={data.recommendations.length > 0 ? "accent" : "subtle"}
-          />
-        </Grid>
-      </Section>
     </AppShell>
   );
 }
@@ -120,4 +99,3 @@ export function ErrorBoundary() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
-

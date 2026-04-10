@@ -76,18 +76,22 @@ Important runtime decision:
   - an `APP_UNINSTALLED` webhook after the distribution switch
   - likely app identity change / stale install state
 
-## Current Session Findings — 2026-04-09
+## Current Session Findings — 2026-04-10
 
-- Local repo state is clean except for untracked `resume.txt`.
+- Local repo has in-progress docs updates plus untracked `resume.txt`.
 - `shopify-app` still matches the reset-plan shape:
   - embedded auth redirect helper exists
   - debug auth logging exists behind `SHOPIFY_DEBUG_AUTH=true`
   - no new normal-path manual shop-link dependency was introduced
+- Local Shopify setup flow now treats missing Shopify protected customer data approval as an external block instead of a generic setup failure:
+  - order-history access denial is classified as `SHOPIFY_PROTECTED_CUSTOMER_DATA_REQUIRED`
+  - automatic setup surfaces that blocker in the embedded UI
+  - forecast triggering is skipped when order import is externally blocked
+  - same-page auto-bootstrap stops retrying after that external block is returned
 - Local validation gates passed:
   - `npm run typecheck`
   - `npm run build`
-- No unfinished local code change is indicated by the handoff state.
-- The remaining critical work is live environment validation, not local compilation repair.
+- The remaining critical work is still live environment validation, not local compilation repair.
 
 ## Next Step To Resume
 
@@ -103,6 +107,7 @@ Important runtime decision:
    - app opens from Shopify Admin
    - `Home`
    - `Setup`
+   - confirm blocked-order state is shown as an external Shopify approval constraint, not as a generic app failure
    - catalog sync
    - recommendations
 7. Capture evidence in:

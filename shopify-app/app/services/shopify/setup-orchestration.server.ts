@@ -6,6 +6,7 @@ import {
 } from "../../forestock.server";
 import {
   SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
+  type ShopifySetupExternalBlock,
   type ShopifySetupRunRequest,
   type ShopifySetupStepResult,
 } from "./setup-contract.server";
@@ -13,6 +14,31 @@ import {
   collectCatalogItems,
   collectHistoricalOrders,
 } from "./setup-collection.server";
+
+function detectOrderAccessExternalBlock(error: unknown): ShopifySetupExternalBlock | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const normalized = message.toLowerCase();
+  const mentionsOrders =
+    normalized.includes("order") ||
+    normalized.includes("read_orders") ||
+    normalized.includes("protected customer data");
+  const looksLikePermissionFailure =
+    normalized.includes("access denied") ||
+    normalized.includes("not approved") ||
+    normalized.includes("protected customer data") ||
+    normalized.includes("protected data");
+
+  if (!mentionsOrders || !looksLikePermissionFailure) {
+    return null;
+  }
+
+  return {
+    step: "orders",
+    code: "SHOPIFY_PROTECTED_CUSTOMER_DATA_REQUIRED",
+    message:
+      "Shopify blocked order-history access for this app. Protected customer data approval is still required before Forestock can import orders or validate the order webhook in a real store.",
+  };
+}
 
 async function runShopifyProvisionStep({
   shopDomain,
@@ -70,18 +96,32 @@ async function runShopifyOrderBackfillStep({
   admin: Parameters<typeof collectHistoricalOrders>[0];
   historyDays?: number;
 }): Promise<ShopifySetupStepResult> {
-  const orders = await collectHistoricalOrders(admin, historyDays);
-  const orderBackfill = await backfillForestockOrders({
-    shopDomain,
-    orders,
-  });
+  try {
+    const orders = await collectHistoricalOrders(admin, historyDays);
+    const orderBackfill = await backfillForestockOrders({
+      shopDomain,
+      orders,
+    });
 
-  return {
-    intent: "full",
-    ok: true,
-    message: "Order history import completed.",
-    orderBackfill,
-  };
+    return {
+      intent: "full",
+      ok: true,
+      message: "Order history import completed.",
+      orderBackfill,
+    };
+  } catch (error) {
+    const externalBlock = detectOrderAccessExternalBlock(error);
+    if (!externalBlock) {
+      throw error;
+    }
+
+    return {
+      intent: "full",
+      ok: true,
+      message: externalBlock.message,
+      externalBlock,
+    };
+  }
 }
 
 async function runShopifyForecastStep({
@@ -113,16 +153,27 @@ export async function runShopifyFullSetup({
   const provisionStep = await runShopifyProvisionStep({ shopDomain, shopName });
   const catalogStep = await runShopifyCatalogSyncStep({ shopDomain, admin });
   const ordersStep = await runShopifyOrderBackfillStep({ shopDomain, admin, historyDays });
-  const forecastStep = await runShopifyForecastStep({ shopDomain });
+  const forecastStep = ordersStep.externalBlock
+    ? {
+        intent: "full" as const,
+        ok: true,
+        message: ordersStep.message,
+        forecastTriggered: false,
+        externalBlock: ordersStep.externalBlock,
+      }
+    : await runShopifyForecastStep({ shopDomain });
 
   return {
     intent: "full",
     ok: true,
-    message: forecastStep.message,
+    message: ordersStep.externalBlock
+      ? "Automatic setup completed as far as Shopify approval currently allows."
+      : forecastStep.message,
     provisioned: provisionStep.provisioned,
     catalogSync: catalogStep.catalogSync,
     orderBackfill: ordersStep.orderBackfill,
-    forecastTriggered: forecastStep.forecastTriggered ?? true,
+    forecastTriggered: forecastStep.forecastTriggered ?? false,
+    externalBlock: ordersStep.externalBlock ?? forecastStep.externalBlock ?? null,
   };
 }
 

@@ -7,14 +7,8 @@ import {
   Card,
   EmptyState,
   formatDateTime,
-  Grid,
-  InfoBanner,
-  InlineList,
   KeyValueList,
-  MetricCard,
   Section,
-  toneForForecast,
-  toneForReadiness,
 } from "../components";
 import { authenticate } from "../shopify.server";
 import { getForestockAppHome } from "../forestock.server";
@@ -37,72 +31,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return overview;
 };
 
-function statusLabel(status: string | null) {
-  if (!status) return "Not run yet";
-  return status.replaceAll("_", " ");
-}
-
 export default function AppIndex() {
   const data = useLoaderData<typeof loader>();
-  const readiness = toneForReadiness({
-    activeProductCount: data.activeProductCount,
-    hasSalesHistory: data.hasSalesHistory,
-    forecastStatus: data.forecastStatus,
-  });
-  const forecastTone = toneForForecast(data.forecastStatus);
 
   return (
     <AppShell
-      title={data.storeName ? `${data.storeName} inventory radar` : "Inventory radar"}
-      subtitle="A single place to confirm readiness and review the top reorder risk."
-      actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
-    >
-      <InfoBanner
-        title="Current state"
-        body={data.nextActions[0] ?? "The store is ready for recommendation review."}
-        tone={readiness.tone === "success" ? "success" : "accent"}
-      />
-
-      <Section title="Readiness" description="If these are healthy, the merchant can trust the queue.">
-        <Grid columns={4}>
-          <MetricCard
-            label="Connection"
-            value={data.shopifyConnectionActive ? "Connected" : "Needs link"}
-            hint={data.shopDomain}
-            tone={data.shopifyConnectionActive ? "success" : "critical"}
-          />
-          <MetricCard
-            label="Products"
-            value={data.totalProductCount}
-            hint={`${data.activeProductCount} active`}
-            tone={data.totalProductCount > 0 ? "accent" : "warning"}
-          />
-          <MetricCard
-            label="Transactions"
-            value={data.salesTransactionCount}
-            hint={data.latestSaleDate ? `Latest ${data.latestSaleDate}` : "No history yet"}
-            tone={data.hasSalesHistory ? "success" : "warning"}
-          />
-          <MetricCard
-            label="Forecast"
-            value={statusLabel(data.forecastStatus)}
-            hint={
-              data.forecastCompletedAt
-                ? `Completed ${formatDateTime(data.forecastCompletedAt)}`
-                : `Started ${formatDateTime(data.lastForecastStartedAt)}`
+      title={data.storeName || "Forestock"}
+      actions={
+        data.topRecommendation ? (
+          <Badge
+            tone={
+              data.topRecommendation.urgency === "CRITICAL"
+                ? "critical"
+                : data.topRecommendation.urgency === "HIGH"
+                  ? "warning"
+                  : "accent"
             }
-            tone={forecastTone === "default" ? "warning" : forecastTone}
-          />
-        </Grid>
-      </Section>
-
-      <Section title="Next action" description="Keep this obvious.">
-        <Card tone={readiness.tone === "success" ? "success" : "warning"}>
-          <InlineList items={data.nextActions} />
-        </Card>
-      </Section>
-
-      <Section title="Top recommendation" description="Show the highest-priority item only.">
+          >
+            {data.topRecommendation.urgency}
+          </Badge>
+        ) : undefined
+      }
+    >
+      <Section title="Top recommendation" description="Start with this product.">
         {data.topRecommendation ? (
           <Card tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "success"}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
@@ -126,7 +77,7 @@ export default function AppIndex() {
         ) : (
           <EmptyState
             title="No recommendation yet"
-            body="Once setup and forecast complete, the highest-priority reorder item appears here."
+            body="When Forestock is ready, your first product to review will appear here."
           />
         )}
       </Section>
@@ -141,4 +92,3 @@ export function ErrorBoundary() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
-

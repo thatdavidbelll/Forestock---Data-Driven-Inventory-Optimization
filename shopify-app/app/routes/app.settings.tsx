@@ -78,12 +78,12 @@ export default function SettingsPage() {
                 name="forecastHorizonDays"
                 type="range"
                 min="7"
-                max="90"
+                max="365"
                 defaultValue={config.forecastHorizonDays}
                 style={{ width: "100%" }}
               />
               <div style={{ marginTop: 8, fontSize: 14, color: "rgba(226, 232, 240, 0.88)" }}>
-                Choose a value between 7 and 90 days.
+                Choose a value between 7 and 365 days.
               </div>
             </div>
             <div>
@@ -108,4 +108,3 @@ export function ErrorBoundary() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
-

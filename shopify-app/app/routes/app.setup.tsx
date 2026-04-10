@@ -7,9 +7,7 @@ import {
   AppShell,
   Badge,
   Card,
-  EmptyState,
   Grid,
-  InfoBanner,
   InlineList,
   KeyValueList,
   Section,
@@ -79,7 +77,8 @@ export default function SetupPage() {
   });
   const stages = getSetupStages(overview);
   const nextSetupStage = stages.find((stage) => stage.status !== "completed");
-  const shouldAutoBootstrap = shouldAutoRunSetup(stages);
+  const setupBlockedExternally = Boolean(setupFetcher.data?.externalBlock);
+  const shouldAutoBootstrap = !setupBlockedExternally && shouldAutoRunSetup(stages);
 
   useEffect(() => {
     if (autoSubmitted.current || !shouldAutoBootstrap || setupFetcher.state !== "idle") {
@@ -93,34 +92,28 @@ export default function SetupPage() {
   return (
     <AppShell
       title="Setup"
-      subtitle="This page should only answer two questions: is automatic setup running, and what is still blocking readiness."
       actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
     >
-      <InfoBanner
-        title="Automatic setup"
-        body={
-          shouldAutoBootstrap
-            ? "Forestock is responsible for linking the store, importing products and transactions, and starting the forecast. The merchant should not have to run separate setup steps."
-            : "Automatic setup has completed its core work for this store."
-        }
-        tone={shouldAutoBootstrap ? "accent" : "success"}
-      />
-
-      <Section title="Bootstrap status" description="Retry only if setup failed or was interrupted.">
-        <Card tone={setupFetcher.state !== "idle" ? "accent" : shouldAutoBootstrap ? "warning" : "success"}>
+      <Section title="Setup status" description="We handle the setup for you.">
+        <Card tone={setupFetcher.state !== "idle" ? "accent" : setupBlockedExternally ? "warning" : shouldAutoBootstrap ? "warning" : "success"}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
                 {setupFetcher.state !== "idle"
                   ? "Preparing store data..."
+                  : setupBlockedExternally
+                    ? "Setup is externally blocked"
                   : shouldAutoBootstrap
                     ? "Setup still needs to finish"
                     : "Setup completed"}
               </div>
               <div style={{ color: "rgba(226, 232, 240, 0.92)", lineHeight: 1.65, maxWidth: 760, fontSize: 15 }}>
-                {nextSetupStage
+                {setupBlockedExternally
+                  ? setupFetcher.data?.externalBlock?.message ??
+                    "Shopify approval is still blocking order import."
+                  : nextSetupStage
                   ? `${nextSetupStage.title}: ${nextSetupStage.summary}`
-                  : "Products, transactions, and forecast proof are already in place."}
+                  : "Everything needed for recommendations is in place."}
               </div>
             </div>
             <setupFetcher.Form method="post">
@@ -134,6 +127,10 @@ export default function SetupPage() {
               <KeyValueList
                 items={[
                   { label: "Result", value: setupFetcher.data.message },
+                  {
+                    label: "External blocker",
+                    value: setupFetcher.data.externalBlock?.message ?? "None",
+                  },
                   { label: "Products processed", value: setupFetcher.data.catalogSync?.processedItems ?? "Not available" },
                   { label: "Orders imported", value: setupFetcher.data.orderBackfill?.importedOrders ?? "Not available" },
                   { label: "Forecast started", value: setupFetcher.data.forecastTriggered ? "Yes" : "No" },
@@ -163,26 +160,6 @@ export default function SetupPage() {
           ))}
         </Grid>
       </Section>
-
-      <Section title="Forecast proof" description="Only show this because recommendations depend on it.">
-        {overview.forecastProof ? (
-          <Card tone={overview.forecastProof.readyForRecommendations ? "success" : overview.forecastProof.errorMessage ? "critical" : "warning"}>
-            <KeyValueList
-              items={[
-                { label: "Status", value: overview.forecastProof.status ?? "Unknown" },
-                { label: "Started", value: formatDateTime(overview.forecastProof.startedAt) },
-                { label: "Finished", value: formatDateTime(overview.forecastProof.finishedAt) },
-                { label: "Horizon", value: overview.forecastProof.horizonDays != null ? `${overview.forecastProof.horizonDays} days` : "Unknown" },
-              ]}
-            />
-          </Card>
-        ) : (
-          <EmptyState
-            title="No forecast proof yet"
-            body="Once imports finish, the next state change should be a running or completed forecast."
-          />
-        )}
-      </Section>
     </AppShell>
   );
 }
@@ -194,4 +171,3 @@ export function ErrorBoundary() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
-
