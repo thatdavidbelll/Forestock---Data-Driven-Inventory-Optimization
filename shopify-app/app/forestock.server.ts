@@ -192,6 +192,25 @@ function getProvisioningSecret() {
   return provisioningSecret;
 }
 
+async function readApiResponse<T>(response: Response): Promise<{ message?: string; data?: T }> {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return (await response.json()) as { message?: string; data?: T };
+    } catch {
+      return { message: "Received invalid JSON from Forestock API" };
+    }
+  }
+
+  try {
+    const text = await response.text();
+    return { message: text || response.statusText };
+  } catch {
+    return { message: response.statusText || "Forestock API request failed" };
+  }
+}
+
 export async function provisionForestockShop(
   payload: ProvisionRequest,
 ): Promise<ProvisionResponse> {
@@ -207,10 +226,7 @@ export async function provisionForestockShop(
     body: JSON.stringify(payload),
   });
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: ProvisionResponse;
-  };
+  const responseBody = await readApiResponse<ProvisionResponse>(response);
 
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to provision Forestock store");
@@ -235,10 +251,7 @@ export async function syncForestockCatalog(payload: {
     body: JSON.stringify(payload),
   });
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: CatalogSyncResponse;
-  };
+  const responseBody = await readApiResponse<CatalogSyncResponse>(response);
 
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to sync Forestock catalog");
@@ -263,10 +276,7 @@ export async function backfillForestockOrders(payload: {
     body: JSON.stringify(payload),
   });
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: OrderBackfillResponse;
-  };
+  const responseBody = await readApiResponse<OrderBackfillResponse>(response);
 
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to backfill Forestock orders");
@@ -291,7 +301,7 @@ export async function deleteForestockProduct(payload: {
     body: JSON.stringify(payload),
   });
 
-  const responseBody = (await response.json()) as { message?: string; data?: ProductDeleteResponse };
+  const responseBody = await readApiResponse<ProductDeleteResponse>(response);
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to delete Forestock product");
   }
@@ -315,7 +325,7 @@ export async function syncForestockInventory(payload: {
     body: JSON.stringify(payload),
   });
 
-  const responseBody = (await response.json()) as { message?: string; data?: InventorySyncResponse };
+  const responseBody = await readApiResponse<InventorySyncResponse>(response);
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to sync Forestock inventory");
   }
@@ -337,7 +347,7 @@ export async function disconnectForestockShop(payload: {
     body: JSON.stringify(payload),
   });
 
-  const responseBody = (await response.json()) as { message?: string; data?: DisconnectResponse };
+  const responseBody = await readApiResponse<DisconnectResponse>(response);
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to disconnect Forestock shop");
   }
@@ -358,10 +368,7 @@ export async function triggerForestockForecast(shopDomain: string): Promise<Fore
     },
   );
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: string;
-  };
+  const responseBody = await readApiResponse<string>(response);
 
   if (!response.ok) {
     throw new Error(responseBody.message || "Failed to trigger Forestock forecast");
@@ -385,10 +392,7 @@ export async function getForestockStoreConfig(shopDomain: string): Promise<Store
     },
   );
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: StoreConfigurationResponse;
-  };
+  const responseBody = await readApiResponse<StoreConfigurationResponse>(response);
 
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to load Forestock store config");
@@ -416,10 +420,7 @@ export async function updateForestockStoreConfig(
     },
   );
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: StoreConfigurationResponse;
-  };
+  const responseBody = await readApiResponse<StoreConfigurationResponse>(response);
 
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to update Forestock store config");
@@ -441,10 +442,7 @@ export async function getForestockAppHome(shopDomain: string): Promise<AppHomeOv
     },
   );
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: AppHomeOverviewResponse;
-  };
+  const responseBody = await readApiResponse<AppHomeOverviewResponse>(response);
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to load Forestock app home");
   }
@@ -464,10 +462,7 @@ export async function getForestockRecommendations(shopDomain: string): Promise<R
     },
   );
 
-  const responseBody = (await response.json()) as {
-    message?: string;
-    data?: RecommendationsResponse;
-  };
+  const responseBody = await readApiResponse<RecommendationsResponse>(response);
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to load Forestock recommendations");
   }

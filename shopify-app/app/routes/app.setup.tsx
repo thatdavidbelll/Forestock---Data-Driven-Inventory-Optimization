@@ -7,6 +7,7 @@ import {
   AppShell,
   Badge,
   Card,
+  ErrorState,
   Grid,
   InlineList,
   KeyValueList,
@@ -172,7 +173,7 @@ export default function SetupPage() {
 }
 
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  return <ErrorState error={useRouteError()} />;
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

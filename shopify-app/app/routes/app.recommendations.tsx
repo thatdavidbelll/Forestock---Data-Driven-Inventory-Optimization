@@ -6,6 +6,7 @@ import {
   Badge,
   Card,
   EmptyState,
+  ErrorState,
   formatDateTime,
   Grid,
   KeyValueList,
@@ -99,7 +100,7 @@ export default function RecommendationsPage() {
 }
 
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  return <ErrorState error={useRouteError()} />;
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

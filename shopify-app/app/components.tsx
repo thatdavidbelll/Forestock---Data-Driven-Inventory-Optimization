@@ -1,4 +1,5 @@
 import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import { isRouteErrorResponse } from "react-router";
 
 const palette = {
   base: "var(--fs-base)",
@@ -692,5 +693,48 @@ export function SummarySplit({
       </div>
       {aside ? <div>{aside}</div> : null}
     </div>
+  );
+}
+
+export function getErrorMessage(error: unknown) {
+  if (isRouteErrorResponse(error)) {
+    return error.data?.message || error.statusText || `Request failed with status ${error.status}`;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Something went wrong while loading this page.";
+}
+
+export function ErrorState({
+  title = "Unexpected Server Error",
+  error,
+}: {
+  title?: string;
+  error: unknown;
+}) {
+  return (
+    <AppShell
+      title={title}
+      subtitle="The embedded app hit a server-side failure while loading this route."
+      actions={<Badge tone="critical">Load failed</Badge>}
+    >
+      <Card tone="critical" style={{ maxWidth: 820 }}>
+        <div
+          style={{
+            fontFamily: '"Space Grotesk", "Manrope", sans-serif',
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            marginBottom: 10,
+          }}
+        >
+          {getErrorMessage(error)}
+        </div>
+        <div style={{ fontSize: 14, lineHeight: 1.7, color: palette.textMuted }}>
+          Common causes here are a backend request failure, missing Shopify store linkage, or a configuration mismatch between the embedded app and the Forestock API.
+        </div>
+      </Card>
+    </AppShell>
   );
 }

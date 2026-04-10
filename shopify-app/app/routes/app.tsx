@@ -3,7 +3,7 @@ import { Outlet, useLoaderData, useLocation, useRouteError } from "react-router"
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
-import { NavTabs } from "../components";
+import { ErrorState, NavTabs } from "../components";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -44,7 +44,7 @@ export default function App() {
 
 // Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  return <ErrorState error={useRouteError()} />;
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

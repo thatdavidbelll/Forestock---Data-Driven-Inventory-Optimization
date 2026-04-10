@@ -6,6 +6,7 @@ import {
   AppShell,
   Badge,
   Card,
+  ErrorState,
   FieldLabel,
   InputFrame,
   MetricCard,
@@ -117,7 +118,7 @@ export default function SettingsPage() {
 }
 
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  return <ErrorState error={useRouteError()} />;
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
