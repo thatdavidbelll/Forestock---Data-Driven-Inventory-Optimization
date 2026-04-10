@@ -698,7 +698,16 @@ export function SummarySplit({
 
 export function getErrorMessage(error: unknown) {
   if (isRouteErrorResponse(error)) {
-    return error.data?.message || error.statusText || `Request failed with status ${error.status}`;
+    if (typeof error.data === "string" && error.data.trim()) {
+      return error.data;
+    }
+    if (error.data && typeof error.data === "object" && "message" in error.data) {
+      const message = (error.data as { message?: unknown }).message;
+      if (typeof message === "string" && message.trim()) {
+        return message;
+      }
+    }
+    return error.statusText || `Request failed with status ${error.status}`;
   }
   if (error instanceof Error) {
     return error.message;
@@ -734,6 +743,11 @@ export function ErrorState({
         <div style={{ fontSize: 14, lineHeight: 1.7, color: palette.textMuted }}>
           Common causes here are a backend request failure, missing Shopify store linkage, or a configuration mismatch between the embedded app and the Forestock API.
         </div>
+        {isRouteErrorResponse(error) ? (
+          <div style={{ marginTop: 12, fontSize: 13, color: palette.textMuted }}>
+            Status: {error.status} {error.statusText}
+          </div>
+        ) : null}
       </Card>
     </AppShell>
   );

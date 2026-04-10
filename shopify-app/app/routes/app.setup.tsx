@@ -25,10 +25,18 @@ import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult
 type ActionData = ShopifySetupStepResult;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const identity = await loadShopIdentity(admin, session.shop);
-  const overview = await getForestockAppHome(session.shop);
-  return { ...identity, overview };
+  try {
+    const { admin, session } = await authenticate.admin(request);
+    const identity = await loadShopIdentity(admin, session.shop);
+    const overview = await getForestockAppHome(session.shop);
+    return { ...identity, overview };
+  } catch (error) {
+    if (error instanceof Response) throw error;
+    throw new Response(error instanceof Error ? error.message : "Failed to load setup state.", {
+      status: 500,
+      statusText: "Setup Error",
+    });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {

@@ -18,8 +18,16 @@ import { authenticate } from "../shopify.server";
 import { getForestockRecommendations } from "../forestock.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  return getForestockRecommendations(session.shop);
+  try {
+    const { session } = await authenticate.admin(request);
+    return await getForestockRecommendations(session.shop);
+  } catch (error) {
+    if (error instanceof Response) throw error;
+    throw new Response(error instanceof Error ? error.message : "Failed to load recommendations.", {
+      status: 500,
+      statusText: "Recommendations Error",
+    });
+  }
 };
 
 function urgencyTone(urgency: string) {

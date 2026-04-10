@@ -19,20 +19,28 @@ import { getForestockAppHome } from "../forestock.server";
 import { getSetupStages } from "../setup-state";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const overview = await getForestockAppHome(session.shop);
-  const stages = getSetupStages(overview);
-  const setupIncomplete = stages.some((stage) =>
-    stage.id !== "recommendations" &&
-    stage.status !== "completed" &&
-    stage.status !== "running",
-  );
+  try {
+    const { session } = await authenticate.admin(request);
+    const overview = await getForestockAppHome(session.shop);
+    const stages = getSetupStages(overview);
+    const setupIncomplete = stages.some((stage) =>
+      stage.id !== "recommendations" &&
+      stage.status !== "completed" &&
+      stage.status !== "running",
+    );
 
-  if (setupIncomplete) {
-    throw redirect(`/app/setup${new URL(request.url).search}`);
+    if (setupIncomplete) {
+      throw redirect(`/app/setup${new URL(request.url).search}`);
+    }
+
+    return overview;
+  } catch (error) {
+    if (error instanceof Response) throw error;
+    throw new Response(error instanceof Error ? error.message : "Failed to load app home.", {
+      status: 500,
+      statusText: "App Home Error",
+    });
   }
-
-  return overview;
 };
 
 export default function AppIndex() {

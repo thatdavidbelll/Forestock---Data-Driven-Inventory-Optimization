@@ -25,9 +25,17 @@ type ActionData =
   | { ok: false; message: string };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const config = await getForestockStoreConfig(session.shop);
-  return { shopDomain: session.shop, config };
+  try {
+    const { session } = await authenticate.admin(request);
+    const config = await getForestockStoreConfig(session.shop);
+    return { shopDomain: session.shop, config };
+  } catch (error) {
+    if (error instanceof Response) throw error;
+    throw new Response(error instanceof Error ? error.message : "Failed to load store settings.", {
+      status: 500,
+      statusText: "Settings Error",
+    });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
