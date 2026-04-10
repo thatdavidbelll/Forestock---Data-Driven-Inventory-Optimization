@@ -400,7 +400,7 @@ public class ReportService {
             }
 
             for (int i = 0; i < headers.size(); i++) {
-                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, estimateColumnWidth(headers.get(i), rows));
             }
 
             workbook.write(out);
@@ -490,6 +490,19 @@ public class ReportService {
         if (s == null) return "";
         String clean = sanitizeForPdf(s);
         return clean.length() > max ? clean.substring(0, max - 1) + "." : clean;
+    }
+
+    private int estimateColumnWidth(String header, List<Map<String, Object>> rows) {
+        int maxLength = header != null ? header.length() : 0;
+        for (Map<String, Object> row : rows) {
+            Object value = row.get(header);
+            int valueLength = value == null ? 1 : value.toString().length();
+            maxLength = Math.max(maxLength, valueLength);
+        }
+
+        // Excel column widths are measured in 1/256th character units.
+        int padded = Math.min(maxLength + 3, 40);
+        return padded * 256;
     }
 
     /** Strips diacritics so PDFBox Type1 fonts (WinAnsiEncoding) don't crash. */

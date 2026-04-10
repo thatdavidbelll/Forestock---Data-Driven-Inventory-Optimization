@@ -8,7 +8,6 @@ import com.forestock.forestock_backend.domain.ShopifyOrder;
 import com.forestock.forestock_backend.domain.ShopifyOrderLineItem;
 import com.forestock.forestock_backend.domain.ShopifyWebhookFailure;
 import com.forestock.forestock_backend.domain.Store;
-import com.forestock.forestock_backend.dto.response.StoreConfigurationDto;
 import com.forestock.forestock_backend.repository.ProductRepository;
 import com.forestock.forestock_backend.repository.ShopifyConnectionRepository;
 import com.forestock.forestock_backend.repository.ShopifyOrderLineItemRepository;
@@ -44,8 +43,7 @@ class ShopifyOrderIngestionServiceTest {
     @Mock private ShopifyWebhookFailureRepository failureRepository;
     @Mock private ShopifyConnectionRepository connectionRepository;
     @Mock private ProductRepository productRepository;
-    @Mock private StoreConfigurationService storeConfigService;
-    @Mock private ForecastOrchestrator forecastOrchestrator;
+    @Mock private ForecastTriggerService forecastTriggerService;
     @Mock private AuditLogService auditLogService;
     @Mock private JdbcTemplate jdbcTemplate;
 
@@ -103,8 +101,7 @@ class ShopifyOrderIngestionServiceTest {
                 failureRepository,
                 connectionRepository,
                 productRepository,
-                storeConfigService,
-                forecastOrchestrator,
+                forecastTriggerService,
                 auditLogService,
                 properties,
                 jdbcTemplate,
@@ -151,11 +148,6 @@ class ShopifyOrderIngestionServiceTest {
                 });
         when(lineItemRepository.save(any(ShopifyOrderLineItem.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-
-        StoreConfigurationDto config = StoreConfigurationDto.builder()
-                .autoForecastOnImport(false)
-                .build();
-        when(storeConfigService.getCurrentConfig()).thenReturn(config);
 
         ShopifyIngestionResult result = service.processOrder("test.myshopify.com", ORDER_JSON);
 

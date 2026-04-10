@@ -3,9 +3,8 @@ package com.forestock.forestock_backend.controller;
 import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.SalesTransaction;
 import com.forestock.forestock_backend.domain.Store;
-import com.forestock.forestock_backend.service.ForecastOrchestrator;
+import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.SalesIngestionService;
-import com.forestock.forestock_backend.service.StoreConfigurationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,11 +29,10 @@ class SalesControllerTest {
     @BeforeEach
     void setUp() {
         salesIngestionService = mock(SalesIngestionService.class);
-        ForecastOrchestrator forecastOrchestrator = mock(ForecastOrchestrator.class);
-        StoreConfigurationService storeConfigurationService = mock(StoreConfigurationService.class);
+        ForecastTriggerService forecastTriggerService = mock(ForecastTriggerService.class);
 
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new SalesController(salesIngestionService, forecastOrchestrator, storeConfigurationService))
+                new SalesController(salesIngestionService, forecastTriggerService))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }
