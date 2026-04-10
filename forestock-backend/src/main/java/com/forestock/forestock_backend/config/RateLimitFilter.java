@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -30,7 +29,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final int MAX_REQUESTS  = 10;
     private static final long WINDOW_MS    = 60_000L; // 1 minute
-    private static final Set<String> TRUSTED_PROXIES = Set.of("127.0.0.1", "::1", "0:0:0:0:0:0:0:1");
 
     private static final String[] RATE_LIMITED_PATHS = {
             "/api/auth/login",
@@ -63,6 +61,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             while (!queue.isEmpty() && (now - queue.peekFirst()) > WINDOW_MS) {
                 queue.pollFirst();
             }
+            if (queue.isEmpty() && existing != null) {
+                return null;
+            }
             if (queue.size() >= MAX_REQUESTS) {
                 return queue;
             }
@@ -92,12 +93,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String extractClientIp(HttpServletRequest request) {
-        if (!TRUSTED_PROXIES.contains(request.getRemoteAddr())) {
-            return request.getRemoteAddr();
-        }
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
         }
         return request.getRemoteAddr();
     }

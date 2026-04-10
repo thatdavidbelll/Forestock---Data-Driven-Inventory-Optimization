@@ -91,9 +91,6 @@ public class ShopifyOrderBackfillService {
                     .shopifyOrderName(orderRequest.orderName())
                     .financialStatus(orderRequest.financialStatus())
                     .fulfillmentStatus(orderRequest.fulfillmentStatus())
-                    .customerEmail(orderRequest.customerEmail())
-                    .customerFirstName(orderRequest.customerFirstName())
-                    .customerLastName(orderRequest.customerLastName())
                     .totalPrice(orderRequest.totalPrice())
                     .subtotalPrice(orderRequest.subtotalPrice())
                     .currency(orderRequest.currency())
@@ -227,9 +224,6 @@ public class ShopifyOrderBackfillService {
             String orderName,
             String financialStatus,
             String fulfillmentStatus,
-            String customerEmail,
-            String customerFirstName,
-            String customerLastName,
             BigDecimal totalPrice,
             BigDecimal subtotalPrice,
             String currency,

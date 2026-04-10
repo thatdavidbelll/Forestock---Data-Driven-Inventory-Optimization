@@ -45,7 +45,7 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/refresh') &&
       !originalRequest.url?.includes('/auth/login')
     ) {
-      const refreshToken = localStorage.getItem('refreshToken')
+      const refreshToken = sessionStorage.getItem('refreshToken')
 
       if (refreshToken) {
         originalRequest._retry = true
@@ -67,7 +67,11 @@ api.interceptors.response.use(
           return api(originalRequest)
         } catch {
           await authHandlers.logout?.()
-          localStorage.clear()
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          localStorage.removeItem('username')
+          localStorage.removeItem('role')
+          sessionStorage.removeItem('refreshToken')
           window.location.href = '/login'
           return Promise.reject(error)
         }
@@ -80,7 +84,11 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       !originalRequest.url?.includes('/auth/login')
     ) {
-      localStorage.clear()
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('username')
+      localStorage.removeItem('role')
+      sessionStorage.removeItem('refreshToken')
       window.location.href = '/login'
     }
 

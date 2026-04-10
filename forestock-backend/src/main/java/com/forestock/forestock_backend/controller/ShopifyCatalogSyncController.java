@@ -5,6 +5,7 @@ import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.service.ShopifyCatalogSyncService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 
 @RestController
@@ -32,9 +35,7 @@ public class ShopifyCatalogSyncController {
     public ResponseEntity<ApiResponse<ShopifyCatalogSyncService.CatalogSyncResult>> syncCatalog(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
             @Valid @RequestBody CatalogSyncRequest request) {
-        if (shopifyProperties.getProvisioningSecret() == null
-                || shopifyProperties.getProvisioningSecret().isBlank()
-                || !shopifyProperties.getProvisioningSecret().equals(provisioningSecret)) {
+        if (!isValidProvisioningSecret(provisioningSecret)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
         }
 
@@ -67,9 +68,7 @@ public class ShopifyCatalogSyncController {
     public ResponseEntity<ApiResponse<ShopifyCatalogSyncService.ProductDeactivateResult>> deactivateProduct(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
             @Valid @RequestBody ProductDeleteRequest request) {
-        if (shopifyProperties.getProvisioningSecret() == null
-                || shopifyProperties.getProvisioningSecret().isBlank()
-                || !shopifyProperties.getProvisioningSecret().equals(provisioningSecret)) {
+        if (!isValidProvisioningSecret(provisioningSecret)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
         }
 
@@ -84,9 +83,7 @@ public class ShopifyCatalogSyncController {
     public ResponseEntity<ApiResponse<ShopifyCatalogSyncService.InventorySyncResult>> syncInventory(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
             @Valid @RequestBody InventorySyncRequest request) {
-        if (shopifyProperties.getProvisioningSecret() == null
-                || shopifyProperties.getProvisioningSecret().isBlank()
-                || !shopifyProperties.getProvisioningSecret().equals(provisioningSecret)) {
+        if (!isValidProvisioningSecret(provisioningSecret)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
         }
 
@@ -101,6 +98,7 @@ public class ShopifyCatalogSyncController {
     @Data
     public static class CatalogSyncRequest {
         @NotBlank(message = "Shop domain is required")
+        @Pattern(regexp = "^[a-z0-9][a-z0-9\\-]*\\.myshopify\\.com$", message = "Shop domain must be a valid .myshopify.com domain")
         private String shopDomain;
         private List<CatalogSyncItemRequest> items = List.of();
     }
@@ -127,6 +125,7 @@ public class ShopifyCatalogSyncController {
     @Data
     public static class ProductDeleteRequest {
         @NotBlank(message = "Shop domain is required")
+        @Pattern(regexp = "^[a-z0-9][a-z0-9\\-]*\\.myshopify\\.com$", message = "Shop domain must be a valid .myshopify.com domain")
         private String shopDomain;
         @NotBlank(message = "Shopify product GID is required")
         private String shopifyProductGid;
@@ -135,9 +134,21 @@ public class ShopifyCatalogSyncController {
     @Data
     public static class InventorySyncRequest {
         @NotBlank(message = "Shop domain is required")
+        @Pattern(regexp = "^[a-z0-9][a-z0-9\\-]*\\.myshopify\\.com$", message = "Shop domain must be a valid .myshopify.com domain")
         private String shopDomain;
         @NotBlank(message = "Shopify inventory item GID is required")
         private String shopifyInventoryItemGid;
         private BigDecimal quantity;
+    }
+
+    private boolean isValidProvisioningSecret(String provided) {
+        String expected = shopifyProperties.getProvisioningSecret();
+        if (expected == null || expected.isBlank() || provided == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                provided.getBytes(StandardCharsets.UTF_8)
+        );
     }
 }

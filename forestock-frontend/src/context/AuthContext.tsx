@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post('/auth/login', { username, password })
     const { accessToken, refreshToken, username: user, role } = data.data
     localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
+    sessionStorage.setItem('refreshToken', refreshToken)
     localStorage.setItem('username', user)
     localStorage.setItem('role', role)
     setAuth({ isAuthenticated: true, username: user, role })
@@ -39,15 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
+    const refreshToken = sessionStorage.getItem('refreshToken')
     try {
       if (localStorage.getItem('accessToken')) {
-        await api.post('/auth/logout')
+        await api.post('/auth/logout', refreshToken ? { refreshToken } : {})
       }
     } catch {
       // Client logout should still complete even if token revocation fails.
     } finally {
       resetAnalytics()
-      localStorage.clear()
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('username')
+      localStorage.removeItem('role')
+      sessionStorage.removeItem('refreshToken')
       setAuth({ isAuthenticated: false, username: null, role: null })
     }
   }

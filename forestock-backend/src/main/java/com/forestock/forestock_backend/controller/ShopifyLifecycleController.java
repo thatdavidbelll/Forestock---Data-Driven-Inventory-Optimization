@@ -6,6 +6,7 @@ import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.service.ShopifyConnectionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 @RestController
 @RequestMapping("/api/shopify")
@@ -30,9 +34,7 @@ public class ShopifyLifecycleController {
     public ResponseEntity<ApiResponse<DisconnectResult>> disconnect(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
             @Valid @RequestBody DisconnectRequest request) {
-        if (shopifyProperties.getProvisioningSecret() == null
-                || shopifyProperties.getProvisioningSecret().isBlank()
-                || !shopifyProperties.getProvisioningSecret().equals(provisioningSecret)) {
+        if (!isValidProvisioningSecret(provisioningSecret)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
         }
 
@@ -46,6 +48,7 @@ public class ShopifyLifecycleController {
     @Data
     public static class DisconnectRequest {
         @NotBlank(message = "Shop domain is required")
+        @Pattern(regexp = "^[a-z0-9][a-z0-9\\-]*\\.myshopify\\.com$", message = "Shop domain must be a valid .myshopify.com domain")
         private String shopDomain;
     }
 
@@ -53,5 +56,16 @@ public class ShopifyLifecycleController {
     public static class DisconnectResult {
         private String shopDomain;
         private boolean active;
+    }
+
+    private boolean isValidProvisioningSecret(String provided) {
+        String expected = shopifyProperties.getProvisioningSecret();
+        if (expected == null || expected.isBlank() || provided == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                provided.getBytes(StandardCharsets.UTF_8)
+        );
     }
 }

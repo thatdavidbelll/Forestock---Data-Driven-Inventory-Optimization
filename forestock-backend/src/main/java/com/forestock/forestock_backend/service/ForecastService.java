@@ -31,9 +31,13 @@ public class ForecastService {
 
     @Transactional(readOnly = true)
     public ForecastRunDto getRunById(UUID id) {
-        return forecastRunRepository.findById(id)
-                .map(this::toDto)
-                .orElseThrow(() -> new NoSuchElementException("Forecast run not found: " + id));
+        UUID storeId = TenantContext.getStoreId();
+        ForecastRun run = forecastRunRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Forecast run not found"));
+        if (storeId != null && (run.getStore() == null || !storeId.equals(run.getStore().getId()))) {
+            throw new NoSuchElementException("Forecast run not found");
+        }
+        return toDto(run);
     }
 
     @Transactional(readOnly = true)

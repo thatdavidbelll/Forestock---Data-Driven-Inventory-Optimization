@@ -5,6 +5,8 @@ import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.service.ShopifyOrderBackfillService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 
 @RestController
@@ -32,9 +36,7 @@ public class ShopifyOrderBackfillController {
     public ResponseEntity<ApiResponse<ShopifyOrderBackfillService.BackfillResult>> backfillOrders(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
             @Valid @RequestBody BackfillRequest request) {
-        if (shopifyProperties.getProvisioningSecret() == null
-                || shopifyProperties.getProvisioningSecret().isBlank()
-                || !shopifyProperties.getProvisioningSecret().equals(provisioningSecret)) {
+        if (!isValidProvisioningSecret(provisioningSecret)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
         }
 
@@ -48,9 +50,6 @@ public class ShopifyOrderBackfillController {
                                         order.getOrderName(),
                                         order.getFinancialStatus(),
                                         order.getFulfillmentStatus(),
-                                        order.getCustomerEmail(),
-                                        order.getCustomerFirstName(),
-                                        order.getCustomerLastName(),
                                         order.getTotalPrice(),
                                         order.getSubtotalPrice(),
                                         order.getCurrency(),
@@ -78,7 +77,9 @@ public class ShopifyOrderBackfillController {
     @Data
     public static class BackfillRequest {
         @NotBlank(message = "Shop domain is required")
+        @Pattern(regexp = "^[a-z0-9][a-z0-9\\-]*\\.myshopify\\.com$", message = "Shop domain must be a valid .myshopify.com domain")
         private String shopDomain;
+        @Size(max = 1000, message = "Maximum 1000 orders per backfill request")
         private List<BackfillOrderRequest> orders = List.of();
     }
 
@@ -89,9 +90,6 @@ public class ShopifyOrderBackfillController {
         private String orderName;
         private String financialStatus;
         private String fulfillmentStatus;
-        private String customerEmail;
-        private String customerFirstName;
-        private String customerLastName;
         private BigDecimal totalPrice;
         private BigDecimal subtotalPrice;
         private String currency;
@@ -109,5 +107,16 @@ public class ShopifyOrderBackfillController {
         private String variantTitle;
         private int quantity;
         private BigDecimal price;
+    }
+
+    private boolean isValidProvisioningSecret(String provided) {
+        String expected = shopifyProperties.getProvisioningSecret();
+        if (expected == null || expected.isBlank() || provided == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                provided.getBytes(StandardCharsets.UTF_8)
+        );
     }
 }

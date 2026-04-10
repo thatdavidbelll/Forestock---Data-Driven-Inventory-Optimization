@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 @RestController
 @RequestMapping("/api/shopify")
 @RequiredArgsConstructor
@@ -119,8 +122,13 @@ public class ShopifyAppHomeController {
     }
 
     private boolean isValidSecret(String provisioningSecret) {
-        return shopifyProperties.getProvisioningSecret() != null
-                && !shopifyProperties.getProvisioningSecret().isBlank()
-                && shopifyProperties.getProvisioningSecret().equals(provisioningSecret);
+        String expected = shopifyProperties.getProvisioningSecret();
+        return expected != null
+                && !expected.isBlank()
+                && provisioningSecret != null
+                && MessageDigest.isEqual(
+                        expected.getBytes(StandardCharsets.UTF_8),
+                        provisioningSecret.getBytes(StandardCharsets.UTF_8)
+                );
     }
 }

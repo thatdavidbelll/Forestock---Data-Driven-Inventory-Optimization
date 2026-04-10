@@ -2,6 +2,8 @@ package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.ForecastRunDto;
+import com.forestock.forestock_backend.domain.enums.ForecastStatus;
+import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import com.forestock.forestock_backend.service.ForecastService;
@@ -22,13 +24,16 @@ public class ForecastController {
 
     private final ForecastOrchestrator forecastOrchestrator;
     private final ForecastService forecastService;
+    private final ForecastRunRepository forecastRunRepository;
 
     /** Manually triggers a full forecast cycle (async). */
     @PostMapping("/run")
     public ResponseEntity<ApiResponse<String>> triggerRun() {
-        // Capture storeId here (request thread) — TenantContext is ThreadLocal
-        // and would be null inside the @Async thread
         UUID storeId = TenantContext.getStoreId();
+        if (forecastRunRepository.existsByStoreIdAndStatus(storeId, ForecastStatus.RUNNING)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("A forecast is already running for this store"));
+        }
         forecastOrchestrator.runForecast(storeId, "MANUAL");
         return ResponseEntity.accepted()
                 .body(ApiResponse.success("Forecast started in background"));
@@ -46,7 +51,7 @@ public class ForecastController {
         try {
             return ResponseEntity.ok(ApiResponse.success(forecastService.getRunById(id)));
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Forecast run not found"));
         }
     }
 

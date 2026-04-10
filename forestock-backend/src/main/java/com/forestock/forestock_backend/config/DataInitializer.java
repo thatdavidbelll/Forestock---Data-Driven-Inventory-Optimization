@@ -41,7 +41,6 @@ public class DataInitializer implements ApplicationRunner {
 
         AppUser superAdmin = userRepository.findByUsername(superAdminUsername)
                 .map(existing -> {
-                    existing.setPasswordHash(passwordEncoder.encode(superAdminPassword));
                     existing.setRole("ROLE_SUPER_ADMIN");
                     existing.setStore(null);
                     existing.setActive(true);

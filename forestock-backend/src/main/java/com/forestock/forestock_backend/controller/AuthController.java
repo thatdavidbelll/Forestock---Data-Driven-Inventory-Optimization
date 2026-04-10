@@ -88,8 +88,9 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(ApiResponse.error("Authentication service unavailable. Please try again shortly."));
         } catch (AuthenticationException e) {
+            log.warn("Authentication failed for user '{}': {}", request.getUsername(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponse.error("Invalid username or password"));
         } catch (Exception e) {
             log.error("Unexpected login failure for user '{}': {}", request.getUsername(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -148,6 +149,11 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.error("Refresh token is expired or invalid"));
             }
+            String refreshTokenJti = jwtService.extractJti(refreshToken);
+            if (tokenBlacklistService.isBlacklisted(refreshTokenJti)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Refresh token has been revoked"));
+            }
 
             AppUser user = userRepository.findWithStoreByUsername(username).orElseThrow();
             UUID storeIdForRefresh = user.getStore() != null ? user.getStore().getId() : null;
@@ -167,17 +173,17 @@ public class AuthController {
                     .body(ApiResponse.error(e.getMessage()));
         } catch (JwtException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid token: " + e.getMessage()));
+                    .body(ApiResponse.error("Refresh token is invalid or expired"));
         }
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
-        String token = extractBearer(request);
-        if (token != null) {
-            String jti = jwtService.extractJti(token);
-            Duration remaining = jwtService.getRemainingTtl(token);
-            tokenBlacklistService.blacklist(jti, remaining);
+    public ResponseEntity<ApiResponse<Void>> logout(
+            HttpServletRequest request,
+            @RequestBody(required = false) Map<String, String> body) {
+        blacklistToken(extractBearer(request), false);
+        if (body != null) {
+            blacklistToken(body.get("refreshToken"), true);
         }
         return ResponseEntity.ok(ApiResponse.success("Logged out", null));
     }
@@ -278,6 +284,21 @@ public class AuthController {
             return null;
         }
         return authHeader.substring(7);
+    }
+
+    private void blacklistToken(String token, boolean refreshToken) {
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        try {
+            if (refreshToken && !jwtService.isRefreshToken(token)) {
+                return;
+            }
+            String jti = jwtService.extractJti(token);
+            Duration remaining = jwtService.getRemainingTtl(token);
+            tokenBlacklistService.blacklist(jti, remaining);
+        } catch (JwtException ignored) {
+        }
     }
 
     private String extractDisabledMessage(Throwable throwable) {
