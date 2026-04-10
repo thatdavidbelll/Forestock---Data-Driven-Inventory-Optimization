@@ -181,23 +181,18 @@ export function NavTabs({
           backdropFilter: "blur(14px)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, color: palette.text, fontWeight: 700 }}>
-          <div
+        <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700 }}>
+          <img
+            src="/forestock-logo.png"
+            alt="Forestock"
             style={{
-              width: 32,
+              width: 108,
               height: 32,
-              borderRadius: 12,
-              background: "rgba(79, 70, 229, 0.08)",
-              color: palette.indigo,
-              display: "grid",
-              placeItems: "center",
-              fontSize: 14,
-              fontWeight: 800,
+              objectFit: "contain",
+              objectPosition: "left center",
+              display: "block",
             }}
-          >
-            F
-          </div>
-          <span style={{ fontSize: 14, letterSpacing: "-0.01em" }}>Forestock</span>
+          />
         </div>
         <div
           style={{
