@@ -184,9 +184,9 @@ export function NavTabs({
         <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700 }}>
           <div
             style={{
-              width: 108,
+              width: 32,
               height: 32,
-              borderRadius: 10,
+              borderRadius: 12,
               overflow: "hidden",
             }}
           >
@@ -196,7 +196,7 @@ export function NavTabs({
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                objectFit: "contain",
                 display: "block",
               }}
             />
