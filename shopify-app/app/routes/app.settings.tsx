@@ -230,7 +230,7 @@ export default function SettingsPage() {
         title="Forecast horizon"
         description="This changes how many days the shared backend forecast projects forward for this store."
       >
-        <Card style={{ maxWidth: 760 }}>
+        <Card>
           <form method="post" style={{ display: "grid", gap: 20 }}>
             <MetricCard
               label="Current horizon"
