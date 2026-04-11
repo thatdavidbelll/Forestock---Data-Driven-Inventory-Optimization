@@ -87,18 +87,18 @@ export function AppShell({
 }>) {
   return (
     <div style={{ color: palette.text }}>
-      <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "0 20px 56px" }}>
+      <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "0 16px 56px" }}>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
+            alignItems: "flex-start",
             gap: 20,
             flexWrap: "wrap",
             padding: "14px 2px 30px",
           }}
         >
-          <div style={{ maxWidth: 760 }}>
+          <div style={{ maxWidth: 760, minWidth: 0, flex: "1 1 320px" }}>
             <div
               style={{
                 display: "inline-flex",
@@ -138,7 +138,7 @@ export function AppShell({
                 style={{
                   margin: "14px 0 0",
                   maxWidth: 680,
-                  fontSize: 16,
+                  fontSize: 15,
                   lineHeight: 1.65,
                   color: palette.textMuted,
                 }}
@@ -147,7 +147,21 @@ export function AppShell({
               </p>
             ) : null}
           </div>
-          {actions ? <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40 }}>{actions}</div> : null}
+          {actions ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                gap: 10,
+                minHeight: 40,
+                flexWrap: "wrap",
+                width: "100%",
+              }}
+            >
+              {actions}
+            </div>
+          ) : null}
         </div>
         {children}
       </div>
@@ -165,7 +179,7 @@ export function NavTabs({
   search?: string;
 }) {
   return (
-    <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "20px 20px 0" }}>
+    <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "20px 16px 0" }}>
       <div
         style={{
           display: "flex",
@@ -211,6 +225,7 @@ export function NavTabs({
             borderRadius: 14,
             background: palette.surfaceMuted,
             border: `1px solid ${palette.border}`,
+            width: "100%",
           }}
         >
           {items.map((item) => {
@@ -432,16 +447,17 @@ export function KeyValueList({
         <div
           key={`${item.label}-${index}`}
           style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) auto",
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "space-between",
             gap: 14,
             alignItems: "start",
             padding: "12px 0",
             borderBottom: index === items.length - 1 ? "none" : `1px solid ${palette.border}`,
           }}
         >
-          <div style={{ fontSize: 13, color: palette.textMuted, lineHeight: 1.55 }}>{item.label}</div>
-          <div style={{ fontSize: 14, fontWeight: 700, textAlign: "right", lineHeight: 1.5, color: palette.text }}>
+          <div style={{ fontSize: 13, color: palette.textMuted, lineHeight: 1.55, minWidth: 0, flex: "1 1 140px" }}>{item.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, textAlign: "left", lineHeight: 1.5, color: palette.text, minWidth: 0, flex: "1 1 180px" }}>
             {item.value}
           </div>
         </div>
@@ -674,7 +690,7 @@ export function SummarySplit({
       style={{
         display: "grid",
         gap: 18,
-        gridTemplateColumns: aside ? "minmax(0, 1.3fr) minmax(220px, 0.7fr)" : "1fr",
+        gridTemplateColumns: aside ? "repeat(auto-fit, minmax(220px, 1fr))" : "1fr",
         alignItems: "start",
       }}
     >

@@ -78,10 +78,11 @@ export default function RecommendationsPage() {
                       justifyContent: "space-between",
                       alignItems: "flex-start",
                       gap: 12,
+                      flexWrap: "wrap",
                       marginBottom: 14,
                     }}
                   >
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: "1 1 240px" }}>
                       <div
                         style={{
                           fontFamily: '"Space Grotesk", "Manrope", sans-serif',
@@ -117,7 +118,9 @@ export default function RecommendationsPage() {
                         </div>
                       ) : null}
                     </div>
-                    <Badge tone={tone}>{recommendation.urgency}</Badge>
+                    <div style={{ flex: "0 0 auto" }}>
+                      <Badge tone={tone}>{recommendation.urgency}</Badge>
+                    </div>
                   </div>
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
                     <Grid columns={2}>
