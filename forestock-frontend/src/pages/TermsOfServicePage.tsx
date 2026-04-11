@@ -8,7 +8,7 @@ export default function TermsOfServicePage() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700">Forestock Legal</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">Terms of Service</h1>
           <p className="mt-3 text-sm text-slate-600">
-            These terms describe the current MVP service posture for Forestock and the expectations around use, support, and launch maturity.
+            These terms describe the commercial and operational terms that apply when merchants use Forestock, including the Shopify-connected workflow.
           </p>
         </div>
 
@@ -35,16 +35,23 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900">Availability and changes</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Data processing and privacy</h2>
             <p className="mt-2">
-              Forestock may change product capabilities, onboarding requirements, support processes, and integrations as the service moves from controlled launch toward broader availability.
+              By using Forestock, merchants authorize Forestock to process merchant and Shopify-connected operational data as described in the Privacy Policy for the limited purpose of delivering inventory forecasting, reorder planning, security, support, and related service operations.
             </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-slate-900">Pilot and MVP limitations</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Availability and changes</h2>
             <p className="mt-2">
-              Some workflows may still require manual support, validation, or operational supervision during the MVP phase. These limitations should be treated as part of the current service posture.
+              Forestock may change product capabilities, onboarding requirements, support processes, and integrations as the service evolves, provided that material changes to data use or service commitments will be reflected in the legal and support documentation made available to merchants.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-slate-900">Data requests and deletion</h2>
+            <p className="mt-2">
+              Merchants may submit privacy, deletion, or support requests through Forestock support. Forestock will process verified requests in accordance with applicable law, Shopify platform requirements, and the Privacy Policy.
             </p>
           </section>
 
