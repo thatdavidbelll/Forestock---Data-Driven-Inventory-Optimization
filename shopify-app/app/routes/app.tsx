@@ -1,13 +1,14 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useLocation, useRouteError } from "react-router";
+import { Outlet, redirect, useLoaderData, useLocation, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { ErrorState, NavTabs } from "../components";
+import { getBillingStatus } from "../billing.server";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
 
   // eslint-disable-next-line no-undef
   const apiKey = process.env.SHOPIFY_API_KEY;
@@ -18,11 +19,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  return { apiKey };
+  const billing = await getBillingStatus(admin);
+  const url = new URL(request.url);
+  const onBillingRoute = url.pathname === "/app/billing";
+
+  if (!billing.hasActiveSubscription && !onBillingRoute) {
+    throw redirect(`/app/billing${url.search}`);
+  }
+
+  if (billing.hasActiveSubscription && onBillingRoute) {
+    throw redirect(`/app${url.search}`);
+  }
+
+  return { apiKey, billing };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const { apiKey, billing } = useLoaderData<typeof loader>();
   const location = useLocation();
 
   return (
@@ -37,11 +50,15 @@ export default function App() {
         <NavTabs
           currentPath={location.pathname}
           search={location.search}
-          items={[
-            { label: "Home", href: "/app" },
-            { label: "Recommendations", href: "/app/recommendations" },
-            { label: "Settings", href: "/app/settings" },
-          ]}
+          items={billing.hasActiveSubscription
+            ? [
+                { label: "Home", href: "/app" },
+                { label: "Recommendations", href: "/app/recommendations" },
+                { label: "Settings", href: "/app/settings" },
+              ]
+            : [
+                { label: "Billing", href: "/app/billing" },
+              ]}
         />
         <Outlet />
       </div>

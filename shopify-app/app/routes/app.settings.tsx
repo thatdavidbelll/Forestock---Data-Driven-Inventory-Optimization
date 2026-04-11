@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useActionData, useFetcher, useLoaderData, useRouteError } from "react-router";
+import { useFetcher, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   ActionButton,
@@ -26,6 +26,7 @@ import {
   getForestockStoreConfig,
   updateForestockStoreConfig,
 } from "../forestock.server";
+import { getBillingStatus } from "../billing.server";
 import { getSetupStages, type SetupStage } from "../setup-state";
 import { authenticate } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
@@ -56,6 +57,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
+    const billing = await getBillingStatus(admin);
+    if (!billing.hasActiveSubscription) {
+      return {
+        intent: "full",
+        ok: false,
+        message: "Activate a Shopify plan for Forestock before running setup.",
+      } satisfies ShopifySetupStepResult;
+    }
     const identity = await loadShopIdentity(admin, session.shop);
 
     try {
@@ -73,7 +82,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  const billing = await getBillingStatus(admin);
+  if (!billing.hasActiveSubscription) {
+    return { ok: false, message: "Activate a Shopify plan for Forestock before changing settings." } satisfies ActionData;
+  }
   const forecastHorizonDays = Number(formData.get("forecastHorizonDays"));
 
   if (!Number.isFinite(forecastHorizonDays)) {
@@ -115,10 +128,10 @@ function shouldAutoRunSetup(stages: SetupStage[]) {
 
 export default function SettingsPage() {
   const { config, overview } = useLoaderData<typeof loader>();
-  const actionData = useActionData<ActionData>();
   const setupFetcher = useFetcher<ShopifySetupStepResult>();
+  const forecastFetcher = useFetcher<ActionData>();
   const autoSubmitted = useRef(false);
-  const effectiveConfig = actionData?.ok ? actionData.config : config;
+  const effectiveConfig = forecastFetcher.data?.ok ? forecastFetcher.data.config : config;
   const [forecastHorizonDays, setForecastHorizonDays] = useState(
     Math.min(90, Math.max(3, effectiveConfig.forecastHorizonDays)),
   );
@@ -235,7 +248,7 @@ export default function SettingsPage() {
         description="This changes how many days the shared backend forecast projects forward for this store."
       >
         <Card>
-          <form method="post" style={{ display: "grid", gap: 20 }}>
+          <forecastFetcher.Form method="post" style={{ display: "grid", gap: 20 }}>
             <MetricCard
               label="Current horizon"
               value={`${forecastHorizonDays} days`}
@@ -261,12 +274,14 @@ export default function SettingsPage() {
               </div>
             </InputFrame>
             <div>
-              <s-button type="submit">Save horizon</s-button>
+              <s-button type="submit" loading={forecastFetcher.state !== "idle"}>
+                Save horizon
+              </s-button>
             </div>
-          </form>
-          {actionData ? (
+          </forecastFetcher.Form>
+          {forecastFetcher.data ? (
             <div style={{ marginTop: 16 }}>
-              <Badge tone={actionData.ok ? "success" : "critical"}>{actionData.message}</Badge>
+              <Badge tone={forecastFetcher.data.ok ? "success" : "critical"}>{forecastFetcher.data.message}</Badge>
             </div>
           ) : null}
         </Card>
