@@ -1,10 +1,10 @@
-# Shopify App Host Setup Guide (`shopify.forestock.ro`)
+# Shopify App Host Setup Guide (`portal.forestock.ro`)
 
 ## Purpose
 This guide explains how to stand up a dedicated hostname for the Forestock Shopify app when Forestock is hosted on AWS and fronted by Nginx.
 
 Target hostname:
-- `https://shopify.forestock.ro`
+- `https://portal.forestock.ro`
 
 This guide is for planning and supervised execution. It does **not** imply the change has already been applied.
 
@@ -13,7 +13,7 @@ This guide is for planning and supervised execution. It does **not** imply the c
 ## Change Classification
 ### Requested action
 Create and serve a dedicated Shopify app hostname:
-- `shopify.forestock.ro`
+- `portal.forestock.ro`
 
 ### Permission level
 **Level 4 — Production high-risk / networking / auth-adjacent infrastructure change**
@@ -43,7 +43,7 @@ Do not apply this directly without explicit approval and a rollback-ready window
 Use a **dedicated hostname** for the Shopify app runtime:
 - `app.forestock.ro` → existing Forestock web frontend
 - `api.forestock.ro` → existing backend API
-- `shopify.forestock.ro` → Shopify embedded app runtime
+- `portal.forestock.ro` → Shopify embedded app runtime
 
 This keeps merchant-facing Shopify auth and callback behavior isolated from the main Forestock frontend.
 
@@ -95,27 +95,27 @@ If the backend is already deployed with Docker and Nginx, using Docker for the S
 
 ---
 
-## Step 2 — Create DNS for `shopify.forestock.ro`
+## Step 2 — Create DNS for `portal.forestock.ro`
 In your DNS provider, create one of:
 
 ### If pointing directly to EC2
 ```text
-A     shopify.forestock.ro     -> <EC2 elastic IP>
+A     portal.forestock.ro     -> <EC2 elastic IP>
 ```
 
 ### If using another hostname in front of the EC2 host
 ```text
-CNAME shopify.forestock.ro     -> <target hostname>
+CNAME portal.forestock.ro     -> <target hostname>
 ```
 
 ### Verification
 Run:
 ```bash
-nslookup shopify.forestock.ro
+nslookup portal.forestock.ro
 ```
 or:
 ```bash
-dig shopify.forestock.ro
+dig portal.forestock.ro
 ```
 
 Do not continue until DNS resolves correctly.
@@ -132,7 +132,7 @@ Example config:
 ```nginx
 server {
     listen 80;
-    server_name shopify.forestock.ro;
+    server_name portal.forestock.ro;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -164,12 +164,12 @@ Use Certbot if Nginx is already managed that way.
 
 Example:
 ```bash
-sudo certbot --nginx -d shopify.forestock.ro
+sudo certbot --nginx -d portal.forestock.ro
 ```
 
 After issuance, verify:
 ```bash
-curl -I https://shopify.forestock.ro
+curl -I https://portal.forestock.ro
 ```
 
 Expected:
@@ -185,7 +185,7 @@ On the host where the Shopify app runs, set environment variables such as:
 ```env
 SHOPIFY_API_KEY=<shopify client id>
 SHOPIFY_API_SECRET=<shopify client secret>
-SHOPIFY_APP_URL=https://shopify.forestock.ro
+SHOPIFY_APP_URL=https://portal.forestock.ro
 SCOPES=read_products,read_inventory,read_orders
 DATABASE_URL=postgresql://<user>:<password>@<host>/<shopify_sessions_db>?sslmode=require
 FORESTOCK_API_BASE_URL=https://api.forestock.ro
@@ -242,17 +242,17 @@ sudo systemctl status forestock-shopify
 ---
 
 ## Step 7 — Update Shopify app configuration
-Once `https://shopify.forestock.ro` is live and serving correctly, update Shopify app config.
+Once `https://portal.forestock.ro` is live and serving correctly, update Shopify app config.
 
 ### Application URL
 ```text
-https://shopify.forestock.ro
+https://portal.forestock.ro
 ```
 
 ### Redirect URLs
 ```text
-https://shopify.forestock.ro/auth/callback
-https://shopify.forestock.ro/auth/shopify/callback
+https://portal.forestock.ro/auth/callback
+https://portal.forestock.ro/auth/shopify/callback
 ```
 
 Repo-side alignment:
@@ -268,8 +268,8 @@ Run these checks:
 
 ### Host checks
 ```bash
-curl -I https://shopify.forestock.ro
-curl -I https://shopify.forestock.ro/auth/callback
+curl -I https://portal.forestock.ro
+curl -I https://portal.forestock.ro/auth/callback
 ```
 
 ### Runtime checks
@@ -335,7 +335,7 @@ Reasonably reversible if planned:
 ## Rollback plan
 If cutover fails:
 1. revert Shopify application URL and redirect URLs to last known working values
-2. stop routing traffic to `shopify.forestock.ro`
+2. stop routing traffic to `portal.forestock.ro`
 3. disable the Nginx site if needed
 4. stop the Shopify app process
 5. fall back to tunnel/non-prod validation until fixed
@@ -347,7 +347,7 @@ If cutover fails:
 - validate app locally with tunnel
 
 ### Phase 2 — host validation
-- stand up `shopify.forestock.ro`
+- stand up `portal.forestock.ro`
 - test directly against the host
 - do not announce it yet
 
@@ -373,6 +373,6 @@ When this is actually implemented, update:
 ---
 
 ## Honest recommendation
-Do not build `shopify.forestock.ro` first and hope the app works later.
+Do not build `portal.forestock.ro` first and hope the app works later.
 
 Validate the app flow with a tunnel first, then promote it to a dedicated AWS + Nginx hostname.

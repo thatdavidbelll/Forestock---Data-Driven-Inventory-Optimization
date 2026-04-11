@@ -92,7 +92,7 @@ Any change to scopes, install behavior, or provisioning flow can affect:
 If Shopify is part of launch, treat it as its own readiness track with explicit validation evidence and support procedures. The target product posture is Shopify-first for merchants, with the embedded app acting as the primary setup and status surface.
 
 ## Dedicated Host Planning
-If Forestock promotes the Shopify app to its own production-ish hostname, prefer a dedicated host such as `shopify.forestock.ro` rather than reusing the main Forestock frontend host. See `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md` for a supervised AWS + Nginx implementation guide and risk framing.
+If Forestock promotes the Shopify app to its own production-ish hostname, prefer a dedicated host such as `portal.forestock.ro` rather than reusing the main Forestock frontend host. See `docs/SHOPIFY_AWS_NGINX_SETUP_GUIDE.md` for a supervised AWS + Nginx implementation guide and risk framing.
 
 ## Deployment Strategy
 The current recommended deployment strategy for Shopify is:

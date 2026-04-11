@@ -115,7 +115,7 @@ export default function AppIndex() {
                     ? [{
                         label: "Model",
                         value: (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
                             <span>{recommendationModelLabel(data.topRecommendation.forecastModel)}</span>
                             <span
                               style={{

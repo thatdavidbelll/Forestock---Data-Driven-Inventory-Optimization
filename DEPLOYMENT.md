@@ -263,7 +263,7 @@ for Shopify deployment.
 ### Required GitHub Secrets
 Add these repository secrets before relying on Shopify deployment through Actions:
 
-Important: `SHOPIFY_APP_URL` must be set to the final public Shopify host (for example `https://shopify.forestock.ro`). The deployed Shopify runtime will fail fast if this secret is empty or malformed.
+Important: `SHOPIFY_APP_URL` must be set to the final public Shopify host (for example `https://portal.forestock.ro`). The deployed Shopify runtime will fail fast if this secret is empty or malformed.
 
 - `SHOPIFY_API_KEY`
 - `SHOPIFY_API_SECRET`
@@ -281,7 +281,7 @@ Important: `SHOPIFY_APP_URL` must be set to the final public Shopify host (for e
 - app port: `3000`
 
 ### Next infrastructure step after deploy
-Once the service runs successfully on `127.0.0.1:3000`, add an Nginx host for `shopify.forestock.ro`, then attach TLS and only later cut over Shopify application/callback URLs.
+Once the service runs successfully on `127.0.0.1:3000`, add an Nginx host for `portal.forestock.ro`, then attach TLS and only later cut over Shopify application/callback URLs.
 
 ## Step 7 — Deploy the Frontend
 

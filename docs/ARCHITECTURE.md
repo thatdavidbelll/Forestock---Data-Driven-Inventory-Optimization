@@ -56,7 +56,7 @@ Forestock is a multi-surface inventory optimization platform with three primary 
 
 ### Shopify host planning
 - Shopify app is intended to live on its own host when promoted beyond local/tunneled validation
-- Preferred dedicated hostname: `shopify.forestock.ro`
+- Preferred dedicated hostname: `portal.forestock.ro`
 - Likely initial hosting shape: EC2 + Nginx reverse proxy to a Node/Docker Shopify app runtime
 
 ## Security Model
