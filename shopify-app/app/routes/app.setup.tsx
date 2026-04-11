@@ -87,6 +87,7 @@ export default function SetupPage() {
     forecastStatus: overview.forecastStatus,
   });
   const stages = getSetupStages(overview);
+  const setupComplete = stages.every((stage) => stage.status === "completed");
   const nextSetupStage = stages.find((stage) => stage.status !== "completed");
   const setupBlockedExternally = Boolean(setupFetcher.data?.externalBlock);
   const shouldAutoBootstrap = !setupBlockedExternally && shouldAutoRunSetup(stages);
@@ -158,25 +159,27 @@ export default function SetupPage() {
         </Card>
       </Section>
 
-      <Section title="Progress" description="Keep the stage list compact and factual.">
-        <Grid columns={2}>
-          {stages.map((stage) => (
-            <Card key={stage.id}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>{stage.title}</div>
-                <Badge tone={stepTone(stage.status)}>{stage.status.replaceAll("_", " ")}</Badge>
-              </div>
-              <div style={{ color: "#6B7280", lineHeight: 1.65, marginBottom: 12, fontSize: 14 }}>{stage.summary}</div>
-              {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
-              {stage.evidenceAt ? (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #E5E7EB", fontSize: 13, color: "#6B7280" }}>
-                  {stage.evidenceLabel ?? "Evidence"}: {formatDateTime(stage.evidenceAt)}
+      {!setupComplete ? (
+        <Section title="Progress" description="Keep the stage list compact and factual.">
+          <Grid columns={2}>
+            {stages.map((stage) => (
+              <Card key={stage.id}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>{stage.title}</div>
+                  <Badge tone={stepTone(stage.status)}>{stage.status.replaceAll("_", " ")}</Badge>
                 </div>
-              ) : null}
-            </Card>
-          ))}
-        </Grid>
-      </Section>
+                <div style={{ color: "#6B7280", lineHeight: 1.65, marginBottom: 12, fontSize: 14 }}>{stage.summary}</div>
+                {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
+                {stage.evidenceAt ? (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #E5E7EB", fontSize: 13, color: "#6B7280" }}>
+                    {stage.evidenceLabel ?? "Evidence"}: {formatDateTime(stage.evidenceAt)}
+                  </div>
+                ) : null}
+              </Card>
+            ))}
+          </Grid>
+        </Section>
+      ) : null}
     </AppShell>
   );
 }
