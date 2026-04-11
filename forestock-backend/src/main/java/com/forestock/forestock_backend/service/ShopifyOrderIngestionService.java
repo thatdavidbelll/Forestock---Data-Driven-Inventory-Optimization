@@ -2,6 +2,7 @@ package com.forestock.forestock_backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.forestock.forestock_backend.config.ShopifyProperties;
 import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.ShopifyConnection;
@@ -74,7 +75,7 @@ public class ShopifyOrderIngestionService {
             return processOrderInternal(root, connection, storeId);
         } catch (Exception e) {
             log.error("Shopify order processing failed for store {}", storeId, e);
-            persistFailure(connection.getStore(), shopDomain, TOPIC, extractOrderId(root), root, e.getMessage());
+            persistFailure(connection.getStore(), shopDomain, TOPIC, extractOrderId(root), sanitiseOrderPayload(root), e.getMessage());
             return ShopifyIngestionResult.error("Processing failed: " + e.getMessage());
         } finally {
             TenantContext.clear();
@@ -97,6 +98,8 @@ public class ShopifyOrderIngestionService {
             throw new IllegalArgumentException("Shopify order payload is missing created_at");
         }
 
+        JsonNode sanitizedPayload = sanitiseOrderPayload(root);
+
         ShopifyOrder order = orderRepository.save(ShopifyOrder.builder()
                 .store(connection.getStore())
                 .shopifyOrderId(shopifyOrderId)
@@ -104,15 +107,15 @@ public class ShopifyOrderIngestionService {
                 .shopifyOrderName(root.path("name").asText(null))
                 .financialStatus(root.path("financial_status").asText(null))
                 .fulfillmentStatus(root.path("fulfillment_status").asText(null))
-                .customerEmail(root.path("customer").path("email").asText(null))
-                .customerFirstName(root.path("customer").path("first_name").asText(null))
-                .customerLastName(root.path("customer").path("last_name").asText(null))
+                .customerEmail(null)
+                .customerFirstName(null)
+                .customerLastName(null)
                 .totalPrice(parseBigDecimal(root.path("total_price")))
                 .subtotalPrice(parseBigDecimal(root.path("subtotal_price")))
                 .currency(root.path("currency").asText(null))
                 .orderCreatedAt(orderCreatedAt)
                 .orderUpdatedAt(parseShopifyTimestamp(root.path("updated_at").asText(null)))
-                .rawPayload(root)
+                .rawPayload(sanitizedPayload)
                 .processed(false)
                 .build());
 
@@ -244,5 +247,22 @@ public class ShopifyOrderIngestionService {
 
     private JsonNode wrapRawPayload(String rawPayload) {
         return objectMapper.createObjectNode().put("rawPayload", rawPayload);
+    }
+
+    private JsonNode sanitiseOrderPayload(JsonNode root) {
+        if (root == null || !root.isObject()) {
+            return root;
+        }
+        ObjectNode sanitised = (ObjectNode) root.deepCopy();
+        sanitised.remove(List.of(
+                "customer",
+                "billing_address",
+                "shipping_address",
+                "customer_locale",
+                "email",
+                "contact_email",
+                "phone"
+        ));
+        return sanitised;
     }
 }

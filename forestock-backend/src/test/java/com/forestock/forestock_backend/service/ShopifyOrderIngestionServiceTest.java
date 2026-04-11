@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -156,6 +158,16 @@ class ShopifyOrderIngestionServiceTest {
         assertThat(result.getMatchedLineItems()).isEqualTo(1);
         assertThat(result.getUnmatchedLineItems()).isEqualTo(1);
         assertThat(result.getSalesRowsUpserted()).isEqualTo(1);
+
+        ArgumentCaptor<ShopifyOrder> orderCaptor = ArgumentCaptor.forClass(ShopifyOrder.class);
+        verify(orderRepository, atLeastOnce()).save(orderCaptor.capture());
+        ShopifyOrder savedOrder = orderCaptor.getAllValues().getFirst();
+        assertThat(savedOrder.getCustomerEmail()).isNull();
+        assertThat(savedOrder.getCustomerFirstName()).isNull();
+        assertThat(savedOrder.getCustomerLastName()).isNull();
+        assertThat(savedOrder.getRawPayload().has("customer")).isFalse();
+        assertThat(savedOrder.getRawPayload().has("billing_address")).isFalse();
+        assertThat(savedOrder.getRawPayload().has("shipping_address")).isFalse();
 
         verify(jdbcTemplate).update(contains("ON CONFLICT"), eq(testStore.getId()),
                 eq(testProduct.getId()), any(), any());
