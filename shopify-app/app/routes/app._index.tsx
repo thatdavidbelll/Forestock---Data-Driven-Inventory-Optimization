@@ -59,7 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
 
     if (setupIncomplete) {
-      throw redirect(`/app/setup${new URL(request.url).search}`);
+      throw redirect(`/app/settings${new URL(request.url).search}`);
     }
 
     return overview;

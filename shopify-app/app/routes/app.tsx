@@ -39,7 +39,6 @@ export default function App() {
           search={location.search}
           items={[
             { label: "Home", href: "/app" },
-            { label: "Setup", href: "/app/setup" },
             { label: "Recommendations", href: "/app/recommendations" },
             { label: "Settings", href: "/app/settings" },
           ]}
