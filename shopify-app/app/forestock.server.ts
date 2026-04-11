@@ -161,6 +161,7 @@ type RecommendationCard = {
   estimatedOrderValue: number | null;
   supplierName: string | null;
   lowConfidence?: boolean;
+  forecastModel?: string | null;
   historyDaysAtGeneration?: number | null;
   acknowledged?: boolean;
   acknowledgedAt?: string | null;

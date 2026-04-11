@@ -28,6 +28,7 @@ public class SuggestionDto {
     private BigDecimal estimatedOrderValue;
     private String supplierName;
     private boolean lowConfidence;
+    private String forecastModel;
     private Integer historyDaysAtGeneration;
     private Urgency urgency;
     private boolean acknowledged;

@@ -142,6 +142,7 @@ public class SuggestionService {
                 .estimatedOrderValue(s.getEstimatedOrderValue())
                 .supplierName(s.getProduct().getSupplierName())
                 .lowConfidence(Boolean.TRUE.equals(s.getLowConfidence()))
+                .forecastModel(s.getForecastModel())
                 .historyDaysAtGeneration(s.getHistoryDaysAtGeneration())
                 .urgency(s.getUrgency())
                 .acknowledged(Boolean.TRUE.equals(s.getAcknowledged()))

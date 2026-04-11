@@ -21,8 +21,11 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -65,6 +68,7 @@ public class ForecastAccuracyService {
                     .findByForecastRunIdOrderByUrgencyAscDaysOfStockAsc(run.getId());
 
             List<ForecastAccuracyResult> results = new ArrayList<>();
+            Map<String, List<BigDecimal>> mapeByModel = new HashMap<>();
             for (OrderSuggestion suggestion : suggestions) {
                 BigDecimal predicted = suggestion.getForecastP50();
                 if (predicted == null) {
@@ -89,6 +93,10 @@ public class ForecastAccuracyService {
                             .divide(actual, 4, RoundingMode.HALF_UP)
                             .multiply(BigDecimal.valueOf(100))
                             .setScale(2, RoundingMode.HALF_UP);
+                    String forecastModel = suggestion.getForecastModel() != null
+                            ? suggestion.getForecastModel()
+                            : "UNKNOWN";
+                    mapeByModel.computeIfAbsent(forecastModel, ignored -> new ArrayList<>()).add(mape);
                 }
 
                 results.add(ForecastAccuracyResult.builder()
@@ -109,6 +117,9 @@ public class ForecastAccuracyService {
                 forecastAccuracyResultRepository.saveAll(results);
                 computeStoreLevelMape(run);
                 log.info("Evaluated forecast accuracy for run {} with {} product results", run.getId(), results.size());
+                if (!mapeByModel.isEmpty()) {
+                    log.info("Forecast accuracy by model for run {} — {}", run.getId(), summariseMapeByModel(mapeByModel));
+                }
             }
         }
     }
@@ -139,6 +150,37 @@ public class ForecastAccuracyService {
         run.setMape(averageMape);
         run.setRmse(BigDecimal.valueOf(Math.sqrt(squaredErrorMean.doubleValue())).setScale(4, RoundingMode.HALF_UP));
         forecastRunRepository.save(run);
+    }
+
+    @Transactional(readOnly = true)
+    public ModelPerformance getModelPerformance(UUID forecastRunId) {
+        List<OrderSuggestion> suggestions = orderSuggestionRepository
+                .findByForecastRunIdOrderByUrgencyAscDaysOfStockAsc(forecastRunId);
+        Map<UUID, String> modelByProductId = suggestions.stream()
+                .filter(suggestion -> suggestion.getProduct() != null)
+                .collect(Collectors.toMap(
+                        suggestion -> suggestion.getProduct().getId(),
+                        suggestion -> suggestion.getForecastModel() != null ? suggestion.getForecastModel() : "UNKNOWN",
+                        (left, right) -> left
+                ));
+
+        Map<String, Long> modelUsage = suggestions.stream()
+                .collect(Collectors.groupingBy(
+                        suggestion -> suggestion.getForecastModel() != null ? suggestion.getForecastModel() : "UNKNOWN",
+                        Collectors.counting()
+                ));
+
+        List<ForecastAccuracyResult> results = forecastAccuracyResultRepository.findEvaluatedByForecastRunId(forecastRunId);
+        Map<String, List<BigDecimal>> mapeByModel = new HashMap<>();
+        for (ForecastAccuracyResult result : results) {
+            if (result.getMape() == null || result.getProduct() == null) {
+                continue;
+            }
+            String forecastModel = modelByProductId.getOrDefault(result.getProduct().getId(), "UNKNOWN");
+            mapeByModel.computeIfAbsent(forecastModel, ignored -> new ArrayList<>()).add(result.getMape());
+        }
+
+        return new ModelPerformance(modelUsage, summariseMapeByModel(mapeByModel));
     }
 
     @Transactional(readOnly = true)
@@ -176,6 +218,20 @@ public class ForecastAccuracyService {
                 .evaluatedForecasts(recentRuns.size())
                 .build();
     }
+
+    private Map<String, BigDecimal> summariseMapeByModel(Map<String, List<BigDecimal>> mapeByModel) {
+        Map<String, BigDecimal> summary = new HashMap<>();
+        for (Map.Entry<String, List<BigDecimal>> entry : mapeByModel.entrySet()) {
+            BigDecimal total = entry.getValue().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+            summary.put(
+                    entry.getKey(),
+                    total.divide(BigDecimal.valueOf(entry.getValue().size()), 2, RoundingMode.HALF_UP)
+            );
+        }
+        return summary;
+    }
+
+    public record ModelPerformance(Map<String, Long> modelUsage, Map<String, BigDecimal> modelMape) {}
 
     @Builder
     public record AccuracyScore(BigDecimal lastRunMape, String trend, int evaluatedForecasts) {}

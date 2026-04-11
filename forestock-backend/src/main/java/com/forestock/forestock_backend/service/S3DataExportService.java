@@ -53,7 +53,7 @@ public class S3DataExportService {
     /**
      * Uploads forecast results to S3 reports/{runId}/forecast.json
      */
-    public void uploadForecastResults(Map<UUID, ForecastResult> results, UUID forecastRunId) {
+    public void uploadForecastResults(Map<UUID, ForecastResult> results, Map<UUID, String> forecastModels, UUID forecastRunId) {
         StringBuilder json = new StringBuilder("{\n  \"forecastRunId\": \"").append(forecastRunId).append("\",\n");
         json.append("  \"results\": [\n");
 
@@ -62,6 +62,7 @@ public class S3DataExportService {
             if (!first) json.append(",\n");
             ForecastResult r = entry.getValue();
             json.append("    {\"productId\": \"").append(entry.getKey()).append("\"")
+                .append(", \"model\": \"").append(forecastModels.getOrDefault(entry.getKey(), "UNKNOWN")).append("\"")
                 .append(", \"p50Total\": ").append(String.format("%.2f", r.p50Total()))
                 .append(", \"p90Total\": ").append(String.format("%.2f", r.p90Total()))
                 .append("}");

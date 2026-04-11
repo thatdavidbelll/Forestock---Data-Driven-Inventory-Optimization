@@ -62,6 +62,9 @@ public class OrderSuggestion {
     @Column(name = "low_confidence", nullable = false)
     private Boolean lowConfidence = false;
 
+    @Column(name = "forecast_model", length = 40)
+    private String forecastModel;
+
     @Column(name = "history_days_at_generation")
     private Integer historyDaysAtGeneration;
 

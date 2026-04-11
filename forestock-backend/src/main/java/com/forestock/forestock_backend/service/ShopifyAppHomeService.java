@@ -262,6 +262,7 @@ public class ShopifyAppHomeService {
                 .estimatedOrderValue(suggestion.getEstimatedOrderValue())
                 .supplierName(suggestion.getProduct().getSupplierName())
                 .lowConfidence(Boolean.TRUE.equals(suggestion.getLowConfidence()))
+                .forecastModel(suggestion.getForecastModel())
                 .historyDaysAtGeneration(suggestion.getHistoryDaysAtGeneration())
                 .acknowledged(Boolean.TRUE.equals(suggestion.getAcknowledged()))
                 .acknowledgedAt(suggestion.getAcknowledgedAt())

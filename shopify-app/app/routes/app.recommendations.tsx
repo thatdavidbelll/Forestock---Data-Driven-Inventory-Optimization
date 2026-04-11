@@ -40,6 +40,19 @@ function formatMetricNumber(value: number | null | undefined, suffix = "") {
   return `${Number(value).toFixed(1)}${suffix}`;
 }
 
+function modelTone(forecastModel: string | null | undefined) {
+  if (forecastModel === "HOLT_WINTERS") return "success" as const;
+  if (forecastModel === "ZERO") return "warning" as const;
+  return "subtle" as const;
+}
+
+function modelLabel(forecastModel: string | null | undefined) {
+  if (forecastModel === "HOLT_WINTERS") return "Seasonal model";
+  if (forecastModel === "INTERMITTENT_FALLBACK") return "Conservative fallback";
+  if (forecastModel === "ZERO") return "No demand signal";
+  return "Forecast model";
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
@@ -89,6 +102,18 @@ export default function RecommendationsPage() {
                       {recommendation.lowConfidence ? (
                         <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5, color: "#92400E" }}>
                           Low confidence{recommendation.historyDaysAtGeneration != null ? ` • ${recommendation.historyDaysAtGeneration} sales days observed` : ""}
+                        </div>
+                      ) : null}
+                      {recommendation.forecastModel ? (
+                        <div style={{ marginTop: recommendation.lowConfidence ? 8 : 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                          <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
+                          <div style={{ fontSize: 13, lineHeight: 1.5, color: "#64748B" }}>
+                            {recommendation.forecastModel === "HOLT_WINTERS"
+                              ? "Using the stronger seasonal model."
+                              : recommendation.forecastModel === "INTERMITTENT_FALLBACK"
+                                ? "Using the conservative fallback because demand is uneven."
+                                : "Using a minimal demand signal path."}
+                          </div>
                         </div>
                       ) : null}
                     </div>

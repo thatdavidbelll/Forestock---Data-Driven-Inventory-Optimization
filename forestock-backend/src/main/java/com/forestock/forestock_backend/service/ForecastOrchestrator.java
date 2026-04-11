@@ -133,18 +133,25 @@ public class ForecastOrchestrator {
             log.info("Processing {} active products for store {}", products.size(), store.getSlug());
 
             Map<UUID, ForecastResult> forecastResults = new HashMap<>();
+            Map<UUID, String> forecastModels = new HashMap<>();
             Map<UUID, Integer> historyDaysByProduct = new HashMap<>();
+            Map<UUID, BigDecimal> recent28DaySalesByProduct = new HashMap<>();
+            Map<UUID, BigDecimal> recentPeakDailySalesByProduct = new HashMap<>();
             int productsWithInsufficientData = 0;
             for (Product product : products) {
                 List<SalesTransaction> productSales = salesByProduct.getOrDefault(product.getId(), List.of());
                 List<Double> timeSeries = buildTimeSeries(productSales, from, LocalDate.now());
                 int historyDays = (int) timeSeries.stream().filter(value -> value > 0).count();
                 historyDaysByProduct.put(product.getId(), historyDays);
+                recent28DaySalesByProduct.put(product.getId(), sumTrailingDays(timeSeries, 28));
+                recentPeakDailySalesByProduct.put(product.getId(), maxTrailingDay(timeSeries, 28));
                 if (historyDays < configuration.getMinHistoryDays()) {
                     productsWithInsufficientData++;
                 }
-                ForecastResult result = forecastingEngine.forecast(timeSeries, horizonDays, configuration);
-                forecastResults.put(product.getId(), result);
+                ForecastingEngine.ForecastComputation computation =
+                        forecastingEngine.forecastWithModel(timeSeries, horizonDays, configuration);
+                forecastResults.put(product.getId(), computation.result());
+                forecastModels.put(product.getId(), computation.model().name());
             }
 
             // Get current stock — set tenant context temporarily for store-scoped query
@@ -157,10 +164,19 @@ public class ForecastOrchestrator {
             }
 
             List<OrderSuggestion> suggestions = suggestionEngine.generate(
-                    products, currentStock, forecastResults, historyDaysByProduct, run, horizonDays, configuration);
+                    products,
+                    currentStock,
+                    forecastResults,
+                    historyDaysByProduct,
+                    forecastModels,
+                    recent28DaySalesByProduct,
+                    recentPeakDailySalesByProduct,
+                    run,
+                    horizonDays,
+                    configuration);
 
             s3ExportService.backupSalesData(allSales, run.getId());
-            s3ExportService.uploadForecastResults(forecastResults, run.getId());
+            s3ExportService.uploadForecastResults(forecastResults, forecastModels, run.getId());
 
             run.setStatus(ForecastStatus.COMPLETED);
             run.setFinishedAt(LocalDateTime.now());
@@ -176,6 +192,7 @@ public class ForecastOrchestrator {
 
             log.info("Forecast run {} COMPLETED for store {} — {} products, {} suggestions ({} CRITICAL)",
                     run.getId(), store.getSlug(), products.size(), suggestions.size(), criticalCount);
+            log.info("Forecast model usage for run {} — {}", run.getId(), summariseModelUsage(forecastModels));
 
         } catch (Exception e) {
             log.error("Forecast run {} FAILED for store {}: {}", run.getId(), store.getSlug(), e.getMessage(), e);
@@ -211,5 +228,36 @@ public class ForecastOrchestrator {
             current = current.plusDays(1);
         }
         return series;
+    }
+
+    private BigDecimal sumTrailingDays(List<Double> series, int days) {
+        if (series.isEmpty() || days <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        double total = 0;
+        int start = Math.max(0, series.size() - days);
+        for (int i = start; i < series.size(); i++) {
+            total += series.get(i);
+        }
+        return BigDecimal.valueOf(total);
+    }
+
+    private BigDecimal maxTrailingDay(List<Double> series, int days) {
+        if (series.isEmpty() || days <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        double max = 0;
+        int start = Math.max(0, series.size() - days);
+        for (int i = start; i < series.size(); i++) {
+            max = Math.max(max, series.get(i));
+        }
+        return BigDecimal.valueOf(max);
+    }
+
+    private Map<String, Long> summariseModelUsage(Map<UUID, String> forecastModels) {
+        return forecastModels.values().stream()
+                .collect(Collectors.groupingBy(model -> model, Collectors.counting()));
     }
 }

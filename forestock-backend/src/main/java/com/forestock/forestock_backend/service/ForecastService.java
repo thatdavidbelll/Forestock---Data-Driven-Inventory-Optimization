@@ -19,6 +19,7 @@ import java.util.UUID;
 public class ForecastService {
 
     private final ForecastRunRepository forecastRunRepository;
+    private final ForecastAccuracyService forecastAccuracyService;
 
     @Transactional(readOnly = true)
     public List<ForecastRunDto> getAllRuns() {
@@ -56,6 +57,7 @@ public class ForecastService {
         if (run.getStartedAt() != null && run.getFinishedAt() != null) {
             durationSeconds = ChronoUnit.SECONDS.between(run.getStartedAt(), run.getFinishedAt());
         }
+        ForecastAccuracyService.ModelPerformance modelPerformance = forecastAccuracyService.getModelPerformance(run.getId());
         return ForecastRunDto.builder()
                 .id(run.getId())
                 .status(run.getStatus())
@@ -68,6 +70,8 @@ public class ForecastService {
                 .productsWithInsufficientData(run.getProductsWithInsufficientData())
                 .mape(run.getMape())
                 .rmse(run.getRmse())
+                .modelUsage(modelPerformance.modelUsage())
+                .modelMape(modelPerformance.modelMape())
                 .build();
     }
 }

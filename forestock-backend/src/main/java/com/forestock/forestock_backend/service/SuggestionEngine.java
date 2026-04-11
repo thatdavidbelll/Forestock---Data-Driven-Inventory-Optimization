@@ -48,6 +48,76 @@ public class SuggestionEngine {
             ForecastRun forecastRun,
             int horizonDays,
             StoreConfiguration configuration) {
+        return generate(
+                products,
+                currentStockMap,
+                forecastMap,
+                historyDaysMap,
+                Map.of(),
+                forecastRun,
+                horizonDays,
+                configuration);
+    }
+
+    @Transactional
+    public List<OrderSuggestion> generate(
+            List<Product> products,
+            Map<UUID, BigDecimal> currentStockMap,
+            Map<UUID, ForecastResult> forecastMap,
+            Map<UUID, Integer> historyDaysMap,
+            Map<UUID, String> forecastModels,
+            ForecastRun forecastRun,
+            int horizonDays,
+            StoreConfiguration configuration) {
+        return generate(
+                products,
+                currentStockMap,
+                forecastMap,
+                historyDaysMap,
+                forecastModels,
+                Map.of(),
+                Map.of(),
+                forecastRun,
+                horizonDays,
+                configuration);
+    }
+
+    @Transactional
+    public List<OrderSuggestion> generate(
+            List<Product> products,
+            Map<UUID, BigDecimal> currentStockMap,
+            Map<UUID, ForecastResult> forecastMap,
+            Map<UUID, Integer> historyDaysMap,
+            Map<UUID, BigDecimal> recent28DaySalesMap,
+            Map<UUID, BigDecimal> recentPeakDailySalesMap,
+            ForecastRun forecastRun,
+            int horizonDays,
+            StoreConfiguration configuration) {
+        return generate(
+                products,
+                currentStockMap,
+                forecastMap,
+                historyDaysMap,
+                Map.of(),
+                recent28DaySalesMap,
+                recentPeakDailySalesMap,
+                forecastRun,
+                horizonDays,
+                configuration);
+    }
+
+    @Transactional
+    public List<OrderSuggestion> generate(
+            List<Product> products,
+            Map<UUID, BigDecimal> currentStockMap,
+            Map<UUID, ForecastResult> forecastMap,
+            Map<UUID, Integer> historyDaysMap,
+            Map<UUID, String> forecastModels,
+            Map<UUID, BigDecimal> recent28DaySalesMap,
+            Map<UUID, BigDecimal> recentPeakDailySalesMap,
+            ForecastRun forecastRun,
+            int horizonDays,
+            StoreConfiguration configuration) {
 
         List<OrderSuggestion> suggestions = new ArrayList<>();
         BigDecimal safetyStockMultiplier = configuration.getSafetyStockMultiplier();
@@ -61,10 +131,15 @@ public class SuggestionEngine {
 
             BigDecimal currentStock = currentStockMap.getOrDefault(product.getId(), BigDecimal.ZERO);
             BigDecimal p50 = BigDecimal.valueOf(forecast.p50Total());
-            BigDecimal p90 = p50.multiply(safetyStockMultiplier).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal forecastP90 = BigDecimal.valueOf(forecast.p90Total()).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal safetyBufferedP50 = p50.multiply(safetyStockMultiplier).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal p90 = forecastP90.max(safetyBufferedP50);
             int historyDays = historyDaysMap.getOrDefault(product.getId(), 0);
             boolean lowConfidence = historyDays > 0 && historyDays < configuration.getMinHistoryDays();
             int leadTimeDays = product.getLeadTimeDays() != null ? product.getLeadTimeDays() : 0;
+            BigDecimal recent28DaySales = recent28DaySalesMap.getOrDefault(product.getId(), BigDecimal.ZERO);
+            BigDecimal recentPeakDailySales = recentPeakDailySalesMap.getOrDefault(product.getId(), BigDecimal.ZERO);
+            String forecastModel = forecastModels.get(product.getId());
 
             BigDecimal dailyDemand = p50.divide(BigDecimal.valueOf(horizonDays), 4, RoundingMode.HALF_UP);
             BigDecimal leadTimeBuffer = dailyDemand.multiply(BigDecimal.valueOf(leadTimeDays));
@@ -73,6 +148,7 @@ public class SuggestionEngine {
             if (rawSuggested.compareTo(BigDecimal.ZERO) < 0) rawSuggested = BigDecimal.ZERO;
             if (lowConfidence) {
                 rawSuggested = applyLowConfidenceDampening(rawSuggested, historyDays, configuration.getMinHistoryDays());
+                rawSuggested = applySparseDemandCap(rawSuggested, recent28DaySales, recentPeakDailySales);
             }
 
             BigDecimal moqApplied = null;
@@ -89,6 +165,7 @@ public class SuggestionEngine {
             } else {
                 suggested = rawSuggested.setScale(0, RoundingMode.CEILING).setScale(2, RoundingMode.HALF_UP);
             }
+            suggested = applyMaxStockCap(suggested, product, currentStock);
 
             // daysOfStock = currentStock / dailyDemand
             BigDecimal daysOfStock;
@@ -110,13 +187,14 @@ public class SuggestionEngine {
                     .forecastRun(forecastRun)
                     .suggestedQty(suggested)
                     .forecastP50(p50.setScale(2, RoundingMode.HALF_UP))
-                    .forecastP90(p90.setScale(2, RoundingMode.HALF_UP))
+                    .forecastP90(forecastP90)
                     .currentStock(currentStock)
                     .daysOfStock(daysOfStock)
                     .leadTimeDaysAtGeneration(leadTimeDays)
                     .moqApplied(moqApplied)
                     .estimatedOrderValue(estimatedOrderValue)
                     .lowConfidence(lowConfidence)
+                    .forecastModel(forecastModel)
                     .historyDaysAtGeneration(historyDays > 0 ? historyDays : null)
                     .urgency(urgency)
                     .build();
@@ -155,7 +233,17 @@ public class SuggestionEngine {
         StoreConfiguration fallbackConfiguration = StoreConfiguration.builder()
                 .store(forecastRun.getStore() != null ? forecastRun.getStore() : Store.builder().build())
                 .build();
-        return generate(products, currentStockMap, forecastMap, historyDaysMap, forecastRun, horizonDays, fallbackConfiguration);
+        return generate(
+                products,
+                currentStockMap,
+                forecastMap,
+                historyDaysMap,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                forecastRun,
+                horizonDays,
+                fallbackConfiguration);
     }
 
     private Urgency computeUrgency(BigDecimal daysOfStock, StoreConfiguration configuration) {
@@ -174,5 +262,36 @@ public class SuggestionEngine {
         BigDecimal confidenceRatio = BigDecimal.valueOf(historyDays)
                 .divide(BigDecimal.valueOf(minHistoryDays), 4, RoundingMode.HALF_UP);
         return rawSuggested.multiply(confidenceRatio).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal applySparseDemandCap(BigDecimal rawSuggested,
+                                            BigDecimal recent28DaySales,
+                                            BigDecimal recentPeakDailySales) {
+        if (rawSuggested.compareTo(BigDecimal.ZERO) <= 0) {
+            return rawSuggested;
+        }
+
+        BigDecimal demandCap = recent28DaySales.multiply(BigDecimal.valueOf(2));
+        BigDecimal spikeCap = recentPeakDailySales.multiply(BigDecimal.valueOf(2));
+        BigDecimal cap = demandCap.max(spikeCap);
+        if (cap.compareTo(BigDecimal.ZERO) <= 0) {
+            return rawSuggested;
+        }
+        return rawSuggested.min(cap).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal applyMaxStockCap(BigDecimal suggested, Product product, BigDecimal currentStock) {
+        if (suggested.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (product.getMaxStock() == null || product.getMaxStock().compareTo(BigDecimal.ZERO) <= 0) {
+            return suggested;
+        }
+
+        BigDecimal remainingCapacity = product.getMaxStock().subtract(currentStock);
+        if (remainingCapacity.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return suggested.min(remainingCapacity).setScale(2, RoundingMode.HALF_UP);
     }
 }

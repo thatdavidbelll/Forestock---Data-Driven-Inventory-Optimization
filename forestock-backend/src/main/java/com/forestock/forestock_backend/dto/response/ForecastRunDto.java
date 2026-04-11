@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -22,4 +23,6 @@ public class ForecastRunDto {
     private Integer productsWithInsufficientData;
     private BigDecimal mape;
     private BigDecimal rmse;
+    private Map<String, Long> modelUsage;
+    private Map<String, BigDecimal> modelMape;
 }

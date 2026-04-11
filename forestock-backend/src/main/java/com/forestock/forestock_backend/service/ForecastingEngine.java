@@ -21,6 +21,18 @@ import java.util.*;
 @Service
 public class ForecastingEngine {
 
+    private static final double MIN_HOLT_WINTERS_DEMAND_DENSITY = 0.35;
+    private static final int MIN_HOLT_WINTERS_SEASONS = 3;
+
+    enum ForecastModel {
+        ZERO,
+        INTERMITTENT_FALLBACK,
+        HOLT_WINTERS
+    }
+
+    private record HoltWintersParams(double alpha, double beta, double gamma, double holdoutRmse, double sse) {}
+    record ForecastComputation(ForecastResult result, ForecastModel model) {}
+
     public record ForecastResult(double p50Total, double p90Total, List<Double> dailyValues) {}
 
     /**
@@ -30,32 +42,67 @@ public class ForecastingEngine {
      * @param horizonDays number of days to forecast
      */
     public ForecastResult forecast(List<Double> history, int horizonDays, StoreConfiguration configuration) {
+        return forecastWithModel(history, horizonDays, configuration).result();
+    }
+
+    ForecastComputation forecastWithModel(List<Double> history, int horizonDays, StoreConfiguration configuration) {
         if (history == null || history.isEmpty()) {
-            return zeroResult(horizonDays);
+            return new ForecastComputation(zeroResult(horizonDays), ForecastModel.ZERO);
         }
 
         double[] data = history.stream().mapToDouble(Double::doubleValue).toArray();
         int minHistoryDays = configuration.getMinHistoryDays();
         int seasonalityPeriod = configuration.getSeasonalityPeriod();
         long observedSalesDays = history.stream().filter(value -> value != null && value > 0).count();
+        double demandDensity = data.length == 0 ? 0 : observedSalesDays / (double) data.length;
 
-        if (observedSalesDays < minHistoryDays) {
-            log.debug("Insufficient sales history ({} observed sales days), falling back to SMA", observedSalesDays);
-            return simpleMovingAverage(data, horizonDays);
+        if (observedSalesDays < minHistoryDays
+                || data.length < MIN_HOLT_WINTERS_SEASONS * seasonalityPeriod
+                || demandDensity < MIN_HOLT_WINTERS_DEMAND_DENSITY) {
+            log.debug(
+                    "History not suitable for Holt-Winters (observedSalesDays={}, density={}), falling back to intermittent demand heuristic",
+                    observedSalesDays,
+                    demandDensity);
+            return new ForecastComputation(intermittentDemandFallback(data, horizonDays), ForecastModel.INTERMITTENT_FALLBACK);
         }
 
-        return holtsWinters(data, horizonDays, seasonalityPeriod);
+        return selectBestForecast(data, horizonDays, seasonalityPeriod);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Holt-Winters Additive
     // ──────────────────────────────────────────────────────────────────────────
 
-    private ForecastResult holtsWinters(double[] data, int horizon, int seasonalityPeriod) {
+    private ForecastComputation selectBestForecast(double[] data, int horizon, int seasonalityPeriod) {
         int m = seasonalityPeriod;
+        int validationWindow = Math.max(m, Math.min(horizon, m * 2));
+        HoltWintersParams bestParams = findBestHoltWintersParams(data, m, validationWindow);
+        ForecastResult fallbackForecast = intermittentDemandFallback(data, horizon);
+        double fallbackHoldoutRmse = computeFallbackHoldoutRmse(data, validationWindow);
 
-        // Grid search for best alpha/beta/gamma
-        double bestAlpha = 0.3, bestBeta = 0.1, bestGamma = 0.2;
+        if (fallbackHoldoutRmse <= bestParams.holdoutRmse()) {
+            log.debug("Fallback outperformed Holt-Winters on holdout (fallbackRmse={}, hwRmse={})",
+                    fallbackHoldoutRmse,
+                    bestParams.holdoutRmse());
+            return new ForecastComputation(fallbackForecast, ForecastModel.INTERMITTENT_FALLBACK);
+        }
+
+        log.debug("Selected Holt-Winters params: α={} β={} γ={} holdoutRmse={} SSE={}",
+                bestParams.alpha(),
+                bestParams.beta(),
+                bestParams.gamma(),
+                bestParams.holdoutRmse(),
+                bestParams.sse());
+        return new ForecastComputation(
+                computeForecast(data, bestParams.alpha(), bestParams.beta(), bestParams.gamma(), m, horizon),
+                ForecastModel.HOLT_WINTERS);
+    }
+
+    private HoltWintersParams findBestHoltWintersParams(double[] data, int m, int validationWindow) {
+        double bestAlpha = 0.3;
+        double bestBeta = 0.1;
+        double bestGamma = 0.2;
+        double bestScore = Double.MAX_VALUE;
         double bestSse = Double.MAX_VALUE;
 
         double[] alphas = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9};
@@ -65,8 +112,10 @@ public class ForecastingEngine {
         for (double alpha : alphas) {
             for (double beta : betas) {
                 for (double gamma : gammas) {
+                    double holdoutRmse = computeHoldoutRmse(data, alpha, beta, gamma, m, validationWindow);
                     double sse = computeSse(data, alpha, beta, gamma, m);
-                    if (sse < bestSse) {
+                    if (holdoutRmse < bestScore || (holdoutRmse == bestScore && sse < bestSse)) {
+                        bestScore = holdoutRmse;
                         bestSse = sse;
                         bestAlpha = alpha;
                         bestBeta = beta;
@@ -76,8 +125,50 @@ public class ForecastingEngine {
             }
         }
 
-        log.debug("Holt-Winters params: α={} β={} γ={} SSE={}", bestAlpha, bestBeta, bestGamma, bestSse);
-        return computeForecast(data, bestAlpha, bestBeta, bestGamma, m, horizon);
+        return new HoltWintersParams(bestAlpha, bestBeta, bestGamma, bestScore, bestSse);
+    }
+
+    private double computeHoldoutRmse(double[] data,
+                                      double alpha,
+                                      double beta,
+                                      double gamma,
+                                      int m,
+                                      int validationWindow) {
+        int n = data.length;
+        int trainingLength = n - validationWindow;
+        if (trainingLength < 2 * m || validationWindow <= 0) {
+            return Double.MAX_VALUE;
+        }
+
+        double[] training = Arrays.copyOfRange(data, 0, trainingLength);
+        double[] actual = Arrays.copyOfRange(data, trainingLength, n);
+        ForecastResult validationForecast = computeForecast(training, alpha, beta, gamma, m, validationWindow);
+
+        double squaredError = 0;
+        for (int i = 0; i < validationWindow; i++) {
+            double diff = validationForecast.dailyValues().get(i) - actual[i];
+            squaredError += diff * diff;
+        }
+        return Math.sqrt(squaredError / validationWindow);
+    }
+
+    private double computeFallbackHoldoutRmse(double[] data, int validationWindow) {
+        int n = data.length;
+        int trainingLength = n - validationWindow;
+        if (trainingLength <= 0 || validationWindow <= 0) {
+            return Double.MAX_VALUE;
+        }
+
+        double[] training = Arrays.copyOfRange(data, 0, trainingLength);
+        double[] actual = Arrays.copyOfRange(data, trainingLength, n);
+        ForecastResult validationForecast = intermittentDemandFallback(training, validationWindow);
+
+        double squaredError = 0;
+        for (int i = 0; i < validationWindow; i++) {
+            double diff = validationForecast.dailyValues().get(i) - actual[i];
+            squaredError += diff * diff;
+        }
+        return Math.sqrt(squaredError / validationWindow);
     }
 
     private double computeSse(double[] data, double alpha, double beta, double gamma, int m) {
@@ -191,18 +282,44 @@ public class ForecastingEngine {
     // Simple Moving Average fallback
     // ──────────────────────────────────────────────────────────────────────────
 
-    private ForecastResult simpleMovingAverage(double[] data, int horizon) {
-        int window = Math.min(data.length, 14);
-        double sum = 0;
-        for (int i = data.length - window; i < data.length; i++) sum += data[i];
-        double dailyAvg = sum / window;
+    private ForecastResult intermittentDemandFallback(double[] data, int horizon) {
+        int recentWindow = Math.min(data.length, 28);
+        int baselineWindow = Math.min(data.length, 84);
+        double recentDailyAvg = averageDailyDemand(data, recentWindow);
+        double baselineDailyAvg = averageDailyDemand(data, baselineWindow);
+        double dailyAvg = (baselineDailyAvg * 0.7) + (recentDailyAvg * 0.3);
+        double peakRecentDemand = maxDailyDemand(data, recentWindow);
+        double p50Total = dailyAvg * horizon;
+        double p90Total = Math.max(p50Total, p50Total + Math.min(peakRecentDemand * 2, p50Total * 0.15));
 
         List<Double> daily = new ArrayList<>(horizon);
         for (int i = 0; i < horizon; i++) daily.add(dailyAvg);
 
-        double p50Total = dailyAvg * horizon;
-        double p90Total = p50Total * 1.20;
         return new ForecastResult(p50Total, p90Total, daily);
+    }
+
+    private double averageDailyDemand(double[] data, int window) {
+        if (data.length == 0 || window <= 0) {
+            return 0;
+        }
+
+        double sum = 0;
+        for (int i = data.length - window; i < data.length; i++) {
+            sum += data[i];
+        }
+        return sum / window;
+    }
+
+    private double maxDailyDemand(double[] data, int window) {
+        if (data.length == 0 || window <= 0) {
+            return 0;
+        }
+
+        double max = 0;
+        for (int i = data.length - window; i < data.length; i++) {
+            max = Math.max(max, data[i]);
+        }
+        return max;
     }
 
     private ForecastResult zeroResult(int horizon) {

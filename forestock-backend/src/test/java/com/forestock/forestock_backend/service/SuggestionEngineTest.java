@@ -204,4 +204,79 @@ class SuggestionEngineTest {
         assertThat(result.get(0).getHistoryDaysAtGeneration()).isEqualTo(2);
         assertThat(result.get(0).getSuggestedQty()).isEqualByComparingTo(new BigDecimal("3.00"));
     }
+
+    @Test
+    void suggestion_uses_forecast_p90_without_double_counting_safety_buffer() {
+        Map<UUID, BigDecimal> stock = Map.of(product.getId(), BigDecimal.valueOf(0));
+        Map<UUID, ForecastResult> forecast = Map.of(
+                product.getId(), new ForecastResult(100, 110, List.of()));
+
+        StoreConfiguration configuration = StoreConfiguration.builder()
+                .minHistoryDays(30)
+                .safetyStockMultiplier(BigDecimal.valueOf(1.20))
+                .urgencyCriticalDays(2)
+                .urgencyHighDays(5)
+                .urgencyMediumDays(10)
+                .build();
+
+        List<OrderSuggestion> result = suggestionEngine.generate(
+                List.of(product), stock, forecast, Map.of(product.getId(), 30), forecastRun, 14, configuration);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getForecastP90()).isEqualByComparingTo(new BigDecimal("110.00"));
+        assertThat(result.get(0).getSuggestedQty()).isEqualByComparingTo(new BigDecimal("120.00"));
+    }
+
+    @Test
+    void lowConfidence_suggestions_are_capped_by_recent_observed_sales() {
+        Map<UUID, BigDecimal> stock = Map.of(product.getId(), BigDecimal.ZERO);
+        Map<UUID, ForecastResult> forecast = Map.of(
+                product.getId(), new ForecastResult(90, 100, List.of()));
+        Map<UUID, Integer> historyDays = Map.of(product.getId(), 10);
+        Map<UUID, BigDecimal> recent28DaySales = Map.of(product.getId(), BigDecimal.valueOf(2));
+        Map<UUID, BigDecimal> recentPeakDailySales = Map.of(product.getId(), BigDecimal.ONE);
+
+        StoreConfiguration configuration = StoreConfiguration.builder()
+                .minHistoryDays(30)
+                .safetyStockMultiplier(BigDecimal.valueOf(1.20))
+                .urgencyCriticalDays(2)
+                .urgencyHighDays(5)
+                .urgencyMediumDays(10)
+                .build();
+
+        List<OrderSuggestion> result = suggestionEngine.generate(
+                List.of(product),
+                stock,
+                forecast,
+                historyDays,
+                recent28DaySales,
+                recentPeakDailySales,
+                forecastRun,
+                14,
+                configuration);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getSuggestedQty()).isEqualByComparingTo(new BigDecimal("4.00"));
+    }
+
+    @Test
+    void suggestions_do_not_exceed_max_stock_capacity() {
+        Product cappedProduct = Product.builder()
+                .id(UUID.randomUUID())
+                .sku("CAP-001")
+                .name("Capped Product")
+                .unit("buc")
+                .active(true)
+                .maxStock(BigDecimal.valueOf(15))
+                .build();
+        Map<UUID, BigDecimal> stock = Map.of(cappedProduct.getId(), BigDecimal.valueOf(10));
+        Map<UUID, ForecastResult> forecast = Map.of(
+                cappedProduct.getId(), new ForecastResult(140, 168, List.of()));
+
+        List<OrderSuggestion> result = suggestionEngine.generate(
+                List.of(cappedProduct), stock, forecast, forecastRun, 14);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getSuggestedQty()).isEqualByComparingTo(new BigDecimal("5.00"));
+    }
 }
