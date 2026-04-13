@@ -11,7 +11,7 @@ import com.forestock.forestock_backend.dto.request.BulkAcknowledgeSuggestionsReq
 import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
-import com.forestock.forestock_backend.repository.StoreRepository;
+import com.forestock.forestock_backend.repository.ShopifyConnectionRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +39,7 @@ public class SuggestionService {
 
     private final OrderSuggestionRepository suggestionRepository;
     private final ForecastRunRepository forecastRunRepository;
-    private final StoreRepository storeRepository;
+    private final ShopifyConnectionRepository shopifyConnectionRepository;
 
     @Transactional(readOnly = true)
     public List<SuggestionDto> getSuggestions(String urgencyFilter, String categoryFilter) {
@@ -141,7 +141,8 @@ public class SuggestionService {
             throw new NoSuchElementException("No suggestions selected");
         }
 
-        Store store = storeRepository.findBySlug(shopDomain)
+        Store store = shopifyConnectionRepository.findByShopDomainAndActiveTrue(shopDomain)
+                .map(connection -> connection.getStore())
                 .orElseThrow(() -> new NoSuchElementException("Store not found"));
 
         List<OrderSuggestion> suggestions = suggestionIds.stream()
