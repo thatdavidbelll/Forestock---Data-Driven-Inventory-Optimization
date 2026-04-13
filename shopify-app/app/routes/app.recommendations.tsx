@@ -78,6 +78,8 @@ export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const revalidator = useRevalidator()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [generatingPo, setGeneratingPo] = useState(false)
+  const [purchaseOrderError, setPurchaseOrderError] = useState<string | null>(null)
   const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
 
   const toggleSelection = (id: string) => {
@@ -102,6 +104,39 @@ export default function RecommendationsPage() {
   const purchaseOrderHref = selectedIds.size > 0
     ? `/app/purchase-order?ids=${[...selectedIds].join(",")}`
     : null
+
+  const generatePurchaseOrder = async () => {
+    if (!purchaseOrderHref || generatingPo) return
+
+    setGeneratingPo(true)
+    setPurchaseOrderError(null)
+
+    try {
+      const response = await fetch(purchaseOrderHref, {
+        method: "GET",
+        credentials: "same-origin",
+      })
+
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(message || "Failed to generate purchase order")
+      }
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = objectUrl
+      link.download = "forestock-purchase-order.pdf"
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      setPurchaseOrderError(error instanceof Error ? error.message : "Failed to generate purchase order")
+    } finally {
+      setGeneratingPo(false)
+    }
+  }
 
   useEffect(() => {
     if (data.forecastStatus !== "RUNNING") return
@@ -168,8 +203,10 @@ export default function RecommendationsPage() {
                 {allSelected ? "Deselect all" : "Select all"}
               </label>
               {selectedIds.size > 0 && (
-                <a
-                  href={purchaseOrderHref!}
+                <button
+                  type="button"
+                  onClick={generatePurchaseOrder}
+                  disabled={generatingPo}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -177,15 +214,22 @@ export default function RecommendationsPage() {
                     borderRadius: 10,
                     background: "var(--fs-indigo)",
                     color: "#ffffff",
-                    textDecoration: "none",
+                    border: "none",
                     fontSize: 13,
                     fontWeight: 700,
+                    cursor: generatingPo ? "wait" : "pointer",
+                    opacity: generatingPo ? 0.72 : 1,
                   }}
                 >
-                  Generate PO ({selectedIds.size})
-                </a>
+                  {generatingPo ? "Generating PO..." : `Generate PO (${selectedIds.size})`}
+                </button>
               )}
             </div>
+            {purchaseOrderError ? (
+              <div style={{ marginBottom: 16, fontSize: 13, color: "#B42318" }}>
+                {purchaseOrderError}
+              </div>
+            ) : null}
             <Grid columns={2}>
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
