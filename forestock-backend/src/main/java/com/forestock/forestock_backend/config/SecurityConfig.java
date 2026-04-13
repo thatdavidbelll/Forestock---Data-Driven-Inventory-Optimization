@@ -74,6 +74,7 @@ public class SecurityConfig {
                     .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/order-backfill").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/disconnect").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/forecast-run").permitAll()
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/shopify/purchase-order").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/shopify/config").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/shopify/config").permitAll()
                     .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/shopify/app-home").permitAll()
