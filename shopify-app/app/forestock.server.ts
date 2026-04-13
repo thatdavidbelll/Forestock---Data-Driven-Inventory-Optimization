@@ -485,6 +485,30 @@ export async function getForestockRecommendations(shopDomain: string): Promise<R
   return responseBody.data;
 }
 
+export async function generateForestockPurchaseOrder(payload: {
+  shopDomain: string;
+  suggestionIds: string[];
+}): Promise<ArrayBuffer> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(`${apiBaseUrl}/api/shopify/purchase-order`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forestock-Shopify-Secret": provisioningSecret,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = await readApiResponse<void>(response);
+    throw new Error(body.message || "Failed to generate purchase order");
+  }
+
+  return response.arrayBuffer();
+}
+
 export async function notifyCustomerDataRequest(payload: {
   shopDomain: string;
   customerId: number;

@@ -1,6 +1,7 @@
 package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.config.ShopifyProperties;
+import com.forestock.forestock_backend.dto.request.ShopifyPurchaseOrderRequest;
 import com.forestock.forestock_backend.dto.request.UpdateStoreConfigRequest;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
 import com.forestock.forestock_backend.dto.response.StoreConfigurationDto;
@@ -9,9 +10,12 @@ import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.ShopifyAppHomeService;
 import com.forestock.forestock_backend.service.StoreConfigurationService;
+import com.forestock.forestock_backend.service.SuggestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/shopify")
@@ -37,6 +42,7 @@ public class ShopifyAppHomeController {
     private final ForecastOrchestrator forecastOrchestrator;
     private final ForecastTriggerService forecastTriggerService;
     private final StoreConfigurationService storeConfigurationService;
+    private final SuggestionService suggestionService;
     private final ShopifyProperties shopifyProperties;
 
     @GetMapping("/app-home")
@@ -119,6 +125,27 @@ public class ShopifyAppHomeController {
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("No active Shopify connection found for this shop")));
+    }
+
+    @PostMapping("/purchase-order")
+    public ResponseEntity<byte[]> generatePurchaseOrder(
+            @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
+            @RequestBody ShopifyPurchaseOrderRequest request) {
+        if (!isValidSecret(provisioningSecret)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            byte[] pdf = suggestionService.generatePurchaseOrderPdfForShop(
+                    request.getShopDomain(), request.getSuggestionIds());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "forestock-purchase-order.pdf");
+            return ResponseEntity.ok().headers(headers).body(pdf);
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     private boolean isValidSecret(String provisioningSecret) {

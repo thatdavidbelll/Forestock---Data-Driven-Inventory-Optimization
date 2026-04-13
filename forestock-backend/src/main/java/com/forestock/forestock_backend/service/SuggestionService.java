@@ -3,6 +3,7 @@ package com.forestock.forestock_backend.service;
 import com.forestock.forestock_backend.domain.ForecastRun;
 import com.forestock.forestock_backend.domain.OrderSuggestion;
 import com.forestock.forestock_backend.domain.Product;
+import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.dto.request.AcknowledgeSuggestionRequest;
@@ -10,6 +11,7 @@ import com.forestock.forestock_backend.dto.request.BulkAcknowledgeSuggestionsReq
 import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
+import com.forestock.forestock_backend.repository.StoreRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class SuggestionService {
 
     private final OrderSuggestionRepository suggestionRepository;
     private final ForecastRunRepository forecastRunRepository;
+    private final StoreRepository storeRepository;
 
     @Transactional(readOnly = true)
     public List<SuggestionDto> getSuggestions(String urgencyFilter, String categoryFilter) {
@@ -128,6 +131,31 @@ public class SuggestionService {
                 .map(id -> suggestionRepository.findByIdAndStoreId(id, storeId)
                         .orElseThrow(() -> new EntityNotFoundException("Suggestion not found")))
                 .toList();
+
+        return renderPurchaseOrderPdf(suggestions);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generatePurchaseOrderPdfForShop(String shopDomain, List<UUID> suggestionIds) {
+        if (shopDomain == null || shopDomain.isBlank() || suggestionIds == null || suggestionIds.isEmpty()) {
+            throw new NoSuchElementException("No suggestions selected");
+        }
+
+        Store store = storeRepository.findBySlug(shopDomain)
+                .orElseThrow(() -> new NoSuchElementException("Store not found"));
+
+        List<OrderSuggestion> suggestions = suggestionIds.stream()
+                .map(id -> suggestionRepository.findByIdAndStoreId(id, store.getId())
+                        .orElseThrow(() -> new NoSuchElementException("Suggestion not found")))
+                .toList();
+
+        return renderPurchaseOrderPdf(suggestions);
+    }
+
+    private byte[] renderPurchaseOrderPdf(List<OrderSuggestion> suggestions) {
+        if (suggestions.isEmpty()) {
+            throw new EntityNotFoundException("No suggestions selected");
+        }
 
         LocalDateTime generatedAt = LocalDateTime.now();
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm");

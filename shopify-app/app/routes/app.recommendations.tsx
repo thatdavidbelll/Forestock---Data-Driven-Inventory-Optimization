@@ -1,5 +1,7 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useRouteError } from "react-router";
+import { useEffect } from "react";
+import { useLoaderData, useRevalidator, useRouteError } from "react-router";
+import { useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   AppShell,
@@ -53,12 +55,93 @@ function modelLabel(forecastModel: string | null | undefined) {
   return "Forecast model";
 }
 
+const modelTooltip: Record<string, string> = {
+  HOLT_WINTERS: "Seasonal model — uses your past 12 months of sales patterns to forecast demand.",
+  INTERMITTENT_FALLBACK: "Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.",
+  ZERO: "No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.",
+}
+
+function projectedStockoutDate(daysOfStock: number | null | undefined): string | null {
+  if (daysOfStock == null || daysOfStock <= 0) return null
+  const d = new Date()
+  d.setDate(d.getDate() + Math.round(daysOfStock))
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+function stockoutColor(daysOfStock: number | null | undefined): string {
+  if (daysOfStock == null) return "#6B7280"
+  if (daysOfStock <= 5) return "#B42318"
+  if (daysOfStock <= 10) return "#A16207"
+  return "#6B7280"
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator()
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const criticalCount = data.recommendations.filter((recommendation) => recommendation.urgency === "CRITICAL").length;
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
+  }
+
+  const allSelected = data.recommendations.length > 0 &&
+    data.recommendations.every((r) => selectedIds.has(r.id))
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(data.recommendations.map((r) => r.id)))
+    }
+  }
+
+  const purchaseOrderHref = selectedIds.size > 0
+    ? `/app/purchase-order?ids=${[...selectedIds].join(",")}`
+    : null
+
+  useEffect(() => {
+    if (data.forecastStatus !== "RUNNING") return
+
+    let delay = 3_000
+    const maxDelay = 15_000
+    let timeoutId: ReturnType<typeof setTimeout>
+
+    const poll = () => {
+      if (revalidator.state === "idle") {
+        revalidator.revalidate()
+      }
+      delay = Math.min(delay * 1.5, maxDelay)
+      timeoutId = setTimeout(poll, delay)
+    }
+
+    timeoutId = setTimeout(poll, delay)
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.forecastStatus])
 
   return (
     <AppShell title="Recommendations">
+      {data.forecastCompletedAt && (() => {
+        const hoursSinceLastRun = (Date.now() - new Date(data.forecastCompletedAt!).getTime()) / 3_600_000
+        const freshnessMessage =
+          data.forecastStatus === "RUNNING"
+            ? "New forecast running — recommendations will update shortly."
+            : hoursSinceLastRun < 24
+              ? "Forecast is fresh (updated today)."
+              : hoursSinceLastRun < 72
+                ? `Forecast is ${Math.floor(hoursSinceLastRun / 24)} day(s) old — will refresh tonight at 2:00 UTC.`
+                : `Forecast is ${Math.floor(hoursSinceLastRun / 24)} days old — consider running setup again from Settings.`
+        return (
+          <div style={{ marginBottom: 16, fontSize: 13, color: "#6B7280" }}>
+            {freshnessMessage}
+          </div>
+        )
+      })()}
       <Grid columns={3}>
         <MetricCard label="In queue" value={data.recommendations.length} hint="Products needing review now" />
         <MetricCard label="Critical" value={criticalCount} hint="Highest urgency recommendations" tone={criticalCount > 0 ? "critical" : "subtle"} />
@@ -67,7 +150,45 @@ export default function RecommendationsPage() {
 
       <Section title="Queue" description="Keep the list direct and easy to scan.">
         {data.recommendations.length > 0 ? (
-          <Grid columns={2}>
+          <>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#6B7280", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  style={{ width: 16, height: 16, cursor: "pointer" }}
+                />
+                {allSelected ? "Deselect all" : "Select all"}
+              </label>
+              {selectedIds.size > 0 && (
+                <a
+                  href={purchaseOrderHref!}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "8px 16px",
+                    borderRadius: 10,
+                    background: "var(--fs-indigo)",
+                    color: "#ffffff",
+                    textDecoration: "none",
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  Generate PO ({selectedIds.size})
+                </a>
+              )}
+            </div>
+            <Grid columns={2}>
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
               return (
@@ -102,12 +223,16 @@ export default function RecommendationsPage() {
                       </div>
                       {recommendation.lowConfidence ? (
                         <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5, color: "#92400E" }}>
-                          Low confidence{recommendation.historyDaysAtGeneration != null ? ` • ${recommendation.historyDaysAtGeneration} sales days observed` : ""}
+                          <span title="This recommendation is based on limited sales history. Treat the suggested quantity as directional, not precise.">
+                            Low confidence{recommendation.historyDaysAtGeneration != null ? ` • ${recommendation.historyDaysAtGeneration} sales days observed` : ""}
+                          </span>
                         </div>
                       ) : null}
                       {recommendation.forecastModel ? (
                         <div style={{ marginTop: recommendation.lowConfidence ? 8 : 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                          <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
+                          <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
+                            <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
+                          </span>
                           <div style={{ fontSize: 13, lineHeight: 1.5, color: "#64748B" }}>
                             {recommendation.forecastModel === "HOLT_WINTERS"
                               ? "Using the stronger seasonal model."
@@ -118,15 +243,41 @@ export default function RecommendationsPage() {
                         </div>
                       ) : null}
                     </div>
-                    <div style={{ flex: "0 0 auto" }}>
+                    <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(recommendation.id)}
+                        onChange={() => toggleSelection(recommendation.id)}
+                        style={{ width: 16, height: 16, cursor: "pointer" }}
+                        aria-label={`Select ${recommendation.productName}`}
+                      />
                       <Badge tone={tone}>{recommendation.urgency}</Badge>
                     </div>
                   </div>
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
                     <Grid columns={2}>
-                      <MetricCard label="Days left" value={recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown"} tone="subtle" />
+                      <MetricCard
+                        label="Days left"
+                        value={recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown"}
+                        hint={
+                          projectedStockoutDate(recommendation.daysOfStock)
+                            ? `Runs out ~${projectedStockoutDate(recommendation.daysOfStock)}`
+                            : undefined
+                        }
+                        tone="subtle"
+                      />
                       <MetricCard label="Reorder qty" value={recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown"} tone="subtle" />
                     </Grid>
+                    {recommendation.daysOfStock != null && recommendation.daysOfStock <= 10 && (
+                      <div style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: stockoutColor(recommendation.daysOfStock),
+                      }}>
+                        Runs out ~{projectedStockoutDate(recommendation.daysOfStock)}
+                      </div>
+                    )}
                   </div>
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
                     <KeyValueList
@@ -141,11 +292,24 @@ export default function RecommendationsPage() {
                 </Card>
               );
             })}
-          </Grid>
+            </Grid>
+          </>
         ) : (
           <EmptyState
-            title="No active recommendations yet"
-            body="Complete setup and wait for a completed forecast before expecting a queue here."
+            title={
+              !data.forecastStatus || data.forecastStatus === "PENDING"
+                ? "No forecast has run yet"
+                : data.forecastStatus === "RUNNING"
+                  ? "Forecast is running…"
+                  : "Everything looks well-stocked"
+            }
+            body={
+              !data.forecastStatus || data.forecastStatus === "PENDING"
+                ? "Go to Settings and run setup to sync your catalog, import order history, and generate your first forecast."
+                : data.forecastStatus === "RUNNING"
+                  ? "Your forecast is in progress. This page will update automatically when it completes."
+                  : "No products are flagged for reordering right now. Check back after your next forecast runs tonight."
+            }
           />
         )}
       </Section>
