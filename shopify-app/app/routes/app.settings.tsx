@@ -28,7 +28,7 @@ import {
 } from "../forestock.server";
 import { getBillingStatus } from "../billing.server";
 import { getSetupStages, type SetupStage } from "../setup-state";
-import shopify, { authenticate } from "../shopify.server";
+import { authenticate, registerWebhooks } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
 
 type ActionData =
@@ -89,9 +89,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "reregister-webhooks") {
-    const { admin, session } = await authenticate.admin(request);
+    const { session } = await authenticate.admin(request);
     try {
-      await shopify.registerWebhooks({ session });
+      await registerWebhooks({ session });
       return { ok: true, message: "Webhooks re-registered successfully." } satisfies WebhookActionData;
     } catch (error) {
       return {

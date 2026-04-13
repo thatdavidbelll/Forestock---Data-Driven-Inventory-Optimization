@@ -1,6 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
-import shopify from "../shopify.server";
+import { authenticate, registerWebhooks } from "../shopify.server";
 import db from "../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -20,7 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     try {
         if (session) {
-            await shopify.registerWebhooks({ session });
+            await registerWebhooks({ session });
         }
     } catch (e) {
         console.error(`[Forestock] Failed to re-register webhooks after scope update for ${shop}:`, e);

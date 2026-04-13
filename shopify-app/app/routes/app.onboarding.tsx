@@ -1,6 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, useLoaderData, useRouteError } from "react-router";
-import { useFetcher } from "react-router";
+import { Link, useFetcher, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   ActionButton,
