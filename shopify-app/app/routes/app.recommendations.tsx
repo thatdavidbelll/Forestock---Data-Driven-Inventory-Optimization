@@ -77,29 +77,17 @@ function stockoutColor(daysOfStock: number | null | undefined): string {
 
 function checkboxStyle(checked: boolean): CSSProperties {
   return {
-    appearance: "none",
-    WebkitAppearance: "none" as CSSProperties["WebkitAppearance"],
     width: 18,
     height: 18,
     borderRadius: 6,
-    border: checked ? "1px solid var(--fs-indigo)" : "1px solid #CBD5E1",
-    background: checked
-      ? "linear-gradient(180deg, #4F46E5 0%, #4338CA 100%)"
-      : "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)",
+    accentColor: "#4F46E5",
+    border: "1px solid #CBD5E1",
+    background: "#FFFFFF",
     boxShadow: checked
-      ? "0 10px 18px rgba(79, 70, 229, 0.24)"
-      : "inset 0 1px 0 rgba(255,255,255,0.85), 0 2px 6px rgba(15, 23, 42, 0.06)",
+      ? "0 8px 16px rgba(79, 70, 229, 0.18)"
+      : "0 2px 6px rgba(15, 23, 42, 0.06)",
     cursor: "pointer",
-    display: "inline-grid",
-    placeItems: "center",
-    position: "relative" as const,
     flex: "0 0 auto",
-    backgroundImage: checked
-      ? "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='white' d='M6.2 11.6 2.9 8.3l1.1-1.1 2.2 2.2 5.1-5.1 1.1 1.1z'/%3E%3C/svg%3E\")"
-      : "none",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "center",
-    backgroundSize: "12px 12px",
   }
 }
 

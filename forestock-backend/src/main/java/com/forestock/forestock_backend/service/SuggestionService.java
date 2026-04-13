@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -179,7 +180,8 @@ public class SuggestionService {
                 y = writeLine(content, bodyFont, 11, margin, y - 8, "Store: " + suggestions.getFirst().getStore().getName());
                 y = writeLine(content, bodyFont, 11, margin, y - 2, "Generated: " + generatedAt.format(dateFormatter));
 
-                float[] columns = {margin, 165f, 230f, 320f, 400f, 485f};
+                float[] columns = {margin, 165f, 245f, 340f, 415f, 500f};
+                float rightEdge = page.getMediaBox().getWidth() - margin;
                 y -= 22;
                 String[] headers = {"Product", "SKU", "Supplier", "Unit Cost", "Suggested Qty", "Estimated Value"};
                 for (int i = 0; i < headers.length; i++) {
@@ -194,13 +196,26 @@ public class SuggestionService {
 
                 for (OrderSuggestion suggestion : suggestions) {
                     Product product = suggestion.getProduct();
-                    writeCell(content, bodyFont, 9, columns[0], y, valueOrClip(product.getName(), 20));
-                    writeCell(content, bodyFont, 9, columns[1], y, valueOrClip(product.getSku(), 12));
-                    writeCell(content, bodyFont, 9, columns[2], y, valueOrClip(product.getSupplierName(), 14));
-                    writeCell(content, bodyFont, 9, columns[3], y, formatMoney(product.getUnitCost()));
-                    writeCell(content, bodyFont, 9, columns[4], y, formatQuantity(suggestion.getSuggestedQty()));
-                    writeCell(content, bodyFont, 9, columns[5], y, formatMoney(suggestion.getEstimatedOrderValue()));
-                    y -= 14;
+                    List<String> productLines = wrapText(valueOrDash(product.getName()), bodyFont, 9, columnWidth(columns, 0, rightEdge));
+                    List<String> skuLines = wrapText(valueOrDash(product.getSku()), bodyFont, 9, columnWidth(columns, 1, rightEdge));
+                    List<String> supplierLines = wrapText(valueOrDash(product.getSupplierName()), bodyFont, 9, columnWidth(columns, 2, rightEdge));
+                    List<String> unitCostLines = wrapText(formatMoney(product.getUnitCost()), bodyFont, 9, columnWidth(columns, 3, rightEdge));
+                    List<String> quantityLines = wrapText(formatQuantity(suggestion.getSuggestedQty()), bodyFont, 9, columnWidth(columns, 4, rightEdge));
+                    List<String> estimatedValueLines = wrapText(formatMoney(suggestion.getEstimatedOrderValue()), bodyFont, 9, columnWidth(columns, 5, rightEdge));
+
+                    int rowLines = Math.max(
+                            Math.max(Math.max(productLines.size(), skuLines.size()), Math.max(supplierLines.size(), unitCostLines.size())),
+                            Math.max(quantityLines.size(), estimatedValueLines.size())
+                    );
+
+                    writeCellLines(content, bodyFont, 9, columns[0], y, productLines);
+                    writeCellLines(content, bodyFont, 9, columns[1], y, skuLines);
+                    writeCellLines(content, bodyFont, 9, columns[2], y, supplierLines);
+                    writeCellLines(content, bodyFont, 9, columns[3], y, unitCostLines);
+                    writeCellLines(content, bodyFont, 9, columns[4], y, quantityLines);
+                    writeCellLines(content, bodyFont, 9, columns[5], y, estimatedValueLines);
+
+                    y -= (rowLines * 12f);
                 }
 
                 y -= 6;
@@ -288,6 +303,12 @@ public class SuggestionService {
         content.endText();
     }
 
+    private void writeCellLines(PDPageContentStream content, PDType1Font font, float fontSize, float x, float y, List<String> lines) throws IOException {
+        for (int i = 0; i < lines.size(); i++) {
+            writeCell(content, font, fontSize, x, y - (i * 12f), lines.get(i));
+        }
+    }
+
     private String formatMoney(BigDecimal value) {
         if (value == null) {
             return "—";
@@ -302,10 +323,78 @@ public class SuggestionService {
         return value.stripTrailingZeros().toPlainString();
     }
 
-    private String valueOrClip(String value, int maxLength) {
+    private String valueOrDash(String value) {
         if (value == null || value.isBlank()) {
             return "—";
         }
-        return value.length() > maxLength ? value.substring(0, maxLength) : value;
+        return value;
+    }
+
+    private float columnWidth(float[] columns, int index, float rightEdge) {
+        float nextColumn = index + 1 < columns.length ? columns[index + 1] : rightEdge;
+        return nextColumn - columns[index] - 10f;
+    }
+
+    private List<String> wrapText(String text, PDType1Font font, float fontSize, float maxWidth) throws IOException {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            lines.add("—");
+            return lines;
+        }
+
+        String[] words = text.split("\\s+");
+        StringBuilder currentLine = new StringBuilder();
+
+        for (String word : words) {
+            String candidate = currentLine.isEmpty() ? word : currentLine + " " + word;
+            if (textWidth(candidate, font, fontSize) <= maxWidth) {
+                currentLine.setLength(0);
+                currentLine.append(candidate);
+                continue;
+            }
+
+            if (!currentLine.isEmpty()) {
+                lines.add(currentLine.toString());
+                currentLine.setLength(0);
+            }
+
+            if (textWidth(word, font, fontSize) <= maxWidth) {
+                currentLine.append(word);
+            } else {
+                lines.addAll(breakLongWord(word, font, fontSize, maxWidth));
+            }
+        }
+
+        if (!currentLine.isEmpty()) {
+            lines.add(currentLine.toString());
+        }
+
+        return lines.isEmpty() ? List.of("—") : lines;
+    }
+
+    private List<String> breakLongWord(String word, PDType1Font font, float fontSize, float maxWidth) throws IOException {
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (char c : word.toCharArray()) {
+            String candidate = current.toString() + c;
+            if (textWidth(candidate, font, fontSize) <= maxWidth || current.isEmpty()) {
+                current.append(c);
+            } else {
+                parts.add(current.toString());
+                current.setLength(0);
+                current.append(c);
+            }
+        }
+
+        if (!current.isEmpty()) {
+            parts.add(current.toString());
+        }
+
+        return parts;
+    }
+
+    private float textWidth(String text, PDType1Font font, float fontSize) throws IOException {
+        return font.getStringWidth(text) / 1000f * fontSize;
     }
 }
