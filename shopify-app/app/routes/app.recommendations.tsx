@@ -182,7 +182,7 @@ export default function RecommendationsPage() {
         <MetricCard label="Forecast status" value={data.forecastStatus ?? "Pending"} hint={data.forecastCompletedAt ? `Updated ${formatDateTime(data.forecastCompletedAt)}` : "No completed forecast yet"} tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "warning"} />
       </Grid>
 
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 12, paddingBottom: selectedIds.size > 0 ? 108 : 0 }}>
         <Section title="Queue" description="Keep the list direct and easy to scan.">
         {data.recommendations.length > 0 ? (
           <>
@@ -202,28 +202,6 @@ export default function RecommendationsPage() {
                 />
                 {allSelected ? "Deselect all" : "Select all"}
               </label>
-              {selectedIds.size > 0 && (
-                <button
-                  type="button"
-                  onClick={generatePurchaseOrder}
-                  disabled={generatingPo}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "8px 16px",
-                    borderRadius: 10,
-                    background: "var(--fs-indigo)",
-                    color: "#ffffff",
-                    border: "none",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: generatingPo ? "wait" : "pointer",
-                    opacity: generatingPo ? 0.72 : 1,
-                  }}
-                >
-                  {generatingPo ? "Generating PO..." : `Generate PO (${selectedIds.size})`}
-                </button>
-              )}
             </div>
             {purchaseOrderError ? (
               <div style={{ marginBottom: 16, fontSize: 13, color: "#B42318" }}>
@@ -356,6 +334,53 @@ export default function RecommendationsPage() {
         )}
         </Section>
       </div>
+      {selectedIds.size > 0 ? (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 20,
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 14px",
+            borderRadius: 16,
+            background: "rgba(15, 23, 42, 0.92)",
+            color: "#ffffff",
+            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.22)",
+            backdropFilter: "blur(14px)",
+            maxWidth: "calc(100vw - 24px)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+            {selectedIds.size} selected
+          </div>
+          <button
+            type="button"
+            onClick={generatePurchaseOrder}
+            disabled={generatingPo}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "10px 16px",
+              borderRadius: 12,
+              background: "#ffffff",
+              color: "#0F172A",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: generatingPo ? "wait" : "pointer",
+              opacity: generatingPo ? 0.72 : 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {generatingPo ? "Generating PO..." : "Generate PO"}
+          </button>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

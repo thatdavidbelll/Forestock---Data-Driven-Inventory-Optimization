@@ -179,7 +179,7 @@ public class SuggestionService {
                 y = writeLine(content, bodyFont, 11, margin, y - 8, "Store: " + suggestions.getFirst().getStore().getName());
                 y = writeLine(content, bodyFont, 11, margin, y - 2, "Generated: " + generatedAt.format(dateFormatter));
 
-                float[] columns = {margin, 180f, 255f, 350f, 430f, 485f, 545f};
+                float[] columns = {margin, 165f, 230f, 320f, 400f, 485f};
                 y -= 22;
                 String[] headers = {"Product", "SKU", "Supplier", "Unit Cost", "Suggested Qty", "Estimated Value"};
                 for (int i = 0; i < headers.length; i++) {
@@ -194,7 +194,7 @@ public class SuggestionService {
 
                 for (OrderSuggestion suggestion : suggestions) {
                     Product product = suggestion.getProduct();
-                    writeCell(content, bodyFont, 9, columns[0], y, valueOrDash(product.getName(), 24));
+                    writeCell(content, bodyFont, 9, columns[0], y, valueOrDash(product.getName(), 20));
                     writeCell(content, bodyFont, 9, columns[1], y, valueOrDash(product.getSku(), 12));
                     writeCell(content, bodyFont, 9, columns[2], y, valueOrDash(product.getSupplierName(), 14));
                     writeCell(content, bodyFont, 9, columns[3], y, formatMoney(product.getUnitCost()));
