@@ -1,7 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLoaderData, useRevalidator, useRouteError } from "react-router";
-import { useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   AppShell,
@@ -148,7 +147,8 @@ export default function RecommendationsPage() {
         <MetricCard label="Forecast status" value={data.forecastStatus ?? "Pending"} hint={data.forecastCompletedAt ? `Updated ${formatDateTime(data.forecastCompletedAt)}` : "No completed forecast yet"} tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "warning"} />
       </Grid>
 
-      <Section title="Queue" description="Keep the list direct and easy to scan.">
+      <div style={{ marginTop: 12 }}>
+        <Section title="Queue" description="Keep the list direct and easy to scan.">
         {data.recommendations.length > 0 ? (
           <>
             <div style={{
@@ -170,8 +170,6 @@ export default function RecommendationsPage() {
               {selectedIds.size > 0 && (
                 <a
                   href={purchaseOrderHref!}
-                  target="_blank"
-                  rel="noreferrer"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -312,7 +310,8 @@ export default function RecommendationsPage() {
             }
           />
         )}
-      </Section>
+        </Section>
+      </div>
     </AppShell>
   );
 }
