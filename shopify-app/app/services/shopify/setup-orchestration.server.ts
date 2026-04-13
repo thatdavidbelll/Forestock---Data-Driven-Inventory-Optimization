@@ -15,6 +15,15 @@ import {
   collectHistoricalOrders,
 } from "./setup-collection.server";
 
+function currencySymbolFromMoneyFormat(moneyFormat: string | null | undefined): string | null {
+  if (!moneyFormat) {
+    return null;
+  }
+
+  const symbol = moneyFormat.replace(/\{\{.*?\}\}/g, "").trim();
+  return symbol || null;
+}
+
 function detectOrderAccessExternalBlock(error: unknown): ShopifySetupExternalBlock | null {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const normalized = message.toLowerCase();
@@ -43,14 +52,20 @@ function detectOrderAccessExternalBlock(error: unknown): ShopifySetupExternalBlo
 async function runShopifyProvisionStep({
   shopDomain,
   shopName,
+  currencyCode,
+  moneyFormat,
 }: {
   shopDomain: string;
   shopName: string;
+  currencyCode: string | null;
+  moneyFormat: string | null;
 }): Promise<ShopifySetupStepResult> {
   const provisioned = await provisionForestockShop({
     shopDomain,
     shopName,
     email: null,
+    currencyCode,
+    currencySymbol: currencySymbolFromMoneyFormat(moneyFormat),
   });
 
   return {
@@ -143,14 +158,18 @@ export async function runShopifyFullSetup({
   admin,
   shopDomain,
   shopName,
+  currencyCode,
+  moneyFormat,
   historyDays = SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
 }: {
   admin: Parameters<typeof collectCatalogItems>[0];
   shopDomain: string;
   shopName: string;
+  currencyCode: string | null;
+  moneyFormat: string | null;
   historyDays?: number;
 }): Promise<ShopifySetupStepResult> {
-  const provisionStep = await runShopifyProvisionStep({ shopDomain, shopName });
+  const provisionStep = await runShopifyProvisionStep({ shopDomain, shopName, currencyCode, moneyFormat });
   const catalogStep = await runShopifyCatalogSyncStep({ shopDomain, admin });
   const ordersStep = await runShopifyOrderBackfillStep({ shopDomain, admin, historyDays });
   const forecastStep = ordersStep.externalBlock
@@ -181,7 +200,9 @@ export async function runShopifyAutomaticSetup({
   admin,
   shopDomain,
   shopName,
+  currencyCode,
+  moneyFormat,
   historyDays = SHOPIFY_SETUP_HISTORY_DAYS_DEFAULT,
 }: ShopifySetupRunRequest): Promise<ShopifySetupStepResult> {
-  return runShopifyFullSetup({ admin, shopDomain, shopName, historyDays });
+  return runShopifyFullSetup({ admin, shopDomain, shopName, currencyCode, moneyFormat, historyDays });
 }

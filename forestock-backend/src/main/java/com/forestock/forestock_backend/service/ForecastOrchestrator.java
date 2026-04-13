@@ -188,7 +188,11 @@ public class ForecastOrchestrator {
             long criticalCount = suggestions.stream()
                     .filter(s -> s.getUrgency() == Urgency.CRITICAL)
                     .count();
+            long highCount = suggestions.stream()
+                    .filter(s -> s.getUrgency() == Urgency.HIGH)
+                    .count();
             notificationService.sendForecastComplete(run, criticalCount);
+            notificationService.sendMerchantDigest(store, criticalCount, highCount);
 
             log.info("Forecast run {} COMPLETED for store {} — {} products, {} suggestions ({} CRITICAL)",
                     run.getId(), store.getSlug(), products.size(), suggestions.size(), criticalCount);

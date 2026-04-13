@@ -24,47 +24,42 @@ export default function BillingPage() {
       subtitle="Forestock needs an active Shopify app subscription before inventory forecasting and recommendations can run."
       actions={<Badge tone="warning">Subscription required</Badge>}
     >
-      <Section title="Activate Forestock" description="Use Shopify's hosted pricing page to start, upgrade, or change your plan.">
+      <Section title="What you get with Forestock">
         <Card>
-          <div style={{ display: "grid", gap: 16 }}>
-            <div style={{ color: "#475569", lineHeight: 1.65, fontSize: 15 }}>
-              {billing.activeSubscriptions.length > 0
-                ? "A plan exists for this store, but it is not currently active. Open Shopify pricing to review or update it."
-                : "No active plan is attached to this store yet. Open Shopify pricing to activate Forestock and continue."}
+          <div style={{ display: "grid", gap: 20 }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              {[
+                { icon: "📦", title: "AI-powered reorder forecasting", body: "Holt-Winters seasonal forecasting tells you exactly what to reorder and when — before you run out." },
+                { icon: "🚨", title: "CRITICAL & HIGH stock alerts", body: "Automatic urgency scoring so you always know which products need attention today." },
+                { icon: "📉", title: "Slow mover detection", body: "Identify dead stock tying up cash. Filter by 30, 60, or 90 days of inactivity." },
+                { icon: "📊", title: "Sales velocity & forecast accuracy", body: "Track how well forecasts match real sales. Model accuracy shown on every recommendation." },
+              ].map((feature) => (
+                <div key={feature.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 20 }}>{feature.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>{feature.title}</div>
+                    <div style={{ color: "#6B7280", fontSize: 13, lineHeight: 1.6 }}>{feature.body}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ borderTop: "1px solid #E5E7EB", paddingTop: 20 }}>
               <a
                 href={managedPricingHref()}
                 target="_top"
                 rel="noreferrer"
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "var(--fs-indigo)",
-                  color: "#ffffff",
-                  textDecoration: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  padding: "12px 24px", borderRadius: 12, background: "var(--fs-indigo)",
+                  color: "#ffffff", textDecoration: "none", fontSize: 15, fontWeight: 700,
                 }}
               >
-                Open pricing
+                View plans and start free trial
               </a>
-            </div>
-            {billing.activeSubscriptions.length > 0 ? (
-              <div style={{ paddingTop: 16, borderTop: "1px solid #E5E7EB", color: "#64748b", fontSize: 14, lineHeight: 1.65 }}>
-                Current Shopify subscription records:
-                <div style={{ marginTop: 8 }}>
-                  {billing.activeSubscriptions.map((subscription) => (
-                    <div key={subscription.id}>
-                      {subscription.name} · {subscription.status}
-                    </div>
-                  ))}
-                </div>
+              <div style={{ marginTop: 10, fontSize: 13, color: "#9CA3AF" }}>
+                Free trial available · Cancel anytime · No lock-in
               </div>
-            ) : null}
+            </div>
           </div>
         </Card>
       </Section>

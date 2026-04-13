@@ -8,6 +8,7 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 import { provisionForestockShop } from "./forestock.server";
+import { loadShopIdentity } from "./shopify-sync.server";
 
 type ShopifySessionStorage = NonNullable<Parameters<typeof shopifyApp>[0]["sessionStorage"]>;
 
@@ -35,6 +36,10 @@ const shopify = shopifyApp({
     APP_SCOPES_UPDATE: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks/app/scopes_update",
+    },
+    APP_SUBSCRIPTIONS_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/app/subscriptions_update",
     },
     PRODUCTS_CREATE: {
       deliveryMethod: DeliveryMethod.Http,
@@ -70,13 +75,20 @@ const shopify = shopifyApp({
     },
   },
   hooks: {
-    afterAuth: async ({ session }) => {
-      await provisionForestockShop({
-        shopDomain: session.shop,
-        shopName: null,
-        email: null,
-      });
-      await shopify.registerWebhooks({ session });
+    afterAuth: async ({ session, admin }) => {
+      try {
+        await shopify.registerWebhooks({ session });
+        const identity = await loadShopIdentity(admin, session.shop);
+        await provisionForestockShop({
+          shopDomain: identity.shopDomain,
+          shopName: identity.shopName,
+          email: null,
+          currencyCode: identity.currencyCode,
+          currencySymbol: identity.moneyFormat,
+        });
+      } catch (error) {
+        console.error(`[Forestock] afterAuth provisioning failed for ${session.shop}:`, error);
+      }
     },
   },
   future: {

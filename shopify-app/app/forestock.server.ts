@@ -2,6 +2,8 @@ type ProvisionRequest = {
   shopDomain: string;
   shopName: string | null;
   email: string | null;
+  currencyCode?: string | null;
+  currencySymbol?: string | null;
 };
 
 type ProvisionResponse = {

@@ -21,12 +21,14 @@ interface SuggestionActionsProps {
   ackForm: AckForm
   setAckForm: Dispatch<SetStateAction<AckForm>>
   bulkSaving: boolean
+  generatingPo: boolean
   onExportExcel: () => void
   onExportPdf: () => void
   onDownloadInventoryValuation: (format: 'excel' | 'pdf') => void
   onDownloadSalesReport: (format: 'excel' | 'pdf') => void
   onDownloadSlowMovers: (format: 'excel' | 'pdf') => void
   onAcknowledgeBulk: () => void
+  onGeneratePurchaseOrder: () => void
 }
 
 export default function SuggestionActions({
@@ -49,12 +51,14 @@ export default function SuggestionActions({
   ackForm,
   setAckForm,
   bulkSaving,
+  generatingPo,
   onExportExcel,
   onExportPdf,
   onDownloadInventoryValuation,
   onDownloadSalesReport,
   onDownloadSlowMovers,
   onAcknowledgeBulk,
+  onGeneratePurchaseOrder,
 }: SuggestionActionsProps) {
   return (
     <>
@@ -192,6 +196,13 @@ export default function SuggestionActions({
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {bulkSaving ? 'Saving…' : 'Acknowledge Selected'}
+            </button>
+            <button
+              onClick={onGeneratePurchaseOrder}
+              disabled={selectedCount === 0 || generatingPo}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {generatingPo ? 'Generating…' : 'Generate PO'}
             </button>
           </div>
         </div>

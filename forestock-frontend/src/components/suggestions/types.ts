@@ -20,6 +20,9 @@ export interface Suggestion {
   quantityOrdered: number | null
   expectedDelivery: string | null
   orderReference: string | null
+  generatedAt: string | null
+  lowConfidence: boolean
+  forecastModel: string | null
 }
 
 export interface DashboardSummary {

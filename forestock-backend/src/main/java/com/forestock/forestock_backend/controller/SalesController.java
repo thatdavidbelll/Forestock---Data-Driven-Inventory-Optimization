@@ -13,11 +13,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +64,8 @@ public class SalesController {
             Map<String, Object> data = Map.of(
                     "imported", result.imported(),
                     "skipped",  result.skipped(),
-                    "errors",   result.errors()
+                    "errors",   result.errors(),
+                    "rowErrors", result.rowErrors()
             );
             String message = String.format("Import complete: %d imported, %d skipped, %d errors",
                     result.imported(), result.skipped(), result.errors().size());
@@ -91,6 +95,40 @@ public class SalesController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error reading file: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/import/template/{type}")
+    public ResponseEntity<byte[]> downloadImportTemplate(@PathVariable String type) {
+        String template = switch (type) {
+            case "sales" -> """
+                    sku,sale_date,quantity_sold
+                    PROD-001,2026-03-01,42
+                    PROD-002,2026-03-01,18
+                    PROD-003,2026-03-02,7
+                    """;
+            case "products" -> """
+                    sku,name,category,unit,reorder_point,max_stock,lead_time_days,minimum_order_qty,unit_cost,supplier_name
+                    PROD-001,Blue T-Shirt,Apparel,pcs,20,100,14,10,12.50,Main Supplier
+                    PROD-002,Ceramic Mug,Home,pcs,15,80,10,12,6.20,Kitchen Wholesale
+                    """;
+            case "inventory" -> """
+                    sku,snapshot_date,quantity_on_hand
+                    PROD-001,2026-03-01,58
+                    PROD-002,2026-03-01,31
+                    PROD-003,2026-03-01,12
+                    """;
+            default -> null;
+        };
+
+        if (template == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(("Unknown import template type: " + type).getBytes(StandardCharsets.UTF_8));
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"forestock-" + type + "-template.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(template.getBytes(StandardCharsets.UTF_8));
     }
 
     // ── Read ─────────────────────────────────────────────────────────────────

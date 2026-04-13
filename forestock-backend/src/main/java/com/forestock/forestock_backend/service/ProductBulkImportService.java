@@ -2,6 +2,7 @@ package com.forestock.forestock_backend.service;
 
 import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.Store;
+import com.forestock.forestock_backend.dto.response.ImportRowError;
 import com.forestock.forestock_backend.dto.response.ProductDto;
 import com.forestock.forestock_backend.repository.ProductRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
@@ -45,7 +46,7 @@ public class ProductBulkImportService {
     private final AuditLogService auditLogService;
     private final ForecastTriggerService forecastTriggerService;
 
-    public record ImportResult(int imported, int skipped, List<String> errors) {}
+    public record ImportResult(int imported, int skipped, List<String> errors, List<ImportRowError> rowErrors) {}
 
     @Transactional
     public ImportResult importCsv(MultipartFile file, boolean updateExisting) throws IOException {
@@ -62,6 +63,7 @@ public class ProductBulkImportService {
         }
 
         List<String> errors = new ArrayList<>();
+        List<ImportRowError> rowErrors = new ArrayList<>();
         int imported = 0;
         int skipped = 0;
 
@@ -76,7 +78,7 @@ public class ProductBulkImportService {
 
             List<String> detectedHeaders = parser.getHeaderNames();
             if (!List.of(HEADERS).equals(detectedHeaders)) {
-                return new ImportResult(0, 0, List.of("Invalid CSV headers. Expected: " + String.join(",", HEADERS)));
+                return new ImportResult(0, 0, List.of("Invalid CSV headers. Expected: " + String.join(",", HEADERS)), List.of());
             }
 
             for (CSVRecord record : parser) {
@@ -85,19 +87,19 @@ public class ProductBulkImportService {
                 String name = read(record, "name");
                 String unit = read(record, "unit");
 
-                List<String> rowErrors = new ArrayList<>();
-                if (sku == null || sku.isBlank()) rowErrors.add("SKU is required");
-                if (name == null || name.isBlank()) rowErrors.add("Name is required");
-                if (unit == null || unit.isBlank()) rowErrors.add("Unit is required");
+                List<String> fieldErrors = new ArrayList<>();
+                if (sku == null || sku.isBlank()) fieldErrors.add("SKU is required");
+                if (name == null || name.isBlank()) fieldErrors.add("Name is required");
+                if (unit == null || unit.isBlank()) fieldErrors.add("Unit is required");
 
-                Integer leadTimeDays = parseInteger(read(record, "lead_time_days"), "lead_time_days", rowErrors);
-                BigDecimal reorderPoint = parseDecimal(read(record, "reorder_point"), "reorder_point", rowErrors);
-                BigDecimal maxStock = parseDecimal(read(record, "max_stock"), "max_stock", rowErrors);
-                BigDecimal minimumOrderQty = parseDecimal(read(record, "minimum_order_qty"), "minimum_order_qty", rowErrors);
-                BigDecimal unitCost = parseDecimal(read(record, "unit_cost"), "unit_cost", rowErrors);
+                Integer leadTimeDays = parseInteger(read(record, "lead_time_days"), "lead_time_days", fieldErrors);
+                BigDecimal reorderPoint = parseDecimal(read(record, "reorder_point"), "reorder_point", fieldErrors);
+                BigDecimal maxStock = parseDecimal(read(record, "max_stock"), "max_stock", fieldErrors);
+                BigDecimal minimumOrderQty = parseDecimal(read(record, "minimum_order_qty"), "minimum_order_qty", fieldErrors);
+                BigDecimal unitCost = parseDecimal(read(record, "unit_cost"), "unit_cost", fieldErrors);
 
-                if (!rowErrors.isEmpty()) {
-                    errors.add("Row " + line + ": " + String.join("; ", rowErrors));
+                if (!fieldErrors.isEmpty()) {
+                    rowErrors.add(new ImportRowError((int) line, blankToNull(sku), String.join("; ", fieldErrors)));
                     skipped++;
                     continue;
                 }
@@ -125,6 +127,9 @@ public class ProductBulkImportService {
             }
         }
 
+        List<ImportRowError> limitedRowErrors = limitRowErrors(rowErrors);
+        errors.addAll(formatRowErrors(limitedRowErrors));
+
         auditLogService.log(
                 "PRODUCTS_IMPORTED",
                 "Product",
@@ -135,7 +140,7 @@ public class ProductBulkImportService {
             forecastTriggerService.triggerForStore(storeId, "product-bulk-import");
         }
         log.info("Product import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.size());
-        return new ImportResult(imported, skipped, errors);
+        return new ImportResult(imported, skipped, errors, limitedRowErrors);
     }
 
     @Transactional(readOnly = true)
@@ -205,5 +210,24 @@ public class ProductBulkImportService {
 
     private String defaultString(String value) {
         return value == null ? "" : value;
+    }
+
+    private List<String> formatRowErrors(List<ImportRowError> rowErrors) {
+        return rowErrors.stream()
+                .map(error -> error.rowNumber() > 0
+                        ? "Row " + error.rowNumber()
+                        + (error.sku() != null ? " (SKU: " + error.sku() + ")" : "")
+                        + ": " + error.message()
+                        : error.message())
+                .toList();
+    }
+
+    private List<ImportRowError> limitRowErrors(List<ImportRowError> rowErrors) {
+        if (rowErrors.size() <= 50) {
+            return rowErrors;
+        }
+        List<ImportRowError> limited = new ArrayList<>(rowErrors.subList(0, 49));
+        limited.add(new ImportRowError(0, null, "... and " + (rowErrors.size() - 49) + " more errors"));
+        return limited;
     }
 }

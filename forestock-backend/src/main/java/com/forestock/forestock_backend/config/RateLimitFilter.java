@@ -39,6 +39,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/api/auth/reset-password"
     };
 
+    private static final String[] TRUSTED_INTERNAL_PATHS = {
+            "/api/shopify/"
+    };
+
     /** Per-IP sliding window of request timestamps. */
     private final ConcurrentHashMap<String, Deque<Long>> requestLog = new ConcurrentHashMap<>();
 
@@ -87,6 +91,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean isRateLimited(String uri) {
+        for (String trusted : TRUSTED_INTERNAL_PATHS) {
+            if (uri.startsWith(trusted)) return false;
+        }
         for (String path : RATE_LIMITED_PATHS) {
             if (uri.equals(path)) return true;
         }

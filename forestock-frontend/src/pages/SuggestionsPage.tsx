@@ -35,6 +35,7 @@ export default function SuggestionsPage() {
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkSaving, setBulkSaving] = useState(false)
+  const [generatingPo, setGeneratingPo] = useState(false)
   const [ackForm, setAckForm] = useState<AckForm>({
     acknowledgedReason: '',
     quantityOrdered: '',
@@ -191,6 +192,20 @@ export default function SuggestionsPage() {
     }
   }
 
+  async function generatePurchaseOrder() {
+    if (selectedIds.length === 0) return
+    setGeneratingPo(true)
+    setError('')
+    try {
+      const response = await api.post('/suggestions/purchase-order', selectedIds, { responseType: 'blob' })
+      downloadBlob(response.data, `forestock-purchase-order-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch {
+      setError('Failed to generate purchase order.')
+    } finally {
+      setGeneratingPo(false)
+    }
+  }
+
   async function downloadReport(endpoint: string, filename: string, params?: Record<string, string | number>) {
     setReportLoading(filename)
     try {
@@ -236,9 +251,15 @@ export default function SuggestionsPage() {
       : null
 
   const totalEstimatedOrderValue = suggestions.reduce((sum, suggestion) => sum + (suggestion.estimatedOrderValue ?? 0), 0)
+  const forecastGeneratedAt = suggestions[0]?.generatedAt ?? null
 
   return (
     <div className="space-y-4">
+      {forecastGeneratedAt ? (
+        <p className="text-sm text-gray-500">
+          Forecast last updated: {new Date(forecastGeneratedAt).toLocaleString()}
+        </p>
+      ) : null}
       <SuggestionActions
         urgencyFilter={urgencyFilter}
         setUrgencyFilter={setUrgencyFilter}
@@ -259,6 +280,7 @@ export default function SuggestionsPage() {
         ackForm={ackForm}
         setAckForm={setAckForm}
         bulkSaving={bulkSaving}
+        generatingPo={generatingPo}
         onExportExcel={exportExcel}
         onExportPdf={exportPdf}
         onDownloadInventoryValuation={(format) =>
@@ -278,6 +300,7 @@ export default function SuggestionsPage() {
           })
         }
         onAcknowledgeBulk={acknowledgeBulk}
+        onGeneratePurchaseOrder={generatePurchaseOrder}
       />
 
       <SuggestionsList

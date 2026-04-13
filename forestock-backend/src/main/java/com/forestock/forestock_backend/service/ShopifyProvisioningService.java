@@ -44,7 +44,7 @@ public class ShopifyProvisioningService {
             ShopifyConnection connection = existingConnection.get();
             Store store = connection.getStore();
             boolean createdAdmin = ensureAdminUser(store, request).created();
-            ensureStoreConfiguration(store);
+            ensureStoreConfiguration(store, request);
 
             if (!connection.isActive()) {
                 connection.setActive(true);
@@ -68,7 +68,7 @@ public class ShopifyProvisioningService {
                 .active(true)
                 .build());
 
-        ensureStoreConfiguration(store);
+        ensureStoreConfiguration(store, request);
 
         ShopifyConnection connection = shopifyConnectionRepository.save(ShopifyConnection.builder()
                 .store(store)
@@ -91,10 +91,27 @@ public class ShopifyProvisioningService {
                 .build();
     }
 
-    private void ensureStoreConfiguration(Store store) {
-        if (storeConfigurationRepository.findByStoreId(store.getId()).isEmpty()) {
-            storeConfigurationRepository.save(StoreConfiguration.builder().store(store).build());
+    private void ensureStoreConfiguration(Store store, ProvisioningRequest request) {
+        StoreConfiguration storeConfig = storeConfigurationRepository.findByStoreId(store.getId())
+                .orElseGet(() -> StoreConfiguration.builder().store(store).build());
+        if (request.currencyCode() != null && !request.currencyCode().isBlank()) {
+            storeConfig.setCurrencySymbol(symbolFromCurrencyCode(request.currencyCode()));
         }
+        storeConfigurationRepository.save(storeConfig);
+    }
+
+    private String symbolFromCurrencyCode(String code) {
+        return switch (code.toUpperCase(Locale.ROOT)) {
+            case "USD" -> "$";
+            case "EUR" -> "€";
+            case "GBP" -> "£";
+            case "CAD" -> "CA$";
+            case "AUD" -> "A$";
+            case "JPY" -> "¥";
+            case "SEK", "NOK", "DKK" -> "kr";
+            case "CHF" -> "Fr";
+            default -> code;
+        };
     }
 
     private AdminUserResult ensureAdminUser(Store store, ProvisioningRequest request) {
@@ -231,7 +248,9 @@ public class ShopifyProvisioningService {
     public record ProvisioningRequest(
             String shopDomain,
             String shopName,
-            String email
+            String email,
+            String currencyCode,
+            String currencySymbol
     ) {
     }
 

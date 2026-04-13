@@ -21,6 +21,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     /** All users belonging to a specific store (for user management). */
     List<AppUser> findByStoreId(UUID storeId);
 
+    List<AppUser> findByStoreIdAndRoleAndActiveTrue(UUID storeId, String role);
+
     /** Find user by ID scoped to a store (enforces tenant isolation). */
     Optional<AppUser> findByIdAndStoreId(UUID id, UUID storeId);
 

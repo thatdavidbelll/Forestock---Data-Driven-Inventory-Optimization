@@ -2,6 +2,7 @@ package com.forestock.forestock_backend.service;
 
 import com.forestock.forestock_backend.domain.ForecastRun;
 import com.forestock.forestock_backend.domain.OrderSuggestion;
+import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.dto.request.AcknowledgeSuggestionRequest;
@@ -12,11 +13,21 @@ import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -106,6 +117,82 @@ public class SuggestionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public byte[] generatePurchaseOrderPdf(List<UUID> suggestionIds) {
+        UUID storeId = TenantContext.getStoreId();
+        if (storeId == null || suggestionIds == null || suggestionIds.isEmpty()) {
+            throw new EntityNotFoundException("No suggestions selected");
+        }
+
+        List<OrderSuggestion> suggestions = suggestionIds.stream()
+                .map(id -> suggestionRepository.findByIdAndStoreId(id, storeId)
+                        .orElseThrow(() -> new EntityNotFoundException("Suggestion not found")))
+                .toList();
+
+        LocalDateTime generatedAt = LocalDateTime.now();
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm");
+        BigDecimal totalEstimatedValue = suggestions.stream()
+                .map(OrderSuggestion::getEstimatedOrderValue)
+                .filter(value -> value != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            PDType1Font headingFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+            PDType1Font bodyFont = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+            float margin = 40f;
+            float y = page.getMediaBox().getHeight() - margin;
+
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                y = writeLine(content, headingFont, 18, margin, y, "Purchase Order");
+                y = writeLine(content, bodyFont, 11, margin, y - 8, "Store: " + suggestions.getFirst().getStore().getName());
+                y = writeLine(content, bodyFont, 11, margin, y - 2, "Generated: " + generatedAt.format(dateFormatter));
+
+                float[] columns = {margin, 180f, 255f, 350f, 430f, 485f, 545f};
+                y -= 22;
+                String[] headers = {"Product", "SKU", "Supplier", "Unit Cost", "Suggested Qty", "Estimated Value"};
+                for (int i = 0; i < headers.length; i++) {
+                    writeCell(content, headingFont, 9, columns[i], y, headers[i]);
+                }
+
+                y -= 14;
+                content.moveTo(margin, y);
+                content.lineTo(page.getMediaBox().getWidth() - margin, y);
+                content.stroke();
+                y -= 12;
+
+                for (OrderSuggestion suggestion : suggestions) {
+                    Product product = suggestion.getProduct();
+                    writeCell(content, bodyFont, 9, columns[0], y, valueOrDash(product.getName(), 24));
+                    writeCell(content, bodyFont, 9, columns[1], y, valueOrDash(product.getSku(), 12));
+                    writeCell(content, bodyFont, 9, columns[2], y, valueOrDash(product.getSupplierName(), 14));
+                    writeCell(content, bodyFont, 9, columns[3], y, formatMoney(product.getUnitCost()));
+                    writeCell(content, bodyFont, 9, columns[4], y, formatQuantity(suggestion.getSuggestedQty()));
+                    writeCell(content, bodyFont, 9, columns[5], y, formatMoney(suggestion.getEstimatedOrderValue()));
+                    y -= 14;
+                }
+
+                y -= 6;
+                content.moveTo(margin, y);
+                content.lineTo(page.getMediaBox().getWidth() - margin, y);
+                content.stroke();
+                y -= 14;
+
+                writeCell(content, headingFont, 10, columns[4], y, "Total");
+                writeCell(content, headingFont, 10, columns[5], y, formatMoney(totalEstimatedValue));
+
+                writeLine(content, bodyFont, 10, margin, 45f, "Generated by Forestock · " + generatedAt.format(dateFormatter));
+            }
+
+            document.save(output);
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate purchase order", e);
+        }
+    }
+
     private void applyAcknowledgement(OrderSuggestion suggestion, AcknowledgeSuggestionRequest request) {
         suggestion.setAcknowledged(true);
         suggestion.setAcknowledgedAt(LocalDateTime.now());
@@ -153,5 +240,43 @@ public class SuggestionService {
                 .orderReference(s.getOrderReference())
                 .generatedAt(s.getGeneratedAt())
                 .build();
+    }
+
+    private float writeLine(PDPageContentStream content, PDType1Font font, float fontSize, float x, float y, String text) throws IOException {
+        content.beginText();
+        content.setFont(font, fontSize);
+        content.newLineAtOffset(x, y);
+        content.showText(text);
+        content.endText();
+        return y - fontSize - 2;
+    }
+
+    private void writeCell(PDPageContentStream content, PDType1Font font, float fontSize, float x, float y, String text) throws IOException {
+        content.beginText();
+        content.setFont(font, fontSize);
+        content.newLineAtOffset(x, y);
+        content.showText(text);
+        content.endText();
+    }
+
+    private String formatMoney(BigDecimal value) {
+        if (value == null) {
+            return "—";
+        }
+        return value.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String formatQuantity(BigDecimal value) {
+        if (value == null) {
+            return "—";
+        }
+        return value.stripTrailingZeros().toPlainString();
+    }
+
+    private String valueOrDash(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return "—";
+        }
+        return value.length() > maxLength ? value.substring(0, maxLength - 1) + "…" : value;
     }
 }

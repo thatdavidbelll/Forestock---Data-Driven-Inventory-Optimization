@@ -29,6 +29,7 @@ export default function SlowMoversPage() {
   const [items, setItems] = useState<SlowMover[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [inactiveDays, setInactiveDays] = useState(initialInactiveDays)
   const [rangeMode, setRangeMode] = useState(presetValues.includes(initialInactiveDays) ? initialInactiveDays : 'custom')
   const [sortBy, setSortBy] = useState<SortKey>('daysSinceLastSale')
@@ -56,11 +57,16 @@ export default function SlowMoversPage() {
   }, [fetchSlowMovers])
 
   async function markAsDiscontinued(productId: string) {
+    if (!window.confirm('Deactivate this product? It will no longer appear in forecasts.')) {
+      return
+    }
     setDisablingId(productId)
     setError('')
+    setSuccessMessage('')
     try {
       await api.delete(`/products/${productId}`)
       setItems((current) => current.filter((item) => item.productId !== productId))
+      setSuccessMessage('Product deactivated. It will no longer appear in forecasts.')
     } catch (e) {
       setError(extractErrorMessage(e, 'Failed to discontinue product.'))
     } finally {
@@ -136,6 +142,7 @@ export default function SlowMoversPage() {
 
       {loading && <p className="text-sm text-gray-500" role="status" aria-label="Loading">Loading slow movers…</p>}
       {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
+      {successMessage && <p className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</p>}
 
       {!loading && !error && sortedItems.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
@@ -178,7 +185,7 @@ export default function SlowMoversPage() {
                         disabled={disablingId === item.productId}
                         className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
                       >
-                        {disablingId === item.productId ? 'Discontinuing…' : 'Mark as Discontinued'}
+                        {disablingId === item.productId ? 'Deactivating…' : 'Deactivate'}
                       </button>
                       <Link
                         to={`/sales?sku=${encodeURIComponent(item.sku)}`}

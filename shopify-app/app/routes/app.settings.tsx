@@ -28,11 +28,15 @@ import {
 } from "../forestock.server";
 import { getBillingStatus } from "../billing.server";
 import { getSetupStages, type SetupStage } from "../setup-state";
-import { authenticate } from "../shopify.server";
+import shopify, { authenticate } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
 
 type ActionData =
   | { ok: true; message: string; config: Awaited<ReturnType<typeof getForestockStoreConfig>> }
+  | { ok: false; message: string };
+
+type WebhookActionData =
+  | { ok: true; message: string }
   | { ok: false; message: string };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -72,6 +76,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         admin,
         shopDomain: identity.shopDomain,
         shopName: identity.shopName,
+        currencyCode: identity.currencyCode,
+        moneyFormat: identity.moneyFormat,
       });
     } catch (error) {
       return {
@@ -79,6 +85,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         ok: false,
         message: error instanceof Error ? error.message : "Automatic setup failed.",
       } satisfies ShopifySetupStepResult;
+    }
+  }
+
+  if (intent === "reregister-webhooks") {
+    const { admin, session } = await authenticate.admin(request);
+    try {
+      await shopify.registerWebhooks({ session });
+      return { ok: true, message: "Webhooks re-registered successfully." } satisfies WebhookActionData;
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Failed to re-register webhooks.",
+      } satisfies WebhookActionData;
     }
   }
 
@@ -130,6 +149,7 @@ export default function SettingsPage() {
   const { config, overview } = useLoaderData<typeof loader>();
   const setupFetcher = useFetcher<ShopifySetupStepResult>();
   const forecastFetcher = useFetcher<ActionData>();
+  const webhookFetcher = useFetcher<WebhookActionData>();
   const autoSubmitted = useRef(false);
   const effectiveConfig = forecastFetcher.data?.ok ? forecastFetcher.data.config : config;
   const [forecastHorizonDays, setForecastHorizonDays] = useState(
@@ -284,6 +304,20 @@ export default function SettingsPage() {
               <Badge tone={forecastFetcher.data.ok ? "success" : "critical"}>{forecastFetcher.data.message}</Badge>
             </div>
           ) : null}
+        </Card>
+      </Section>
+
+      <Section title="Webhook health" description="Re-register Shopify webhooks if delivery has drifted out of sync.">
+        <Card>
+          <div style={{ display: "grid", gap: 16 }}>
+            <webhookFetcher.Form method="post">
+              <input type="hidden" name="intent" value="reregister-webhooks" />
+              <ActionButton loading={webhookFetcher.state !== "idle"}>Re-register webhooks</ActionButton>
+            </webhookFetcher.Form>
+            {webhookFetcher.data ? (
+              <Badge tone={webhookFetcher.data.ok ? "success" : "critical"}>{webhookFetcher.data.message}</Badge>
+            ) : null}
+          </div>
         </Card>
       </Section>
     </AppShell>

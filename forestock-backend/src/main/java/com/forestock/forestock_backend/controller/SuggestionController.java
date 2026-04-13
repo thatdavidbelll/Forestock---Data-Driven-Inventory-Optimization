@@ -85,6 +85,15 @@ public class SuggestionController {
         }
     }
 
+    @PostMapping("/purchase-order")
+    public ResponseEntity<byte[]> generatePurchaseOrder(@RequestBody List<UUID> suggestionIds) {
+        byte[] pdf = suggestionService.generatePurchaseOrderPdf(suggestionIds);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "forestock-purchase-order.pdf");
+        return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
     /** Downloads an Excel (.xlsx) report of suggestions from the latest run. */
     @GetMapping("/export/excel")
     public ResponseEntity<byte[]> exportExcel(

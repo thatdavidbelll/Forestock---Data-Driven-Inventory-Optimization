@@ -75,7 +75,8 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "imported", result.imported(),
                 "skipped", result.skipped(),
-                "errors", result.errors()
+                "errors", result.errors(),
+                "rowErrors", result.rowErrors()
         )));
     }
 
@@ -251,19 +252,19 @@ public class ProductController {
      * The product won't appear in forecasts or suggestions until restored.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<ProductDto>> deactivate(@PathVariable UUID id) {
         return productRepository.findById(id)
                 .map(p -> {
                     if (isAccessDenied(p))
                         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                                .body(ApiResponse.<Void>error("Access denied"));
+                                .body(ApiResponse.<ProductDto>error("Access denied"));
                     p.setActive(false);
-                    productRepository.save(p);
-                    auditLogService.log("PRODUCT_DEACTIVATED", "Product", p.getId().toString(),
-                            "Deactivated product '" + p.getSku() + "'");
-                    UUID productStoreId = p.getStore() != null ? p.getStore().getId() : TenantContext.getStoreId();
+                    Product saved = productRepository.save(p);
+                    auditLogService.log("PRODUCT_DEACTIVATED", "Product", saved.getId().toString(),
+                            "Deactivated product '" + saved.getSku() + "'");
+                    UUID productStoreId = saved.getStore() != null ? saved.getStore().getId() : TenantContext.getStoreId();
                     forecastTriggerService.triggerForStore(productStoreId, "product-deactivated");
-                    return ResponseEntity.ok(ApiResponse.<Void>success("Product deactivated", null));
+                    return ResponseEntity.ok(ApiResponse.success("Product deactivated", toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("Product not found")));

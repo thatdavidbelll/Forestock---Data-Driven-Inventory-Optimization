@@ -1,15 +1,16 @@
 package com.forestock.forestock_backend.scheduler;
 
+import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.Store;
+import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.repository.StoreRepository;
-import com.forestock.forestock_backend.service.ForecastAccuracyService;
 import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import java.util.UUID;
 
 /**
  * Nightly scheduled job — triggers the full forecast cycle at 02:00.
@@ -21,21 +22,26 @@ import java.util.List;
 public class DailyForecastJob {
 
     private final ForecastOrchestrator forecastOrchestrator;
-    private final ForecastAccuracyService forecastAccuracyService;
     private final StoreRepository storeRepository;
+    private final ForecastRunRepository forecastRunRepository;
 
-    @Scheduled(cron = "${forestock.scheduler.cron}")
+    @Scheduled(cron = "0 0 2 * * *", zone = "UTC")
     public void runNightlyForecast() {
-        log.info("DailyForecastJob started by scheduler");
-        List<Store> activeStores = storeRepository.findAll()
-                .stream()
+        log.info("[Scheduler] Starting nightly forecast cycle");
+        storeRepository.findAll().stream()
                 .filter(store -> Boolean.TRUE.equals(store.getActive()))
-                .toList();
-        log.info("DailyForecastJob processing {} active stores", activeStores.size());
-        forecastOrchestrator.runForAllStores("SCHEDULER");
-        for (Store store : activeStores) {
-            forecastAccuracyService.evaluateCompletedForecasts(store.getId());
-        }
-        log.info("DailyForecastJob completed for {} active stores", activeStores.size());
+                .forEach(store -> {
+                    UUID storeId = store.getId();
+                    if (forecastRunRepository.existsByStoreIdAndStatus(storeId, ForecastStatus.RUNNING)) {
+                        log.info("[Scheduler] Skipping store {} — forecast already running", storeId);
+                        return;
+                    }
+                    try {
+                        forecastOrchestrator.runForecast(storeId, "SCHEDULED");
+                        log.info("[Scheduler] Triggered forecast for store {}", storeId);
+                    } catch (Exception e) {
+                        log.error("[Scheduler] Failed to trigger forecast for store {}: {}", storeId, e.getMessage());
+                    }
+                });
     }
 }

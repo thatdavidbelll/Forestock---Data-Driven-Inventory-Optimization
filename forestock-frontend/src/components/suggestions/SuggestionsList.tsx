@@ -1,6 +1,26 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import type { AckForm, Suggestion } from './types'
 
+const modelTooltip: Record<string, string> = {
+  HOLT_WINTERS: 'Seasonal model — uses your past 12 months of sales patterns to forecast demand.',
+  INTERMITTENT_FALLBACK: 'Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.',
+  ZERO: 'No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.',
+}
+
+function modelLabel(forecastModel: string | null) {
+  if (forecastModel === 'HOLT_WINTERS') return 'Seasonal model'
+  if (forecastModel === 'INTERMITTENT_FALLBACK') return 'Conservative fallback'
+  if (forecastModel === 'ZERO') return 'No demand signal'
+  return forecastModel
+}
+
+function projectedStockoutDate(daysOfStock: number | null): string | null {
+  if (daysOfStock == null || daysOfStock <= 0) return null
+  const d = new Date()
+  d.setDate(d.getDate() + daysOfStock)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 interface SuggestionsListProps {
   suggestions: Suggestion[]
   loading: boolean
@@ -83,7 +103,29 @@ export default function SuggestionsList({
                 />
               </td>
               <td className="px-4 py-3 font-mono text-xs text-gray-600">{suggestion.productSku}</td>
-              <td className="px-4 py-3 font-medium text-gray-900">{suggestion.productName}</td>
+              <td className="px-4 py-3">
+                <div className="space-y-1">
+                  <div className="font-medium text-gray-900">{suggestion.productName}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {suggestion.forecastModel ? (
+                      <span
+                        title={modelTooltip[suggestion.forecastModel] ?? ''}
+                        className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
+                      >
+                        {modelLabel(suggestion.forecastModel)}
+                      </span>
+                    ) : null}
+                    {suggestion.lowConfidence ? (
+                      <span
+                        title="This recommendation is based on limited sales history. Treat the suggested quantity as directional, not precise."
+                        className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800"
+                      >
+                        Low confidence
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </td>
               <td className="px-4 py-3 text-gray-500">{suggestion.productCategory ?? '—'}</td>
               <td className="max-w-44 px-4 py-3 text-gray-500">
                 <span className="block truncate">{suggestion.supplierName?.trim() || '—'}</span>
@@ -92,7 +134,24 @@ export default function SuggestionsList({
                 {suggestion.currentStock != null ? `${suggestion.currentStock} ${suggestion.unit}` : '—'}
               </td>
               <td className="px-4 py-3 text-gray-700">
-                {suggestion.daysOfStock != null ? `${Number(suggestion.daysOfStock).toFixed(1)}d` : '—'}
+                {suggestion.daysOfStock != null ? (
+                  <div className="space-y-1">
+                    <div>{`${Number(suggestion.daysOfStock).toFixed(1)}d`}</div>
+                    {projectedStockoutDate(suggestion.daysOfStock) ? (
+                      <div
+                        className={`text-xs ${
+                          suggestion.daysOfStock <= 5
+                            ? 'text-red-600'
+                            : suggestion.daysOfStock <= 10
+                              ? 'text-orange-600'
+                              : 'text-gray-500'
+                        }`}
+                      >
+                        Runs out ~{projectedStockoutDate(suggestion.daysOfStock)}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : '—'}
               </td>
               <td className="px-4 py-3">
                 <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">

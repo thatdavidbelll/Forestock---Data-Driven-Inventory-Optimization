@@ -7,6 +7,11 @@ interface ImportResult {
   imported: number
   skipped: number
   errors: string[]
+  rowErrors?: Array<{
+    rowNumber: number
+    sku: string | null
+    message: string
+  }>
 }
 
 interface ImportPreview {
@@ -111,6 +116,13 @@ export default function ImportPage() {
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div>
           <p className="text-sm font-medium text-gray-700 mb-1">Expected CSV format</p>
+          <a
+            href={`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/sales/import/template/sales`}
+            download
+            className="text-sm text-indigo-600 underline"
+          >
+            Download template CSV
+          </a>
           <pre className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-600">
             sku,sale_date,quantity_sold{'\n'}
             PROD-001,2026-03-01,42{'\n'}
@@ -274,6 +286,18 @@ export default function ImportPage() {
                 ))}
               </ul>
             </div>
+          )}
+          {result.rowErrors && result.rowErrors.length > 0 && (
+            <details className="mt-4">
+              <summary className="cursor-pointer text-red-600 font-medium">
+                {result.rowErrors.length} rows had errors — click to expand
+              </summary>
+              <ul className="mt-2 text-sm text-red-700 space-y-1 max-h-64 overflow-y-auto">
+                {result.rowErrors.map((e, i) => (
+                  <li key={i}>Row {e.rowNumber}{e.sku ? ` (SKU: ${e.sku})` : ''}: {e.message}</li>
+                ))}
+              </ul>
+            </details>
           )}
         </div>
       )}

@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { redirect, useLoaderData, useRouteError } from "react-router";
+import { data, redirect, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   AppShell,
@@ -31,6 +31,12 @@ function recommendationModelTone(forecastModel: string | null | undefined) {
   return "subtle" as const;
 }
 
+const modelTooltip: Record<string, string> = {
+  HOLT_WINTERS: "Seasonal model — uses your past 12 months of sales patterns to forecast demand.",
+  INTERMITTENT_FALLBACK: "Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.",
+  ZERO: "No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.",
+}
+
 function recommendationSummary(recommendation: NonNullable<Awaited<ReturnType<typeof loader>>["topRecommendation"]>) {
   if (recommendation.lowConfidence) {
     return `This recommendation is based on limited sales history${recommendation.historyDaysAtGeneration != null ? ` (${recommendation.historyDaysAtGeneration} observed sales days)` : ""}, so treat the reorder quantity as directional.`;
@@ -49,6 +55,8 @@ function recommendationSummary(recommendation: NonNullable<Awaited<ReturnType<ty
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
+    const headers = new Headers();
+    headers.set("Cache-Control", "no-store");
     const { session } = await authenticate.admin(request);
     const overview = await getForestockAppHome(session.shop);
     const stages = getSetupStages(overview);
@@ -59,10 +67,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
 
     if (setupIncomplete) {
-      throw redirect(`/app/settings${new URL(request.url).search}`);
+      throw redirect(`/app/onboarding${new URL(request.url).search}`, { headers });
     }
 
-    return overview;
+    return data(overview, { headers });
   } catch (error) {
     if (error instanceof Response) throw error;
     throw new Response(error instanceof Error ? error.message : "Failed to load app home.", {
@@ -79,6 +87,16 @@ export default function AppIndex() {
     <AppShell
       title={data.storeName || "Forestock"}
     >
+      {data.forecastCompletedAt && (
+        <div style={{ marginBottom: 16, fontSize: 13, color: "#6B7280" }}>
+          Forecast last updated: {formatDateTime(data.forecastCompletedAt)}
+          {data.forecastStatus === "RUNNING" && (
+            <span style={{ marginLeft: 8, color: "#4F46E5", fontWeight: 600 }}>
+              · New forecast running…
+            </span>
+          )}
+        </div>
+      )}
       <Section title="Top recommendation" description="Start here if you only review one item right now.">
         {data.topRecommendation ? (
           <Card>
@@ -116,7 +134,9 @@ export default function AppIndex() {
                         label: "Model",
                         value: (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                            <span>{recommendationModelLabel(data.topRecommendation.forecastModel)}</span>
+                            <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
+                              {recommendationModelLabel(data.topRecommendation.forecastModel)}
+                            </span>
                             <span
                               style={{
                                 display: "inline-flex",

@@ -12,6 +12,8 @@ export interface ShopifyGraphqlAdmin {
 export type ShopifyShopIdentity = {
   shopName: string;
   shopDomain: string;
+  currencyCode: string | null;
+  moneyFormat: string | null;
 };
 
 export type ShopifyCatalogSyncItem = {
@@ -96,5 +98,7 @@ export type ShopifySetupRunRequest = {
   admin: ShopifyGraphqlAdmin;
   shopDomain: string;
   shopName: string;
+  currencyCode: string | null;
+  moneyFormat: string | null;
   historyDays?: number;
 };

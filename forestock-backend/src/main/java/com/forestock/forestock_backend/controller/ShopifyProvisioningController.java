@@ -41,7 +41,9 @@ public class ShopifyProvisioningController {
                 new ShopifyProvisioningService.ProvisioningRequest(
                         request.getShopDomain(),
                         request.getShopName(),
-                        request.getEmail()
+                        request.getEmail(),
+                        request.getCurrencyCode(),
+                        request.getCurrencySymbol()
                 )
         );
 
@@ -55,6 +57,8 @@ public class ShopifyProvisioningController {
         private String shopDomain;
         private String shopName;
         private String email;
+        private String currencyCode;
+        private String currencySymbol;
     }
 
     private boolean isValidProvisioningSecret(String provided) {

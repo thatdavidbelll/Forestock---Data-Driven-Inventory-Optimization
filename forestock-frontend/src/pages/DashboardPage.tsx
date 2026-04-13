@@ -107,64 +107,91 @@ export default function DashboardPage() {
     }
 
     let cancelled = false
-    const intervalId = window.setInterval(() => {
-      void (async () => {
-        try {
-          const response = await api.get('/forecast/runs')
-          if (cancelled) return
+    let delay = 3000
+    const maxDelay = 15000
+    let timeoutId: number | null = null
+    let watchdogId: number | null = null
 
-          const latestRun = (response.data.data as Array<{
-            status: string
-            startedAt: string | null
-            finishedAt: string | null
-            errorMessage: string | null
-            durationSeconds: number | null
-            productsWithInsufficientData: number | null
-          }>)?.[0]
+    const poll = async () => {
+      try {
+        const response = await api.get('/forecast/runs')
+        if (cancelled) return
 
-          if (!latestRun) {
-            return
-          }
+        const latestRun = (response.data.data as Array<{
+          status: string
+          startedAt: string | null
+          finishedAt: string | null
+          errorMessage: string | null
+          durationSeconds: number | null
+          productsWithInsufficientData: number | null
+        }>)?.[0]
 
-          setForecastStatus(latestRun.status)
-          setForecastStatusAt(latestRun.finishedAt ?? latestRun.startedAt)
-
-          if (latestRun.status === 'COMPLETED' || latestRun.status === 'FAILED') {
-            window.clearInterval(intervalId)
-            window.clearTimeout(timeoutId)
-
-            const dashboardResponse = await api.get('/dashboard')
-            if (cancelled) return
-
-            const nextData = dashboardResponse.data.data as Dashboard
-            setData(nextData)
-            setForecastStatus(nextData.lastRunStatus)
-            setForecastStatusAt(nextData.lastRunAt)
-            setTriggerMsg(
-              latestRun.status === 'COMPLETED'
-                ? 'Forecast completed successfully.'
-                : (latestRun.errorMessage || 'Forecast failed.')
-            )
-          }
-        } catch {
-          if (cancelled) return
-          window.clearInterval(intervalId)
-          window.clearTimeout(timeoutId)
-          setTriggerMsg('Unable to refresh forecast status. Refresh the page later.')
+        if (!latestRun) {
+          return
         }
-      })()
-    }, 3000)
 
-    const timeoutId = window.setTimeout(() => {
+        setForecastStatus(latestRun.status)
+        setForecastStatusAt(latestRun.finishedAt ?? latestRun.startedAt)
+
+        if (latestRun.status === 'COMPLETED' || latestRun.status === 'FAILED') {
+          if (timeoutId != null) {
+            window.clearTimeout(timeoutId)
+          }
+          if (watchdogId != null) {
+            window.clearTimeout(watchdogId)
+          }
+
+          const dashboardResponse = await api.get('/dashboard')
+          if (cancelled) return
+
+          const nextData = dashboardResponse.data.data as Dashboard
+          setData(nextData)
+          setForecastStatus(nextData.lastRunStatus)
+          setForecastStatusAt(nextData.lastRunAt)
+          setTriggerMsg(
+            latestRun.status === 'COMPLETED'
+              ? 'Forecast completed successfully.'
+              : (latestRun.errorMessage || 'Forecast failed.')
+          )
+          return
+        }
+
+        delay = Math.min(delay * 1.5, maxDelay)
+        timeoutId = window.setTimeout(() => {
+          void poll()
+        }, delay)
+      } catch {
+        if (cancelled) return
+        if (timeoutId != null) {
+          window.clearTimeout(timeoutId)
+        }
+        if (watchdogId != null) {
+          window.clearTimeout(watchdogId)
+        }
+        setTriggerMsg('Unable to refresh forecast status. Refresh the page later.')
+      }
+    }
+
+    timeoutId = window.setTimeout(() => {
+      void poll()
+    }, delay)
+
+    watchdogId = window.setTimeout(() => {
       if (cancelled) return
-      window.clearInterval(intervalId)
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId)
+      }
       setTriggerMsg('Forecast is taking longer than expected. Refresh the page later.')
     }, 60000)
 
     return () => {
       cancelled = true
-      window.clearInterval(intervalId)
-      window.clearTimeout(timeoutId)
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId)
+      }
+      if (watchdogId != null) {
+        window.clearTimeout(watchdogId)
+      }
     }
   }, [forecastStatus])
 
@@ -176,7 +203,7 @@ export default function DashboardPage() {
       captureEvent('forecast_run_triggered')
       setForecastStatus('RUNNING')
       setForecastStatusAt(new Date().toISOString())
-      setTriggerMsg('Forecast started in background.')
+      setTriggerMsg('Forecast is running — this usually takes a minute. The page will update automatically.')
     } catch {
       setTriggerMsg('Failed to trigger forecast.')
     } finally {
@@ -201,6 +228,16 @@ export default function DashboardPage() {
   const accuracySub = accuracy?.lastRunMape != null
     ? `Based on ${accuracy.evaluatedForecasts} forecast${accuracy.evaluatedForecasts !== 1 ? 's' : ''} evaluated`
     : 'Accuracy calculated after the forecast window closes'
+  const hoursSinceLastRun = forecastStatusAt
+    ? (Date.now() - new Date(forecastStatusAt).getTime()) / 3600000
+    : null
+  const freshnessMessage = hoursSinceLastRun === null
+    ? 'No forecast run yet'
+    : hoursSinceLastRun < 24
+      ? 'Forecast is fresh (updated today)'
+      : hoursSinceLastRun < 72
+        ? `Forecast is ${Math.floor(hoursSinceLastRun / 24)} day(s) old — will refresh tonight at 2:00 UTC`
+        : `Forecast is ${Math.floor(hoursSinceLastRun / 24)} days old — consider running manually`
   const onboardingSteps = [
     data.totalActiveProducts === 0
       ? {
@@ -227,7 +264,7 @@ export default function DashboardPage() {
           disabled={triggering}
           className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
         >
-          {triggering ? 'Starting…' : 'Run Forecast'}
+          {triggering ? 'Starting…' : 'Run first forecast'}
         </button>
       ),
     },
@@ -459,6 +496,12 @@ export default function DashboardPage() {
                         {forecastStatusAt ? new Date(forecastStatusAt).toLocaleString() : '—'}
                       </span>
                     </div>
+                    {forecastStatusAt ? (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Last updated: {new Date(forecastStatusAt).toLocaleString()}
+                      </p>
+                    ) : null}
+                    <p className="text-xs text-gray-500">{freshnessMessage}</p>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                       <span>Forecast accuracy trend: {accuracy?.trend ?? 'pending'}</span>
                       <span>Evaluated forecasts: {accuracy?.evaluatedForecasts ?? 0}</span>

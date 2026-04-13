@@ -2,6 +2,7 @@ package com.forestock.forestock_backend.service;
 
 import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.SalesTransaction;
+import com.forestock.forestock_backend.dto.response.ImportRowError;
 import com.forestock.forestock_backend.dto.response.SalesImportPreviewDto;
 import com.forestock.forestock_backend.dto.response.SalesTransactionDto;
 import com.forestock.forestock_backend.repository.ProductRepository;
@@ -64,7 +65,7 @@ public class SalesIngestionService {
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
 
-    public record ImportResult(int imported, int skipped, List<String> errors) {}
+    public record ImportResult(int imported, int skipped, List<String> errors, List<ImportRowError> rowErrors) {}
     public record ParsedCsvRow(long rowNumber, String sku, String saleDate, String quantitySold, List<String> errors) {}
     public record ParsedCsvResult(
             List<String> detectedColumns,
@@ -226,20 +227,17 @@ public class SalesIngestionService {
 
         ParsedCsvResult parsed = parseCsvRows(file.getInputStream(), MAX_CSV_ROWS);
         if (!parsed.columnMatch()) {
-            return new ImportResult(0, 0, List.of("Invalid CSV headers. Expected: sku,sale_date,quantity_sold"));
+            return new ImportResult(0, 0, List.of("Invalid CSV headers. Expected: sku,sale_date,quantity_sold"), List.of());
         }
         if (!parsed.structuralErrors().isEmpty()) {
-            return new ImportResult(0, 0, parsed.structuralErrors());
+            return new ImportResult(0, 0, parsed.structuralErrors(), List.of());
         }
 
+        List<ImportRowError> rowErrors = new ArrayList<>();
         for (ParsedCsvRow row : parsed.rows()) {
             long rowNumber = row.rowNumber();
             if (!row.errors().isEmpty()) {
-                errors.addAll(row.errors().stream().map(err -> "Row " + rowNumber + ": " + err).toList());
-                if (errors.size() >= 1000) {
-                    errors.add("Report truncated — too many errors. Fix your file and re-import.");
-                    break;
-                }
+                rowErrors.add(new ImportRowError((int) rowNumber, row.sku(), String.join("; ", row.errors())));
                 skipped++;
                 continue;
             }
@@ -247,11 +245,7 @@ public class SalesIngestionService {
             String sku = row.sku();
             Product product = productBySku.get(sku);
             if (product == null) {
-                errors.add("Row " + rowNumber + ": SKU '" + sku + "' not found in product catalogue");
-                if (errors.size() >= 1000) {
-                    errors.add("Report truncated — too many errors. Fix your file and re-import.");
-                    break;
-                }
+                rowErrors.add(new ImportRowError((int) rowNumber, sku, "SKU '" + sku + "' not found in product catalogue"));
                 skipped++;
                 continue;
             }
@@ -273,12 +267,14 @@ public class SalesIngestionService {
         // For UPSERT: all batched rows were processed (inserted or updated)
         // For DO NOTHING: we can't distinguish inserts from skips without extra queries — report all as imported
         int imported = batch.size();
+        List<ImportRowError> limitedRowErrors = limitRowErrors(rowErrors);
+        errors.addAll(formatRowErrors(limitedRowErrors));
 
         auditLogService.log("SALES_IMPORTED", "SalesTransaction", null,
                 "Imported " + imported + " rows, skipped " + skipped + ", errors=" + errors.size()
                         + ", overwriteExisting=" + overwriteExisting);
         log.info("CSV import complete: imported={}, skipped={}, errors={}", imported, skipped, errors.size());
-        return new ImportResult(imported, skipped, errors);
+        return new ImportResult(imported, skipped, errors, limitedRowErrors);
     }
 
     private String read(CSVRecord record, String column) {
@@ -291,6 +287,25 @@ public class SalesIngestionService {
 
     private String defaultString(String value) {
         return value == null ? "" : value;
+    }
+
+    private List<String> formatRowErrors(List<ImportRowError> rowErrors) {
+        return rowErrors.stream()
+                .map(error -> error.rowNumber() > 0
+                        ? "Row " + error.rowNumber()
+                        + (error.sku() != null ? " (SKU: " + error.sku() + ")" : "")
+                        + ": " + error.message()
+                        : error.message())
+                .toList();
+    }
+
+    private List<ImportRowError> limitRowErrors(List<ImportRowError> rowErrors) {
+        if (rowErrors.size() <= 50) {
+            return rowErrors;
+        }
+        List<ImportRowError> limited = new ArrayList<>(rowErrors.subList(0, 49));
+        limited.add(new ImportRowError(0, null, "... and " + (rowErrors.size() - 49) + " more errors"));
+        return limited;
     }
 
     /**
