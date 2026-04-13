@@ -54,7 +54,9 @@ export async function loadShopIdentity(
           name
           myshopifyDomain
           currencyCode
-          moneyFormat
+          currencyFormats {
+            moneyFormat
+          }
         }
       }`,
   );
@@ -64,7 +66,9 @@ export async function loadShopIdentity(
       name?: string | null;
       myshopifyDomain?: string | null;
       currencyCode?: string | null;
-      moneyFormat?: string | null;
+      currencyFormats?: {
+        moneyFormat?: string | null;
+      } | null;
     } | null;
   }>(response, "Failed to load Shopify shop identity");
 
@@ -73,7 +77,7 @@ export async function loadShopIdentity(
     shopName: shop?.name?.trim() || fallbackShop.replace(".myshopify.com", ""),
     shopDomain: shop?.myshopifyDomain?.trim() || fallbackShop,
     currencyCode: shop?.currencyCode?.trim() || null,
-    moneyFormat: shop?.moneyFormat?.trim() || null,
+    moneyFormat: shop?.currencyFormats?.moneyFormat?.trim() || null,
   };
 }
 
