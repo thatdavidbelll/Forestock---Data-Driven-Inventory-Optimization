@@ -14,6 +14,7 @@ import {
   SummarySplit,
 } from "../components";
 import { authenticate } from "../shopify.server";
+import type { AppHomeOverviewResponse } from "../forestock.server";
 import { getForestockAppHome } from "../forestock.server";
 import { getSetupStages } from "../setup-state";
 
@@ -37,7 +38,7 @@ const modelTooltip: Record<string, string> = {
   ZERO: "No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.",
 }
 
-function recommendationSummary(recommendation: NonNullable<Awaited<ReturnType<typeof loader>>["topRecommendation"]>) {
+function recommendationSummary(recommendation: NonNullable<AppHomeOverviewResponse["topRecommendation"]>) {
   if (recommendation.lowConfidence) {
     return `This recommendation is based on limited sales history${recommendation.historyDaysAtGeneration != null ? ` (${recommendation.historyDaysAtGeneration} observed sales days)` : ""}, so treat the reorder quantity as directional.`;
   }
