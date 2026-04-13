@@ -7,6 +7,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { provisionForestockShop } from "./forestock.server";
 
 type ShopifySessionStorage = NonNullable<Parameters<typeof shopifyApp>[0]["sessionStorage"]>;
 
@@ -70,6 +71,11 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async ({ session }) => {
+      await provisionForestockShop({
+        shopDomain: session.shop,
+        shopName: null,
+        email: null,
+      });
       await shopify.registerWebhooks({ session });
     },
   },
