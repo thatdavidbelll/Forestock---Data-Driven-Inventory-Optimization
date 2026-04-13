@@ -186,7 +186,7 @@ export function NavTabs({
           justifyContent: "space-between",
           alignItems: "center",
           gap: 14,
-          flexWrap: "wrap",
+          flexWrap: "nowrap",
           padding: 10,
           borderRadius: 20,
           border: `1px solid rgba(229, 231, 235, 0.92)`,
@@ -195,7 +195,7 @@ export function NavTabs({
           backdropFilter: "blur(14px)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700 }}>
+        <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700, flex: "0 0 auto" }}>
           <div
             style={{
               width: 32,
@@ -225,7 +225,9 @@ export function NavTabs({
             borderRadius: 14,
             background: palette.surfaceMuted,
             border: `1px solid ${palette.border}`,
-            width: "100%",
+            flex: "1 1 auto",
+            width: "auto",
+            minWidth: 0,
           }}
         >
           {items.map((item) => {

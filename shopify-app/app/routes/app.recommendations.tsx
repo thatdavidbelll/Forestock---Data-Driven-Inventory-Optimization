@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useEffect, useState } from "react";
 import { useLoaderData, useRevalidator, useRouteError } from "react-router";
@@ -72,6 +73,34 @@ function stockoutColor(daysOfStock: number | null | undefined): string {
   if (daysOfStock <= 5) return "#B42318"
   if (daysOfStock <= 10) return "#A16207"
   return "#6B7280"
+}
+
+function checkboxStyle(checked: boolean): CSSProperties {
+  return {
+    appearance: "none",
+    WebkitAppearance: "none" as CSSProperties["WebkitAppearance"],
+    width: 18,
+    height: 18,
+    borderRadius: 6,
+    border: checked ? "1px solid var(--fs-indigo)" : "1px solid #CBD5E1",
+    background: checked
+      ? "linear-gradient(180deg, #4F46E5 0%, #4338CA 100%)"
+      : "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)",
+    boxShadow: checked
+      ? "0 10px 18px rgba(79, 70, 229, 0.24)"
+      : "inset 0 1px 0 rgba(255,255,255,0.85), 0 2px 6px rgba(15, 23, 42, 0.06)",
+    cursor: "pointer",
+    display: "inline-grid",
+    placeItems: "center",
+    position: "relative" as const,
+    flex: "0 0 auto",
+    backgroundImage: checked
+      ? "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='white' d='M6.2 11.6 2.9 8.3l1.1-1.1 2.2 2.2 5.1-5.1 1.1 1.1z'/%3E%3C/svg%3E\")"
+      : "none",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+    backgroundSize: "12px 12px",
+  }
 }
 
 export default function RecommendationsPage() {
@@ -198,10 +227,13 @@ export default function RecommendationsPage() {
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
-                  style={{ width: 16, height: 16, cursor: "pointer" }}
+                  style={checkboxStyle(allSelected)}
                 />
                 {allSelected ? "Deselect all" : "Select all"}
               </label>
+              <div style={{ fontSize: 13, color: "#64748B" }}>
+                Select products to generate one purchase order PDF.
+              </div>
             </div>
             {purchaseOrderError ? (
               <div style={{ marginBottom: 16, fontSize: 13, color: "#B42318" }}>
@@ -268,7 +300,7 @@ export default function RecommendationsPage() {
                         type="checkbox"
                         checked={selectedIds.has(recommendation.id)}
                         onChange={() => toggleSelection(recommendation.id)}
-                        style={{ width: 16, height: 16, cursor: "pointer" }}
+                        style={checkboxStyle(selectedIds.has(recommendation.id))}
                         aria-label={`Select ${recommendation.productName}`}
                       />
                       <Badge tone={tone}>{recommendation.urgency}</Badge>

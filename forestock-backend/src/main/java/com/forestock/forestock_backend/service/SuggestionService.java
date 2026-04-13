@@ -194,9 +194,9 @@ public class SuggestionService {
 
                 for (OrderSuggestion suggestion : suggestions) {
                     Product product = suggestion.getProduct();
-                    writeCell(content, bodyFont, 9, columns[0], y, valueOrDash(product.getName(), 20));
-                    writeCell(content, bodyFont, 9, columns[1], y, valueOrDash(product.getSku(), 12));
-                    writeCell(content, bodyFont, 9, columns[2], y, valueOrDash(product.getSupplierName(), 14));
+                    writeCell(content, bodyFont, 9, columns[0], y, valueOrClip(product.getName(), 20));
+                    writeCell(content, bodyFont, 9, columns[1], y, valueOrClip(product.getSku(), 12));
+                    writeCell(content, bodyFont, 9, columns[2], y, valueOrClip(product.getSupplierName(), 14));
                     writeCell(content, bodyFont, 9, columns[3], y, formatMoney(product.getUnitCost()));
                     writeCell(content, bodyFont, 9, columns[4], y, formatQuantity(suggestion.getSuggestedQty()));
                     writeCell(content, bodyFont, 9, columns[5], y, formatMoney(suggestion.getEstimatedOrderValue()));
@@ -302,10 +302,10 @@ public class SuggestionService {
         return value.stripTrailingZeros().toPlainString();
     }
 
-    private String valueOrDash(String value, int maxLength) {
+    private String valueOrClip(String value, int maxLength) {
         if (value == null || value.isBlank()) {
             return "—";
         }
-        return value.length() > maxLength ? value.substring(0, maxLength - 1) + "…" : value;
+        return value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 }
