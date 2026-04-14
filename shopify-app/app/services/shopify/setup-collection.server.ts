@@ -106,6 +106,11 @@ export async function collectCatalogItems(
               featuredImage {
                 url
               }
+              images(first: 1) {
+                nodes {
+                  url
+                }
+              }
               variants(first: 50) {
                 nodes {
                   id
@@ -143,6 +148,11 @@ export async function collectCatalogItems(
           featuredImage?: {
             url?: string | null;
           } | null;
+          images?: {
+            nodes?: Array<{
+              url?: string | null;
+            }> | null;
+          } | null;
           variants?: {
             nodes?: Array<{
               id: string;
@@ -166,7 +176,7 @@ export async function collectCatalogItems(
           shopifyProductGid: product.id,
           shopifyVariantGid: variant.id,
           shopifyInventoryItemGid: variant.inventoryItem?.id ?? null,
-          productImageUrl: variant.image?.url ?? product.featuredImage?.url ?? null,
+          productImageUrl: variant.image?.url ?? product.featuredImage?.url ?? product.images?.nodes?.[0]?.url ?? null,
           sku: variant.sku ?? null,
           name: product.title,
           variantTitle: variant.title ?? null,
