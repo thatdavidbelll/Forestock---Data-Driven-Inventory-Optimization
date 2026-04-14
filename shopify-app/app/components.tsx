@@ -19,8 +19,8 @@ const palette = {
 };
 
 const shadows = {
-  shell: "0 18px 40px rgba(17, 24, 39, 0.04)",
-  card: "0 8px 24px rgba(17, 24, 39, 0.04)",
+  shell: "0 20px 48px rgba(15, 23, 42, 0.06)",
+  card: "0 14px 32px rgba(15, 23, 42, 0.06)",
   focus: "0 0 0 4px rgba(79, 70, 229, 0.12)",
 };
 
@@ -93,9 +93,9 @@ export function AppShell({
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
-            gap: 20,
+            gap: 24,
             flexWrap: "wrap",
-            padding: "14px 2px 30px",
+            padding: "18px 2px 28px",
           }}
         >
           <div style={{ maxWidth: 760, minWidth: 0, flex: "1 1 320px" }}>
@@ -103,20 +103,26 @@ export function AppShell({
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
+                gap: 10,
+                marginBottom: 14,
                 color: palette.textMuted,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "0.08em",
+                letterSpacing: "0.12em",
                 textTransform: "uppercase",
+                padding: "6px 10px",
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.84)",
+                border: "1px solid rgba(226, 232, 240, 0.92)",
               }}
             >
               <span
                 style={{
-                  width: 28,
-                  height: 1,
-                  background: "rgba(79, 70, 229, 0.3)",
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: "linear-gradient(180deg, #4F46E5 0%, #4338CA 100%)",
+                  boxShadow: "0 0 0 4px rgba(79, 70, 229, 0.12)",
                 }}
               />
               Forestock
@@ -125,9 +131,9 @@ export function AppShell({
               style={{
                 margin: 0,
                 fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-                fontSize: "clamp(2rem, 4vw, 3.4rem)",
-                lineHeight: 1,
-                letterSpacing: "-0.045em",
+                fontSize: "clamp(2.1rem, 4vw, 3.5rem)",
+                lineHeight: 0.98,
+                letterSpacing: "-0.05em",
                 color: palette.text,
               }}
             >
@@ -139,7 +145,7 @@ export function AppShell({
                   margin: "14px 0 0",
                   maxWidth: 680,
                   fontSize: 15,
-                  lineHeight: 1.65,
+                  lineHeight: 1.72,
                   color: palette.textMuted,
                 }}
               >
@@ -187,21 +193,24 @@ export function NavTabs({
           alignItems: "center",
           gap: 14,
           flexWrap: "nowrap",
-          padding: 10,
-          borderRadius: 20,
+          padding: 8,
+          borderRadius: 24,
           border: `1px solid rgba(229, 231, 235, 0.92)`,
-          background: "rgba(255, 255, 255, 0.86)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.92) 100%)",
           boxShadow: shadows.shell,
           backdropFilter: "blur(14px)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700, flex: "0 0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700, flex: "0 0 auto", padding: "0 6px 0 2px" }}>
           <div
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 12,
+              width: 40,
+              height: 40,
+              borderRadius: 14,
               overflow: "hidden",
+              border: "1px solid rgba(226, 232, 240, 0.92)",
+              background: "#F8FAFC",
+              boxShadow: "0 8px 16px rgba(15, 23, 42, 0.08)",
             }}
           >
             <img
@@ -222,8 +231,8 @@ export function NavTabs({
             gap: 6,
             flexWrap: "wrap",
             padding: 4,
-            borderRadius: 14,
-            background: palette.surfaceMuted,
+            borderRadius: 16,
+            background: "rgba(241,245,249,0.88)",
             border: `1px solid ${palette.border}`,
             flex: "1 1 auto",
             width: "auto",
@@ -239,14 +248,15 @@ export function NavTabs({
                 href={href}
                 style={{
                   textDecoration: "none",
-                  padding: "10px 14px",
-                  borderRadius: 10,
+                  padding: "11px 16px",
+                  borderRadius: 12,
                   fontSize: 14,
                   fontWeight: active ? 700 : 600,
                   color: active ? palette.text : palette.textMuted,
-                  background: active ? palette.surface : "transparent",
+                  background: active ? "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)" : "transparent",
                   border: active ? `1px solid ${palette.border}` : "1px solid transparent",
-                  boxShadow: active ? shadows.card : "none",
+                  boxShadow: active ? "0 10px 18px rgba(15, 23, 42, 0.08)" : "none",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {item.label}
@@ -323,7 +333,7 @@ export function Card({
   return (
     <div
       style={{
-        borderRadius: 20,
+        borderRadius: 22,
         padding: 22,
         background: toneStyle.background,
         border: toneStyle.border,
@@ -357,9 +367,9 @@ export function MetricCard({
           fontSize: 11,
           fontWeight: 700,
           textTransform: "uppercase",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.1em",
           color: toneStyle.muted,
-          marginBottom: 12,
+          marginBottom: 14,
         }}
       >
         {label}
@@ -367,7 +377,7 @@ export function MetricCard({
       <div
         style={{
           fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-          fontSize: 28,
+          fontSize: 30,
           fontWeight: 700,
           lineHeight: 1.02,
           letterSpacing: "-0.04em",
@@ -424,7 +434,7 @@ export function Badge({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        padding: "6px 10px",
+        padding: "7px 11px",
         borderRadius: 999,
         fontSize: 11,
         fontWeight: 700,

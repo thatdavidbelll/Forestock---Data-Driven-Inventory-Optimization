@@ -3,6 +3,7 @@ import { data, redirect, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   AppShell,
+  Badge,
   Card,
   EmptyState,
   ErrorState,
@@ -83,21 +84,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function AppIndex() {
   const data = useLoaderData<typeof loader>();
+  const hasAttention = data.criticalSuggestions > 0 || data.highSuggestions > 0;
+  const readinessBody = data.recommendationReadinessReasons.length > 0
+    ? data.recommendationReadinessReasons.join(" • ")
+    : "Recommendations are ready to review.";
 
   return (
     <AppShell
       title={data.storeName || "Forestock"}
+      subtitle="Review what needs attention, check forecast freshness, and move straight into the highest-priority stock decision."
     >
-      {data.forecastCompletedAt && (
-        <div style={{ marginBottom: 16, fontSize: 13, color: "#6B7280" }}>
-          Forecast last updated: {formatDateTime(data.forecastCompletedAt)}
-          {data.forecastStatus === "RUNNING" && (
-            <span style={{ marginLeft: 8, color: "#4F46E5", fontWeight: 600 }}>
-              · New forecast running…
-            </span>
-          )}
-        </div>
-      )}
+      <Grid columns={3}>
+        <MetricCard
+          label="Needs attention"
+          value={data.totalActiveSuggestions}
+          hint={hasAttention ? `${data.criticalSuggestions} critical · ${data.highSuggestions} high` : "No urgent items right now"}
+          tone={hasAttention ? "critical" : "subtle"}
+        />
+        <MetricCard
+          label="Forecast freshness"
+          value={data.forecastCompletedAt ? formatDateTime(data.forecastCompletedAt) : "Not run yet"}
+          hint={data.forecastStatus === "RUNNING" ? "A fresh run is in progress." : readinessBody}
+          tone={data.forecastStatus === "RUNNING" ? "accent" : data.forecastCompletedAt ? "success" : "warning"}
+        />
+        <MetricCard
+          label="Active catalog"
+          value={data.activeProductCount}
+          hint={data.hasSalesHistory ? `${data.salesTransactionCount} sales rows available` : "No sales history imported yet"}
+          tone={data.activeProductCount > 0 ? "subtle" : "warning"}
+        />
+      </Grid>
+
       <Section title="Top recommendation" description="Start here if you only review one item right now.">
         {data.topRecommendation ? (
           <Card>
@@ -105,9 +122,39 @@ export default function AppIndex() {
               title={data.topRecommendation.productName}
               body={
                 <>
-                  <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>{data.topRecommendation.productSku}</div>
+                  <div style={{ marginBottom: 10, fontSize: 14, fontWeight: 600, color: "#6B7280" }}>
+                    {data.topRecommendation.productSku}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                    <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
+                      {data.topRecommendation.urgency}
+                    </Badge>
+                    {data.topRecommendation.forecastModel ? (
+                      <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
+                        <Badge tone={recommendationModelTone(data.topRecommendation.forecastModel)}>
+                          {recommendationModelLabel(data.topRecommendation.forecastModel)}
+                        </Badge>
+                      </span>
+                    ) : null}
+                    {data.topRecommendation.lowConfidence ? (
+                      <Badge tone="warning">Low confidence</Badge>
+                    ) : null}
+                  </div>
                   {recommendationSummary(data.topRecommendation)}
                 </>
+              }
+              aside={
+                <Card tone="subtle" style={{ padding: 18 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6B7280", marginBottom: 10 }}>
+                    Recommended move
+                  </div>
+                  <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 42, fontWeight: 700, lineHeight: 0.95, letterSpacing: "-0.05em", marginBottom: 8 }}>
+                    {data.topRecommendation.suggestedQty ?? "—"}
+                  </div>
+                  <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.65 }}>
+                    Reorder now before stock cover drops further.
+                  </div>
+                </Card>
               }
             />
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
@@ -133,31 +180,10 @@ export default function AppIndex() {
                   ...(data.topRecommendation.forecastModel
                     ? [{
                         label: "Model",
-                        value: (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                            <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
-                              {recommendationModelLabel(data.topRecommendation.forecastModel)}
-                            </span>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                padding: "4px 8px",
-                                borderRadius: 999,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
-                                background: recommendationModelTone(data.topRecommendation.forecastModel) === "success" ? "rgba(31, 122, 92, 0.08)" : recommendationModelTone(data.topRecommendation.forecastModel) === "warning" ? "rgba(161, 98, 7, 0.08)" : "#F8FAFC",
-                                color: recommendationModelTone(data.topRecommendation.forecastModel) === "success" ? "#1F7A5C" : recommendationModelTone(data.topRecommendation.forecastModel) === "warning" ? "#A16207" : "#475569",
-                                border: recommendationModelTone(data.topRecommendation.forecastModel) === "success" ? "1px solid rgba(31, 122, 92, 0.12)" : recommendationModelTone(data.topRecommendation.forecastModel) === "warning" ? "1px solid rgba(161, 98, 7, 0.12)" : "1px solid #E2E8F0",
-                              }}
-                            >
-                              {data.topRecommendation.forecastModel.replaceAll("_", " ")}
-                            </span>
-                          </span>
-                        ),
+                        value: <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>{recommendationModelLabel(data.topRecommendation.forecastModel)}</span>,
                       }]
                     : []),
+                  { label: "Next step", value: "Open Recommendations to review the full reorder queue." },
                 ]}
               />
             </div>
@@ -169,6 +195,34 @@ export default function AppIndex() {
           />
         )}
       </Section>
+      <Grid columns={2}>
+        <Card tone="subtle">
+          <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 20, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 10 }}>
+            Next actions
+          </div>
+          <KeyValueList
+            items={data.nextActions.length > 0
+              ? data.nextActions.map((action, index) => ({
+                  label: `Step ${index + 1}`,
+                  value: action,
+                }))
+              : [{ label: "Status", value: "No immediate action required." }]}
+          />
+        </Card>
+        <Card tone="subtle">
+          <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 20, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 10 }}>
+            Readiness snapshot
+          </div>
+          <KeyValueList
+            items={[
+              { label: "Recommendations", value: data.totalActiveSuggestions > 0 ? `${data.totalActiveSuggestions} in queue` : "No active queue" },
+              { label: "Catalog", value: `${data.activeProductCount} active of ${data.totalProductCount} total` },
+              { label: "Sales history", value: data.hasSalesHistory ? `Available · latest sale ${formatDateTime(data.latestSaleDate)}` : "Not imported yet" },
+              { label: "Warnings", value: data.dataQualityWarnings.length > 0 ? data.dataQualityWarnings.join(" • ") : "No current data quality warnings" },
+            ]}
+          />
+        </Card>
+      </Grid>
     </AppShell>
   );
 }

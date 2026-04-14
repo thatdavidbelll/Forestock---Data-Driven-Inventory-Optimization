@@ -176,7 +176,10 @@ export default function RecommendationsPage() {
   }, [data.forecastStatus])
 
   return (
-    <AppShell title="Recommendations">
+    <AppShell
+      title="Recommendations"
+      subtitle="Review the products most likely to need replenishment next. Keep the decision focused on reorder quantity, stockout risk, and confidence."
+    >
       {data.forecastCompletedAt && (() => {
         const hoursSinceLastRun = (Date.now() - new Date(data.forecastCompletedAt!).getTime()) / 3_600_000
         const freshnessMessage =
@@ -200,27 +203,46 @@ export default function RecommendationsPage() {
       </Grid>
 
       <div style={{ marginTop: 12, paddingBottom: selectedIds.size > 0 ? 108 : 0 }}>
-        <Section title="Queue" description="Keep the list direct and easy to scan.">
+        <Section title="Queue" description="Prioritize the highest-risk products first, then batch a purchase order when the shortlist is ready.">
         {data.recommendations.length > 0 ? (
           <>
             <div style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               gap: 12,
               marginBottom: 16,
               flexWrap: "wrap",
+              padding: "14px 16px",
+              borderRadius: 18,
+              background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.92) 100%)",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 12px 24px rgba(15, 23, 42, 0.05)",
             }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#6B7280", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  style={checkboxStyle(allSelected)}
-                />
-                {allSelected ? "Deselect all" : "Select all"}
-              </label>
-              <div style={{ fontSize: 13, color: "#64748B" }}>
-                Select products to generate one purchase order PDF.
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#64748B" }}>
+                  Purchase order queue
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#475569", cursor: "pointer", fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      style={checkboxStyle(allSelected)}
+                    />
+                    {allSelected ? "Deselect all" : "Select all"}
+                  </label>
+                  <span style={{ fontSize: 13, color: "#64748B" }}>
+                    Select products to generate one purchase order PDF.
+                  </span>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <Badge tone={criticalCount > 0 ? "critical" : "subtle"}>
+                  {criticalCount > 0 ? `${criticalCount} critical` : "No critical items"}
+                </Badge>
+                <Badge tone="subtle">{data.recommendations.length} total</Badge>
               </div>
             </div>
             {purchaseOrderError ? (
@@ -231,6 +253,16 @@ export default function RecommendationsPage() {
             <Grid columns={2}>
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
+              const reorderValue = recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown";
+              const daysLeft = recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown";
+              const rationale =
+                recommendation.lowConfidence
+                  ? "Limited sales history. Treat the reorder quantity as directional."
+                  : recommendation.forecastModel === "HOLT_WINTERS"
+                    ? "Seasonal demand pattern is strong enough to support a firmer reorder signal."
+                    : recommendation.forecastModel === "INTERMITTENT_FALLBACK"
+                      ? "Demand is uneven, so the conservative fallback is driving this recommendation."
+                      : "Minimal recent demand signal. Review with current supplier context."
               return (
                 <Card key={recommendation.id} style={{ padding: 20 }}>
                   <div
@@ -244,6 +276,17 @@ export default function RecommendationsPage() {
                     }}
                   >
                     <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                        <Badge tone={tone}>{recommendation.urgency}</Badge>
+                        {recommendation.forecastModel ? (
+                          <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
+                            <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
+                          </span>
+                        ) : null}
+                        {recommendation.lowConfidence ? (
+                          <Badge tone="warning">Low confidence</Badge>
+                        ) : null}
+                      </div>
                       <div
                         style={{
                           fontFamily: '"Space Grotesk", "Manrope", sans-serif',
@@ -252,36 +295,42 @@ export default function RecommendationsPage() {
                           letterSpacing: "-0.04em",
                           fontWeight: 700,
                           color: "#0F172A",
-                          marginBottom: 8,
+                          marginBottom: 10,
                         }}
                       >
                         {recommendation.productName}
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#6B7280" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#6B7280", marginBottom: 14 }}>
                         {recommendation.productSku}
                         {recommendation.productCategory ? ` • ${recommendation.productCategory}` : ""}
                       </div>
-                      {recommendation.lowConfidence ? (
-                        <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5, color: "#92400E" }}>
-                          <span title="This recommendation is based on limited sales history. Treat the suggested quantity as directional, not precise.">
-                            Low confidence{recommendation.historyDaysAtGeneration != null ? ` • ${recommendation.historyDaysAtGeneration} sales days observed` : ""}
-                          </span>
-                        </div>
-                      ) : null}
-                      {recommendation.forecastModel ? (
-                        <div style={{ marginTop: recommendation.lowConfidence ? 8 : 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                          <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
-                            <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
-                          </span>
-                          <div style={{ fontSize: 13, lineHeight: 1.5, color: "#64748B" }}>
-                            {recommendation.forecastModel === "HOLT_WINTERS"
-                              ? "Using the stronger seasonal model."
-                              : recommendation.forecastModel === "INTERMITTENT_FALLBACK"
-                                ? "Using the conservative fallback because demand is uneven."
-                                : "Using a minimal demand signal path."}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 14 }}>
+                        <div style={{ padding: "14px 16px", borderRadius: 16, background: "linear-gradient(180deg, #0F172A 0%, #111827 100%)", color: "#FFFFFF" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.68)", marginBottom: 8 }}>
+                            Reorder now
+                          </div>
+                          <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 34, lineHeight: 0.95, letterSpacing: "-0.05em", fontWeight: 700 }}>
+                            {reorderValue}
                           </div>
                         </div>
-                      ) : null}
+                        <div style={{ padding: "14px 16px", borderRadius: 16, background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#64748B", marginBottom: 8 }}>
+                            Stock cover
+                          </div>
+                          <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 30, lineHeight: 0.95, letterSpacing: "-0.05em", fontWeight: 700, color: "#0F172A", marginBottom: 6 }}>
+                            {daysLeft}
+                          </div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: stockoutColor(recommendation.daysOfStock) }}>
+                            {projectedStockoutDate(recommendation.daysOfStock) ? `Runs out ~${projectedStockoutDate(recommendation.daysOfStock)}` : "Stockout date unavailable"}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 14, lineHeight: 1.68, color: "#475569" }}>
+                        {rationale}
+                        {recommendation.lowConfidence && recommendation.historyDaysAtGeneration != null
+                          ? ` ${recommendation.historyDaysAtGeneration} sales days observed.`
+                          : ""}
+                      </div>
                     </div>
                     <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10 }}>
                       <input
@@ -291,33 +340,7 @@ export default function RecommendationsPage() {
                         style={checkboxStyle(selectedIds.has(recommendation.id))}
                         aria-label={`Select ${recommendation.productName}`}
                       />
-                      <Badge tone={tone}>{recommendation.urgency}</Badge>
                     </div>
-                  </div>
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
-                    <Grid columns={2}>
-                      <MetricCard
-                        label="Days left"
-                        value={recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown"}
-                        hint={
-                          projectedStockoutDate(recommendation.daysOfStock)
-                            ? `Runs out ~${projectedStockoutDate(recommendation.daysOfStock)}`
-                            : undefined
-                        }
-                        tone="subtle"
-                      />
-                      <MetricCard label="Reorder qty" value={recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown"} tone="subtle" />
-                    </Grid>
-                    {recommendation.daysOfStock != null && recommendation.daysOfStock <= 10 && (
-                      <div style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: stockoutColor(recommendation.daysOfStock),
-                      }}>
-                        Runs out ~{projectedStockoutDate(recommendation.daysOfStock)}
-                      </div>
-                    )}
                   </div>
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E5E7EB" }}>
                     <KeyValueList
@@ -374,8 +397,13 @@ export default function RecommendationsPage() {
             maxWidth: "calc(100vw - 24px)",
           }}
         >
-          <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-            {selectedIds.size} selected
+          <div style={{ display: "grid", gap: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)" }}>
+              Purchase order
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+              {selectedIds.size} selected
+            </div>
           </div>
           <button
             type="button"
