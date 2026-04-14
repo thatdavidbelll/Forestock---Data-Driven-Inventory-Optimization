@@ -1,4 +1,5 @@
 import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { isRouteErrorResponse } from "react-router";
 
 const palette = {
@@ -507,16 +508,56 @@ export function InlineList({ items }: { items: string[] }) {
   );
 }
 
-export function formatDateTime(value: string | null | undefined) {
+function stableDateTimeLabel(value: string | null | undefined) {
   if (!value) return "Not available";
-  return new Date(value).toLocaleString();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date).replace(",", "");
 }
 
-export function formatDate(value: string | null | undefined) {
+function stableDateLabel(value: string | null | undefined) {
   if (!value) return "Not available";
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  return new Date(year, month - 1, day).toLocaleDateString();
+  return value;
+}
+
+export function DateTimeText({ value }: { value: string | null | undefined }) {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  if (!value) return <>Not available</>;
+
+  const formatted = hydrated ? new Date(value).toLocaleString() : stableDateTimeLabel(value);
+  return <span suppressHydrationWarning>{formatted}</span>;
+}
+
+export function DateText({ value }: { value: string | null | undefined }) {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  if (!value) return <>Not available</>;
+
+  let formatted = stableDateLabel(value);
+  if (hydrated) {
+    const [year, month, day] = value.split("-").map(Number);
+    if (year && month && day) {
+      formatted = new Date(year, month - 1, day).toLocaleDateString();
+    }
+  }
+
+  return <span suppressHydrationWarning>{formatted}</span>;
 }
 
 export function toneForForecast(

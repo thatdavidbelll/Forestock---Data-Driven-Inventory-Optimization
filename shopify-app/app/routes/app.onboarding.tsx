@@ -6,8 +6,8 @@ import {
   AppShell,
   Badge,
   Card,
+  DateTimeText,
   ErrorState,
-  formatDateTime,
   MetricCard,
   Section,
 } from "../components";
@@ -185,7 +185,7 @@ export default function OnboardingPage() {
                 <MetricCard
                   label="Forecast status"
                   value={overview.forecastStatus ?? "Pending"}
-                  hint={overview.forecastCompletedAt ? formatDateTime(overview.forecastCompletedAt) : "No completed run yet"}
+                  hint={overview.forecastCompletedAt ? <DateTimeText value={overview.forecastCompletedAt} /> : "No completed run yet"}
                   tone={overview.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "accent"}
                 />
               </div>

@@ -7,9 +7,9 @@ import {
   AppShell,
   Badge,
   Card,
+  DateTimeText,
   EmptyState,
   ErrorState,
-  formatDateTime,
   Grid,
   KeyValueList,
   MetricCard,
@@ -68,13 +68,6 @@ const modelTooltip: Record<string, string> = {
   ZERO: "No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.",
 }
 
-function projectedStockoutDate(daysOfStock: number | null | undefined): string | null {
-  if (daysOfStock == null || daysOfStock <= 0) return null
-  const d = new Date()
-  d.setDate(d.getDate() + Math.round(daysOfStock))
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-}
-
 function stockoutColor(daysOfStock: number | null | undefined): string {
   if (daysOfStock == null) return "#6B7280"
   if (daysOfStock <= 5) return "#B42318"
@@ -82,14 +75,45 @@ function stockoutColor(daysOfStock: number | null | undefined): string {
   return "#6B7280"
 }
 
-function stockoutLabel(
+function stableStockoutLabel(
   currentStock: number | null | undefined,
   daysOfStock: number | null | undefined,
 ): string {
   if (currentStock != null && currentStock <= 0) return "Out of stock now"
-  const projectedDate = projectedStockoutDate(daysOfStock)
-  if (projectedDate) return `Runs out ~${projectedDate}`
+  if (daysOfStock != null && daysOfStock > 0) return `Runs out in ~${Math.round(daysOfStock)}d`
   return "Stockout estimate unavailable"
+}
+
+function clientStockoutLabel(
+  currentStock: number | null | undefined,
+  daysOfStock: number | null | undefined,
+): string {
+  if (currentStock != null && currentStock <= 0) return "Out of stock now"
+  if (daysOfStock == null || daysOfStock <= 0) return "Stockout estimate unavailable"
+
+  const projectedDate = new Date()
+  projectedDate.setDate(projectedDate.getDate() + Math.round(daysOfStock))
+  return `Runs out ~${projectedDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+}
+
+function StockoutText({
+  currentStock,
+  daysOfStock,
+}: {
+  currentStock: number | null | undefined;
+  daysOfStock: number | null | undefined;
+}) {
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  const label = hydrated
+    ? clientStockoutLabel(currentStock, daysOfStock)
+    : stableStockoutLabel(currentStock, daysOfStock)
+
+  return <span suppressHydrationWarning>{label}</span>
 }
 
 function checkboxStyle(checked: boolean): CSSProperties {
@@ -210,7 +234,12 @@ export default function RecommendationsPage() {
       <Grid columns={3}>
         <MetricCard label="In queue" value={data.recommendations.length} hint="Products needing review now" />
         <MetricCard label="Critical" value={criticalCount} hint="Highest urgency recommendations" tone={criticalCount > 0 ? "critical" : "subtle"} />
-        <MetricCard label="Forecast status" value={data.forecastStatus ?? "Pending"} hint={data.forecastCompletedAt ? `Updated ${formatDateTime(data.forecastCompletedAt)}` : "No completed forecast yet"} tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "warning"} />
+        <MetricCard
+          label="Forecast status"
+          value={data.forecastStatus ?? "Pending"}
+          hint={data.forecastCompletedAt ? <>Updated <DateTimeText value={data.forecastCompletedAt} /></> : "No completed forecast yet"}
+          tone={data.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "warning"}
+        />
       </Grid>
 
       <div style={{ marginTop: 12, paddingBottom: selectedIds.size > 0 ? 108 : 0 }}>
@@ -341,7 +370,7 @@ export default function RecommendationsPage() {
                             {daysLeft}
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: stockoutColor(recommendation.daysOfStock) }}>
-                            {stockoutLabel(recommendation.currentStock, recommendation.daysOfStock)}
+                            <StockoutText currentStock={recommendation.currentStock} daysOfStock={recommendation.daysOfStock} />
                           </div>
                         </div>
                       </div>
@@ -363,7 +392,7 @@ export default function RecommendationsPage() {
                         { label: "Current stock", value: recommendation.currentStock != null ? formatMetricNumber(recommendation.currentStock) : "Not available" },
                         { label: "Estimated value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
                         { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
-                        { label: "Generated", value: formatDateTime(recommendation.generatedAt) },
+                        { label: "Generated", value: <DateTimeText value={recommendation.generatedAt} /> },
                       ]}
                     />
                   </div>

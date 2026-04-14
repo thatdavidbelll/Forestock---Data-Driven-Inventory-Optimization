@@ -5,10 +5,10 @@ import {
   AppShell,
   Badge,
   Card,
+  DateText,
+  DateTimeText,
   EmptyState,
   ErrorState,
-  formatDate,
-  formatDateTime,
   Grid,
   KeyValueList,
   MetricCard,
@@ -110,7 +110,7 @@ export default function AppIndex() {
         />
         <MetricCard
           label="Forecast freshness"
-          value={data.forecastCompletedAt ? formatDateTime(data.forecastCompletedAt) : "Not run yet"}
+          value={data.forecastCompletedAt ? <DateTimeText value={data.forecastCompletedAt} /> : "Not run yet"}
           hint={data.forecastStatus === "RUNNING" ? "A fresh run is in progress." : readinessBody}
           tone={data.forecastStatus === "RUNNING" ? "accent" : data.forecastCompletedAt ? "success" : "warning"}
         />
@@ -157,7 +157,7 @@ export default function AppIndex() {
                 <MetricCard label="Days of stock" value={data.topRecommendation.daysOfStock ?? "Unknown"} tone="subtle" />
                 <MetricCard label="Suggested reorder" value={data.topRecommendation.suggestedQty ?? "Unknown"} tone="subtle" />
                 <MetricCard label="Estimated value" value={data.topRecommendation.estimatedOrderValue ?? "Unknown"} tone="subtle" />
-                <MetricCard label="Generated" value={formatDateTime(data.topRecommendation.generatedAt)} tone="subtle" />
+                <MetricCard label="Generated" value={<DateTimeText value={data.topRecommendation.generatedAt} />} tone="subtle" />
               </Grid>
             </div>
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
@@ -199,7 +199,7 @@ export default function AppIndex() {
             items={[
               { label: "Recommendations", value: data.totalActiveSuggestions > 0 ? `${data.totalActiveSuggestions} in queue` : "No active queue" },
               { label: "Catalog", value: `${data.activeProductCount} active of ${data.totalProductCount} total` },
-              { label: "Sales history", value: data.hasSalesHistory ? `Available · latest sale ${formatDate(data.latestSaleDate)}` : "Not imported yet" },
+              { label: "Sales history", value: data.hasSalesHistory ? <>Available · latest sale <DateText value={data.latestSaleDate} /></> : "Not imported yet" },
               { label: "Warnings", value: data.dataQualityWarnings.length > 0 ? data.dataQualityWarnings.join(" • ") : "No current data quality warnings" },
             ]}
           />

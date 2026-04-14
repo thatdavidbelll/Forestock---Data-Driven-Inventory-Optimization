@@ -7,6 +7,7 @@ import {
   AppShell,
   Badge,
   Card,
+  DateTimeText,
   ErrorState,
   Grid,
   InlineList,
@@ -18,7 +19,6 @@ import {
   Section,
   SummarySplit,
   ValuePill,
-  formatDateTime,
   toneForReadiness,
 } from "../components";
 import {
@@ -213,7 +213,7 @@ export default function SettingsPage() {
             <Grid columns={3}>
               <MetricCard label="Products" value={overview.activeProductCount} hint={`${overview.totalProductCount} total synced`} tone="subtle" />
               <MetricCard label="Sales history" value={overview.hasSalesHistory ? "Available" : "Missing"} hint={`${overview.salesTransactionCount} rows`} tone={overview.hasSalesHistory ? "success" : "warning"} />
-              <MetricCard label="Forecast" value={overview.forecastStatus ?? "Pending"} hint={overview.forecastCompletedAt ? formatDateTime(overview.forecastCompletedAt) : "No completed run yet"} tone={overview.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "accent"} />
+              <MetricCard label="Forecast" value={overview.forecastStatus ?? "Pending"} hint={overview.forecastCompletedAt ? <DateTimeText value={overview.forecastCompletedAt} /> : "No completed run yet"} tone={overview.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "accent"} />
             </Grid>
           </div>
           <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                 {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
                 {stage.evidenceAt ? (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #E5E7EB", fontSize: 13, color: "#6B7280" }}>
-                    {stage.evidenceLabel ?? "Evidence"}: {formatDateTime(stage.evidenceAt)}
+                    {stage.evidenceLabel ?? "Evidence"}: <DateTimeText value={stage.evidenceAt} />
                   </div>
                 ) : null}
               </Card>
@@ -272,7 +272,7 @@ export default function SettingsPage() {
             <MetricCard
               label="Current horizon"
               value={`${forecastHorizonDays} days`}
-              hint={effectiveConfig.updatedAt ? `Updated ${new Date(effectiveConfig.updatedAt).toLocaleString()}` : "Using current store configuration"}
+              hint={effectiveConfig.updatedAt ? <>Updated <DateTimeText value={effectiveConfig.updatedAt} /></> : "Using current store configuration"}
               tone="accent"
             />
             <InputFrame>
