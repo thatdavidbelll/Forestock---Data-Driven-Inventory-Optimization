@@ -33,6 +33,13 @@ function recommendationModelTone(forecastModel: string | null | undefined) {
   return "subtle" as const;
 }
 
+function shouldShowModelBadge(
+  forecastModel: string | null | undefined,
+  lowConfidence: boolean | null | undefined,
+) {
+  return !(lowConfidence && forecastModel === "INTERMITTENT_FALLBACK");
+}
+
 const modelTooltip: Record<string, string> = {
   HOLT_WINTERS: "Seasonal model — uses your past 12 months of sales patterns to forecast demand.",
   INTERMITTENT_FALLBACK: "Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.",
@@ -129,7 +136,7 @@ export default function AppIndex() {
                     <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
                       {data.topRecommendation.urgency}
                     </Badge>
-                    {data.topRecommendation.forecastModel ? (
+                    {data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
                       <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
                         <Badge tone={recommendationModelTone(data.topRecommendation.forecastModel)}>
                           {recommendationModelLabel(data.topRecommendation.forecastModel)}
@@ -144,11 +151,13 @@ export default function AppIndex() {
                 </>
               }
               aside={
-                <Card tone="subtle" style={{ padding: 18 }}>
-                  <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 42, fontWeight: 700, lineHeight: 0.95, letterSpacing: "-0.05em", marginBottom: 8 }}>
-                    {data.topRecommendation.suggestedQty ?? "—"}
-                  </div>
-                </Card>
+                <div style={{ width: "fit-content", minWidth: 132, justifySelf: "start" }}>
+                  <Card tone="subtle" style={{ padding: "14px 16px" }}>
+                    <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 34, fontWeight: 700, lineHeight: 0.95, letterSpacing: "-0.05em" }}>
+                      {data.topRecommendation.suggestedQty ?? "—"}
+                    </div>
+                  </Card>
+                </div>
               }
             />
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>

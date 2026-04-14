@@ -55,6 +55,13 @@ function modelLabel(forecastModel: string | null | undefined) {
   return "Forecast model";
 }
 
+function shouldShowModelBadge(
+  forecastModel: string | null | undefined,
+  lowConfidence: boolean | null | undefined,
+) {
+  return !(lowConfidence && forecastModel === "INTERMITTENT_FALLBACK");
+}
+
 const modelTooltip: Record<string, string> = {
   HOLT_WINTERS: "Seasonal model — uses your past 12 months of sales patterns to forecast demand.",
   INTERMITTENT_FALLBACK: "Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.",
@@ -243,7 +250,7 @@ export default function RecommendationsPage() {
                     <div style={{ minWidth: 0, flex: "1 1 240px" }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                         <Badge tone={tone}>{recommendation.urgency}</Badge>
-                        {recommendation.forecastModel ? (
+                        {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel, recommendation.lowConfidence) ? (
                           <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
                             <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
                           </span>
