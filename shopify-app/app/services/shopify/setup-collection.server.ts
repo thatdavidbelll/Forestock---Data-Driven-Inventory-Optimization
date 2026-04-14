@@ -114,6 +114,9 @@ export async function collectCatalogItems(
                   barcode
                   price
                   inventoryQuantity
+                  image {
+                    url
+                  }
                   inventoryItem {
                     id
                   }
@@ -148,6 +151,7 @@ export async function collectCatalogItems(
               barcode?: string | null;
               price?: string | null;
               inventoryQuantity?: number | null;
+              image?: { url?: string | null } | null;
               inventoryItem?: { id?: string | null } | null;
             }> | null;
           } | null;
@@ -162,7 +166,7 @@ export async function collectCatalogItems(
           shopifyProductGid: product.id,
           shopifyVariantGid: variant.id,
           shopifyInventoryItemGid: variant.inventoryItem?.id ?? null,
-          productImageUrl: product.featuredImage?.url ?? null,
+          productImageUrl: variant.image?.url ?? product.featuredImage?.url ?? null,
           sku: variant.sku ?? null,
           name: product.title,
           variantTitle: variant.title ?? null,
