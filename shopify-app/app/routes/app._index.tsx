@@ -150,15 +150,6 @@ export default function AppIndex() {
                   {recommendationSummary(data.topRecommendation)}
                 </>
               }
-              aside={
-                <div style={{ width: "fit-content", minWidth: 132, justifySelf: "start" }}>
-                  <Card tone="subtle" style={{ padding: "14px 16px" }}>
-                    <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 34, fontWeight: 700, lineHeight: 0.95, letterSpacing: "-0.05em" }}>
-                      {data.topRecommendation.suggestedQty ?? "—"}
-                    </div>
-                  </Card>
-                </div>
-              }
             />
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
               <Grid columns={4}>
