@@ -92,7 +92,6 @@ export default function AppIndex() {
   return (
     <AppShell
       title={data.storeName || "Forestock"}
-      subtitle="Review what needs attention, check forecast freshness, and move straight into the highest-priority stock decision."
     >
       <Grid columns={3}>
         <MetricCard
@@ -115,7 +114,8 @@ export default function AppIndex() {
         />
       </Grid>
 
-      <Section title="Top recommendation" description="Start here if you only review one item right now.">
+      <div style={{ marginTop: 16 }}>
+      <Section title="Top recommendation">
         {data.topRecommendation ? (
           <Card>
             <SummarySplit
@@ -145,14 +145,8 @@ export default function AppIndex() {
               }
               aside={
                 <Card tone="subtle" style={{ padding: 18 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6B7280", marginBottom: 10 }}>
-                    Recommended move
-                  </div>
                   <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 42, fontWeight: 700, lineHeight: 0.95, letterSpacing: "-0.05em", marginBottom: 8 }}>
                     {data.topRecommendation.suggestedQty ?? "—"}
-                  </div>
-                  <div style={{ fontSize: 14, color: "#475569", lineHeight: 1.65 }}>
-                    Reorder now before stock cover drops further.
                   </div>
                 </Card>
               }
@@ -183,7 +177,6 @@ export default function AppIndex() {
                         value: <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>{recommendationModelLabel(data.topRecommendation.forecastModel)}</span>,
                       }]
                     : []),
-                  { label: "Next step", value: "Open Recommendations to review the full reorder queue." },
                 ]}
               />
             </div>
@@ -195,20 +188,8 @@ export default function AppIndex() {
           />
         )}
       </Section>
-      <Grid columns={2}>
-        <Card tone="subtle">
-          <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 20, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 10 }}>
-            Next actions
-          </div>
-          <KeyValueList
-            items={data.nextActions.length > 0
-              ? data.nextActions.map((action, index) => ({
-                  label: `Step ${index + 1}`,
-                  value: action,
-                }))
-              : [{ label: "Status", value: "No immediate action required." }]}
-          />
-        </Card>
+      </div>
+      <div style={{ marginTop: 16 }}>
         <Card tone="subtle">
           <div style={{ fontFamily: '"Space Grotesk", "Manrope", sans-serif', fontSize: 20, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 10 }}>
             Readiness snapshot
@@ -222,7 +203,7 @@ export default function AppIndex() {
             ]}
           />
         </Card>
-      </Grid>
+      </div>
     </AppShell>
   );
 }
