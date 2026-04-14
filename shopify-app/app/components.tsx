@@ -161,10 +161,10 @@ export function NavTabs({
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-start",
           alignItems: "center",
           gap: 14,
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           padding: 8,
           borderRadius: 24,
           border: `1px solid rgba(229, 231, 235, 0.92)`,
@@ -173,30 +173,6 @@ export function NavTabs({
           backdropFilter: "blur(14px)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", color: palette.text, fontWeight: 700, flex: "0 0 auto", padding: "0 6px 0 2px" }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 14,
-              overflow: "hidden",
-              border: "1px solid rgba(226, 232, 240, 0.92)",
-              background: "#F8FAFC",
-              boxShadow: "0 8px 16px rgba(15, 23, 42, 0.08)",
-            }}
-          >
-            <img
-              src="/forestock-logo.png"
-              alt="Forestock"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                display: "block",
-              }}
-            />
-          </div>
-        </div>
         <div
           style={{
             display: "inline-flex",
@@ -206,8 +182,8 @@ export function NavTabs({
             borderRadius: 16,
             background: "rgba(241,245,249,0.88)",
             border: `1px solid ${palette.border}`,
-            flex: "1 1 auto",
-            width: "auto",
+            flex: "1 1 100%",
+            width: "100%",
             minWidth: 0,
           }}
         >
