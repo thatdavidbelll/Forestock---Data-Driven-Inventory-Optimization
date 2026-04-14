@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -112,8 +114,8 @@ public class ShopifyAppHomeService {
                 .salesTransactionCount((int) salesTransactionCount)
                 .latestSaleDate(latestSaleDate)
                 .forecastStatus(latestRun != null ? latestRun.getStatus().name() : null)
-                .forecastCompletedAt(latestCompletedRun != null ? latestCompletedRun.getFinishedAt() : null)
-                .lastForecastStartedAt(latestRun != null ? latestRun.getStartedAt() : null)
+                .forecastCompletedAt(toUtcOffset(latestCompletedRun != null ? latestCompletedRun.getFinishedAt() : null))
+                .lastForecastStartedAt(toUtcOffset(latestRun != null ? latestRun.getStartedAt() : null))
                 .forecastProof(toForecastProof(latestRun, activeSuggestions.isEmpty() ? latestCompletedRun != null && readinessReasons.isEmpty() : readinessReasons.isEmpty()))
                 .recommendationReadinessReasons(readinessReasons)
                 .criticalSuggestions(criticalSuggestions)
@@ -161,7 +163,7 @@ public class ShopifyAppHomeService {
         return RecommendationsPayload.builder()
                 .shopDomain(connection.getShopDomain())
                 .forecastStatus(latestCompletedRun.getStatus().name())
-                .forecastCompletedAt(latestCompletedRun.getFinishedAt())
+                .forecastCompletedAt(toUtcOffset(latestCompletedRun.getFinishedAt()))
                 .recommendations(recommendations)
                 .build();
     }
@@ -231,8 +233,8 @@ public class ShopifyAppHomeService {
 
         return ForecastProof.builder()
                 .status(run.getStatus() != null ? run.getStatus().name() : null)
-                .startedAt(run.getStartedAt())
-                .finishedAt(run.getFinishedAt())
+                .startedAt(toUtcOffset(run.getStartedAt()))
+                .finishedAt(toUtcOffset(run.getFinishedAt()))
                 .durationSeconds(run.getDurationSeconds())
                 .productsProcessed(run.getProductsProcessed())
                 .productsWithInsufficientData(run.getProductsWithInsufficientData())
@@ -265,13 +267,17 @@ public class ShopifyAppHomeService {
                 .forecastModel(suggestion.getForecastModel())
                 .historyDaysAtGeneration(suggestion.getHistoryDaysAtGeneration())
                 .acknowledged(Boolean.TRUE.equals(suggestion.getAcknowledged()))
-                .acknowledgedAt(suggestion.getAcknowledgedAt())
+                .acknowledgedAt(toUtcOffset(suggestion.getAcknowledgedAt()))
                 .acknowledgedReason(suggestion.getAcknowledgedReason())
                 .quantityOrdered(suggestion.getQuantityOrdered())
                 .expectedDelivery(suggestion.getExpectedDelivery())
                 .orderReference(suggestion.getOrderReference())
-                .generatedAt(suggestion.getGeneratedAt())
+                .generatedAt(toUtcOffset(suggestion.getGeneratedAt()))
                 .build();
+    }
+
+    private OffsetDateTime toUtcOffset(LocalDateTime value) {
+        return value != null ? value.atOffset(ZoneOffset.UTC) : null;
     }
 
     @Builder
@@ -285,8 +291,8 @@ public class ShopifyAppHomeService {
             int salesTransactionCount,
             LocalDate latestSaleDate,
             String forecastStatus,
-            LocalDateTime forecastCompletedAt,
-            LocalDateTime lastForecastStartedAt,
+            OffsetDateTime forecastCompletedAt,
+            OffsetDateTime lastForecastStartedAt,
             ForecastProof forecastProof,
             List<String> recommendationReadinessReasons,
             long criticalSuggestions,
@@ -301,8 +307,8 @@ public class ShopifyAppHomeService {
     @Builder
     public record ForecastProof(
             String status,
-            LocalDateTime startedAt,
-            LocalDateTime finishedAt,
+            OffsetDateTime startedAt,
+            OffsetDateTime finishedAt,
             Integer durationSeconds,
             Integer productsProcessed,
             Integer productsWithInsufficientData,
@@ -317,7 +323,7 @@ public class ShopifyAppHomeService {
     public record RecommendationsPayload(
             String shopDomain,
             String forecastStatus,
-            LocalDateTime forecastCompletedAt,
+            OffsetDateTime forecastCompletedAt,
             List<SuggestionDto> recommendations
     ) {
     }

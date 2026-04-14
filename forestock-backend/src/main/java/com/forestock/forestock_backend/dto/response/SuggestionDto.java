@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
@@ -32,10 +32,10 @@ public class SuggestionDto {
     private Integer historyDaysAtGeneration;
     private Urgency urgency;
     private boolean acknowledged;
-    private LocalDateTime acknowledgedAt;
+    private OffsetDateTime acknowledgedAt;
     private String acknowledgedReason;
     private BigDecimal quantityOrdered;
     private LocalDate expectedDelivery;
     private String orderReference;
-    private LocalDateTime generatedAt;
+    private OffsetDateTime generatedAt;
 }

@@ -82,6 +82,16 @@ function stockoutColor(daysOfStock: number | null | undefined): string {
   return "#6B7280"
 }
 
+function stockoutLabel(
+  currentStock: number | null | undefined,
+  daysOfStock: number | null | undefined,
+): string {
+  if (currentStock != null && currentStock <= 0) return "Out of stock now"
+  const projectedDate = projectedStockoutDate(daysOfStock)
+  if (projectedDate) return `Runs out ~${projectedDate}`
+  return "Stockout estimate unavailable"
+}
+
 function checkboxStyle(checked: boolean): CSSProperties {
   return {
     width: 18,
@@ -292,7 +302,7 @@ export default function RecommendationsPage() {
                             {daysLeft}
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: stockoutColor(recommendation.daysOfStock) }}>
-                            {projectedStockoutDate(recommendation.daysOfStock) ? `Runs out ~${projectedStockoutDate(recommendation.daysOfStock)}` : "Stockout date unavailable"}
+                            {stockoutLabel(recommendation.currentStock, recommendation.daysOfStock)}
                           </div>
                         </div>
                       </div>

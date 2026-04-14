@@ -7,6 +7,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  formatDate,
   formatDateTime,
   Grid,
   KeyValueList,
@@ -198,7 +199,7 @@ export default function AppIndex() {
             items={[
               { label: "Recommendations", value: data.totalActiveSuggestions > 0 ? `${data.totalActiveSuggestions} in queue` : "No active queue" },
               { label: "Catalog", value: `${data.activeProductCount} active of ${data.totalProductCount} total` },
-              { label: "Sales history", value: data.hasSalesHistory ? `Available · latest sale ${formatDateTime(data.latestSaleDate)}` : "Not imported yet" },
+              { label: "Sales history", value: data.hasSalesHistory ? `Available · latest sale ${formatDate(data.latestSaleDate)}` : "Not imported yet" },
               { label: "Warnings", value: data.dataQualityWarnings.length > 0 ? data.dataQualityWarnings.join(" • ") : "No current data quality warnings" },
             ]}
           />

@@ -12,6 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -131,7 +134,11 @@ public class StoreConfigurationService {
                 .urgencyHighDays(configuration.getUrgencyHighDays())
                 .urgencyMediumDays(configuration.getUrgencyMediumDays())
                 .autoForecastOnImport(configuration.getAutoForecastOnImport())
-                .updatedAt(configuration.getUpdatedAt())
+                .updatedAt(toUtcOffset(configuration.getUpdatedAt()))
                 .build();
+    }
+
+    private OffsetDateTime toUtcOffset(LocalDateTime value) {
+        return value != null ? value.atOffset(ZoneOffset.UTC) : null;
     }
 }

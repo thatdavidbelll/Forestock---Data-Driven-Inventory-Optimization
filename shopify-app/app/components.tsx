@@ -564,6 +564,13 @@ export function formatDateTime(value: string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
+export function formatDate(value: string | null | undefined) {
+  if (!value) return "Not available";
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString();
+}
+
 export function toneForForecast(
   status: string | null | undefined,
 ): "default" | "success" | "warning" | "critical" | "accent" {

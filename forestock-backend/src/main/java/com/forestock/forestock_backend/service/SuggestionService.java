@@ -27,10 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -277,13 +279,17 @@ public class SuggestionService {
                 .historyDaysAtGeneration(s.getHistoryDaysAtGeneration())
                 .urgency(s.getUrgency())
                 .acknowledged(Boolean.TRUE.equals(s.getAcknowledged()))
-                .acknowledgedAt(s.getAcknowledgedAt())
+                .acknowledgedAt(toUtcOffset(s.getAcknowledgedAt()))
                 .acknowledgedReason(s.getAcknowledgedReason())
                 .quantityOrdered(s.getQuantityOrdered())
                 .expectedDelivery(s.getExpectedDelivery())
                 .orderReference(s.getOrderReference())
-                .generatedAt(s.getGeneratedAt())
+                .generatedAt(toUtcOffset(s.getGeneratedAt()))
                 .build();
+    }
+
+    private OffsetDateTime toUtcOffset(LocalDateTime value) {
+        return value != null ? value.atOffset(ZoneOffset.UTC) : null;
     }
 
     private float writeLine(PDPageContentStream content, PDType1Font font, float fontSize, float x, float y, String text) throws IOException {
