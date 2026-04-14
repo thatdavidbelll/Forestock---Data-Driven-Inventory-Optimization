@@ -99,34 +99,6 @@ export function AppShell({
           }}
         >
           <div style={{ maxWidth: 760, minWidth: 0, flex: "1 1 320px" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 14,
-                color: palette.textMuted,
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                padding: "6px 10px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.84)",
-                border: "1px solid rgba(226, 232, 240, 0.92)",
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 999,
-                  background: "linear-gradient(180deg, #4F46E5 0%, #4338CA 100%)",
-                  boxShadow: "0 0 0 4px rgba(79, 70, 229, 0.12)",
-                }}
-              />
-              Forestock
-            </div>
             <h1
               style={{
                 margin: 0,
