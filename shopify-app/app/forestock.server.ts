@@ -20,6 +20,7 @@ type CatalogSyncItem = {
   shopifyProductGid: string;
   shopifyVariantGid: string;
   shopifyInventoryItemGid: string | null;
+  productImageUrl: string | null;
   sku: string | null;
   name: string;
   variantTitle: string | null;
@@ -150,6 +151,7 @@ type RecommendationCard = {
   productId?: string;
   productName: string;
   productSku: string;
+  productImageUrl?: string | null;
   productCategory?: string | null;
   unit?: string | null;
   urgency: string;

@@ -20,6 +20,7 @@ export type ShopifyCatalogSyncItem = {
   shopifyProductGid: string;
   shopifyVariantGid: string;
   shopifyInventoryItemGid: string | null;
+  productImageUrl: string | null;
   sku: string | null;
   name: string;
   variantTitle: string | null;

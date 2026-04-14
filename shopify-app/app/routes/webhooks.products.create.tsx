@@ -17,6 +17,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           productType
           vendor
           status
+          featuredImage {
+            url
+          }
           variants(first: 100) {
             nodes {
               id
@@ -43,6 +46,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         productType?: string | null;
         vendor?: string | null;
         status?: string | null;
+        featuredImage?: {
+          url?: string | null;
+        } | null;
         variants?: {
           nodes?: Array<{
             id: string;
@@ -69,6 +75,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       shopifyProductGid: product.id,
       shopifyVariantGid: variant.id,
       shopifyInventoryItemGid: variant.inventoryItem?.id ?? null,
+      productImageUrl: product.featuredImage?.url ?? null,
       sku: variant.sku ?? null,
       name: product.title,
       variantTitle: variant.title ?? null,

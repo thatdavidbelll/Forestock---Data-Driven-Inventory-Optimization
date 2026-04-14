@@ -70,6 +70,9 @@ public class Product {
     @Column(name = "shopify_inventory_item_gid", length = 255)
     private String shopifyInventoryItemGid;
 
+    @Column(name = "product_image_url", columnDefinition = "TEXT")
+    private String productImageUrl;
+
     @Column(name = "storage_location", length = 100)
     private String storageLocation;
 

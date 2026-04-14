@@ -251,6 +251,7 @@ public class ShopifyAppHomeService {
                 .productId(suggestion.getProduct().getId())
                 .productName(suggestion.getProduct().getName())
                 .productSku(suggestion.getProduct().getSku())
+                .productImageUrl(suggestion.getProduct().getProductImageUrl())
                 .productCategory(suggestion.getProduct().getCategory())
                 .unit(suggestion.getProduct().getUnit())
                 .urgency(suggestion.getUrgency())

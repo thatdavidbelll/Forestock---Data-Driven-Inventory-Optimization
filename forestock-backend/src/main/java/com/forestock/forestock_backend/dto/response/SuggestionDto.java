@@ -16,6 +16,7 @@ public class SuggestionDto {
     private UUID productId;
     private String productSku;
     private String productName;
+    private String productImageUrl;
     private String productCategory;
     private String unit;
     private BigDecimal suggestedQty;

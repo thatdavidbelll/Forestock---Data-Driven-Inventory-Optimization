@@ -263,6 +263,7 @@ public class SuggestionService {
                 .productId(s.getProduct().getId())
                 .productSku(s.getProduct().getSku())
                 .productName(s.getProduct().getName())
+                .productImageUrl(s.getProduct().getProductImageUrl())
                 .productCategory(s.getProduct().getCategory())
                 .unit(s.getProduct().getUnit())
                 .suggestedQty(s.getSuggestedQty())

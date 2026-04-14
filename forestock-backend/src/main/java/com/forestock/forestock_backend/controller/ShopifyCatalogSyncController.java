@@ -47,6 +47,7 @@ public class ShopifyCatalogSyncController {
                                         item.getShopifyProductGid(),
                                         item.getShopifyVariantGid(),
                                         item.getShopifyInventoryItemGid(),
+                                        item.getProductImageUrl(),
                                         item.getSku(),
                                         item.getName(),
                                         item.getVariantTitle(),
@@ -110,6 +111,7 @@ public class ShopifyCatalogSyncController {
         @NotBlank(message = "Shopify variant GID is required")
         private String shopifyVariantGid;
         private String shopifyInventoryItemGid;
+        private String productImageUrl;
         private String sku;
         @NotBlank(message = "Name is required")
         private String name;

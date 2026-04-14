@@ -108,6 +108,19 @@ function checkboxStyle(checked: boolean): CSSProperties {
   }
 }
 
+function productImageStyle(): CSSProperties {
+  return {
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    overflow: "hidden",
+    border: "1px solid #E2E8F0",
+    background: "#F8FAFC",
+    boxShadow: "0 6px 14px rgba(15, 23, 42, 0.06)",
+    flex: "0 0 auto",
+  }
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const revalidator = useRevalidator()
@@ -257,7 +270,33 @@ export default function RecommendationsPage() {
                       marginBottom: 14,
                     }}
                   >
-                    <div style={{ minWidth: 0, flex: "1 1 240px" }}>
+                    <div style={{ minWidth: 0, flex: "1 1 240px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                      <div style={productImageStyle()}>
+                        {recommendation.productImageUrl ? (
+                          <img
+                            src={recommendation.productImageUrl}
+                            alt={recommendation.productName}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontFamily: '"Space Grotesk", "Manrope", sans-serif',
+                              fontSize: 20,
+                              fontWeight: 700,
+                              color: "#64748B",
+                            }}
+                          >
+                            {recommendation.productName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                         <Badge tone={tone}>{recommendation.urgency}</Badge>
                         {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel, recommendation.lowConfidence) ? (
@@ -305,6 +344,7 @@ export default function RecommendationsPage() {
                             {stockoutLabel(recommendation.currentStock, recommendation.daysOfStock)}
                           </div>
                         </div>
+                      </div>
                       </div>
                     </div>
                     <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10 }}>

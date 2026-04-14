@@ -195,6 +195,7 @@ public class ShopifyCatalogSyncService {
                 || !safeEquals(product.getShopifyProductGid(), normalize(item.shopifyProductGid()))
                 || !safeEquals(product.getShopifyVariantGid(), variantGid)
                 || !safeEquals(product.getShopifyInventoryItemGid(), normalize(item.shopifyInventoryItemGid()))
+                || !safeEquals(product.getProductImageUrl(), normalize(item.productImageUrl()))
                 || !safeEquals(product.getUnitCost(), item.unitCost())
                 || !safeEquals(product.getActive(), item.active())) {
             updatedProduct = true;
@@ -210,6 +211,7 @@ public class ShopifyCatalogSyncService {
         product.setShopifyProductGid(normalize(item.shopifyProductGid()));
         product.setShopifyVariantGid(variantGid);
         product.setShopifyInventoryItemGid(normalize(item.shopifyInventoryItemGid()));
+        product.setProductImageUrl(normalize(item.productImageUrl()));
         product.setActive(item.active());
 
         Product saved = productRepository.save(product);
@@ -277,6 +279,7 @@ public class ShopifyCatalogSyncService {
             String shopifyProductGid,
             String shopifyVariantGid,
             String shopifyInventoryItemGid,
+            String productImageUrl,
             String sku,
             String name,
             String variantTitle,
