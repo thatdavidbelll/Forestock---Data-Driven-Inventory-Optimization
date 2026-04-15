@@ -145,6 +145,15 @@ function productImageStyle(): CSSProperties {
   }
 }
 
+function clampText(lines: number): CSSProperties {
+  return {
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: lines,
+    overflow: "hidden",
+  }
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const revalidator = useRevalidator()
@@ -282,13 +291,21 @@ export default function RecommendationsPage() {
                 {purchaseOrderError}
               </div>
             ) : null}
-            <Grid columns={2}>
+            <div
+              style={{
+                display: "grid",
+                gap: 16,
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                alignItems: "stretch",
+              }}
+            >
             {data.recommendations.map((recommendation) => {
               const tone = urgencyTone(recommendation.urgency);
               const reorderValue = recommendation.suggestedQty != null ? formatMetricNumber(recommendation.suggestedQty) : "Unknown";
               const daysLeft = recommendation.daysOfStock != null ? formatMetricNumber(recommendation.daysOfStock, "d") : "Unknown";
               return (
-                <Card key={recommendation.id} style={{ padding: 20 }}>
+                <Card key={recommendation.id} style={{ padding: 20, height: "100%" }}>
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
                   <div
                     style={{
                       display: "flex",
@@ -326,7 +343,7 @@ export default function RecommendationsPage() {
                         )}
                       </div>
                       <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, minHeight: 32, alignContent: "flex-start" }}>
                         <Badge tone={tone}>{recommendation.urgency}</Badge>
                         {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel, recommendation.lowConfidence) ? (
                           <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
@@ -346,11 +363,25 @@ export default function RecommendationsPage() {
                           fontWeight: 700,
                           color: "#0F172A",
                           marginBottom: 10,
+                          minHeight: 52,
+                          ...clampText(2),
                         }}
                       >
                         {recommendation.productName}
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#6B7280", marginBottom: 14 }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: "#6B7280",
+                          marginBottom: 14,
+                          minHeight: 21,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                        title={recommendation.productSku}
+                      >
                         {recommendation.productSku}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 14 }}>
@@ -394,12 +425,13 @@ export default function RecommendationsPage() {
                         { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
                         { label: "Generated", value: <DateTimeText value={recommendation.generatedAt} /> },
                       ]}
-                    />
+                      />
+                  </div>
                   </div>
                 </Card>
               );
             })}
-            </Grid>
+            </div>
           </>
         ) : (
           <EmptyState
