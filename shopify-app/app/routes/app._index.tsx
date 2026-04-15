@@ -22,40 +22,40 @@ import { getSetupStages } from "../setup-state";
 
 function recommendationModelLabel(forecastModel: string | null | undefined) {
   if (forecastModel === "HOLT_WINTERS") return "Seasonal model";
-  if (forecastModel === "INTERMITTENT_FALLBACK") return "Conservative fallback";
   if (forecastModel === "ZERO") return "No demand signal";
   return "Forecast model";
 }
 
 function recommendationModelTone(forecastModel: string | null | undefined) {
   if (forecastModel === "HOLT_WINTERS") return "success" as const;
-  if (forecastModel === "INTERMITTENT_FALLBACK") return "subtle" as const;
   if (forecastModel === "ZERO") return "warning" as const;
   return "subtle" as const;
 }
 
 function shouldShowModelBadge(
   forecastModel: string | null | undefined,
-  lowConfidence: boolean | null | undefined,
 ) {
-  return !(lowConfidence && forecastModel === "INTERMITTENT_FALLBACK");
+  return forecastModel === "HOLT_WINTERS" || forecastModel === "ZERO";
 }
 
 const modelTooltip: Record<string, string> = {
   HOLT_WINTERS: "Seasonal model — uses your past 12 months of sales patterns to forecast demand.",
-  INTERMITTENT_FALLBACK: "Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.",
   ZERO: "No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.",
 }
 
+function showsLowConfidence(
+  forecastModel: string | null | undefined,
+  lowConfidence: boolean | null | undefined,
+) {
+  return Boolean(lowConfidence) || forecastModel === "INTERMITTENT_FALLBACK";
+}
+
 function recommendationSummary(recommendation: NonNullable<AppHomeOverviewResponse["topRecommendation"]>) {
-  if (recommendation.lowConfidence) {
+  if (showsLowConfidence(recommendation.forecastModel, recommendation.lowConfidence)) {
     return `This recommendation is based on limited sales history${recommendation.historyDaysAtGeneration != null ? ` (${recommendation.historyDaysAtGeneration} observed sales days)` : ""}, so treat the reorder quantity as directional.`;
   }
   if (recommendation.forecastModel === "HOLT_WINTERS") {
     return "This recommendation is backed by the stronger seasonal forecast path and current stock cover.";
-  }
-  if (recommendation.forecastModel === "INTERMITTENT_FALLBACK") {
-    return "This recommendation uses Forestock's conservative fallback model because recent demand is uneven or sparse.";
   }
   if (recommendation.forecastModel === "ZERO") {
     return "This item currently has no meaningful demand signal, so the recommendation is intentionally conservative.";
@@ -137,14 +137,14 @@ export default function AppIndex() {
                     <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
                       {data.topRecommendation.urgency}
                     </Badge>
-                    {data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
+                    {data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel) ? (
                       <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
                         <Badge tone={recommendationModelTone(data.topRecommendation.forecastModel)}>
                           {recommendationModelLabel(data.topRecommendation.forecastModel)}
                         </Badge>
                       </span>
                     ) : null}
-                    {data.topRecommendation.lowConfidence ? (
+                    {showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
                       <Badge tone="warning">Low confidence</Badge>
                     ) : null}
                   </div>
@@ -164,7 +164,7 @@ export default function AppIndex() {
               <KeyValueList
                 items={[
                   { label: "SKU", value: data.topRecommendation.productSku },
-                  ...(data.topRecommendation.lowConfidence
+                  ...(showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence)
                     ? [{
                         label: "Confidence",
                         value: data.topRecommendation.historyDaysAtGeneration != null
@@ -172,7 +172,7 @@ export default function AppIndex() {
                           : "Low",
                       }]
                     : []),
-                  ...(data.topRecommendation.forecastModel
+                  ...(data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel)
                     ? [{
                         label: "Model",
                         value: <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>{recommendationModelLabel(data.topRecommendation.forecastModel)}</span>,

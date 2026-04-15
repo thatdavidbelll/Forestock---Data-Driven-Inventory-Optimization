@@ -50,22 +50,24 @@ function modelTone(forecastModel: string | null | undefined) {
 
 function modelLabel(forecastModel: string | null | undefined) {
   if (forecastModel === "HOLT_WINTERS") return "Seasonal model";
-  if (forecastModel === "INTERMITTENT_FALLBACK") return "Conservative fallback";
   if (forecastModel === "ZERO") return "No demand signal";
   return "Forecast model";
 }
 
-function shouldShowModelBadge(
-  forecastModel: string | null | undefined,
-  lowConfidence: boolean | null | undefined,
-) {
-  return !(lowConfidence && forecastModel === "INTERMITTENT_FALLBACK");
+function shouldShowModelBadge(forecastModel: string | null | undefined) {
+  return forecastModel === "HOLT_WINTERS" || forecastModel === "ZERO";
 }
 
 const modelTooltip: Record<string, string> = {
   HOLT_WINTERS: "Seasonal model — uses your past 12 months of sales patterns to forecast demand.",
-  INTERMITTENT_FALLBACK: "Conservative fallback — used when demand is uneven or sparse. Treats each sale as a signal.",
   ZERO: "No demand signal — this product has no meaningful recent sales history. The recommendation is intentionally conservative.",
+}
+
+function showsLowConfidence(
+  forecastModel: string | null | undefined,
+  lowConfidence: boolean | null | undefined,
+) {
+  return Boolean(lowConfidence) || forecastModel === "INTERMITTENT_FALLBACK";
 }
 
 function stockoutColor(daysOfStock: number | null | undefined): string {
@@ -345,12 +347,12 @@ export default function RecommendationsPage() {
                       <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, minHeight: 32, alignContent: "flex-start" }}>
                         <Badge tone={tone}>{recommendation.urgency}</Badge>
-                        {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel, recommendation.lowConfidence) ? (
+                        {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel) ? (
                           <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
                             <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
                           </span>
                         ) : null}
-                        {recommendation.lowConfidence ? (
+                        {showsLowConfidence(recommendation.forecastModel, recommendation.lowConfidence) ? (
                           <Badge tone="warning">Low confidence</Badge>
                         ) : null}
                       </div>
