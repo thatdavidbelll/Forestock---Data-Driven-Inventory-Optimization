@@ -128,11 +128,12 @@ public class ShopifyAppHomeController {
     }
 
     @PostMapping("/purchase-order")
-    public ResponseEntity<byte[]> generatePurchaseOrder(
+    public ResponseEntity<?> generatePurchaseOrder(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
             @RequestBody ShopifyPurchaseOrderRequest request) {
         if (!isValidSecret(provisioningSecret)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Invalid provisioning secret"));
         }
         try {
             byte[] pdf = suggestionService.generatePurchaseOrderPdfForShop(
@@ -141,10 +142,13 @@ public class ShopifyAppHomeController {
             headers.setContentType(MediaType.APPLICATION_PDF);
             headers.setContentDispositionFormData("attachment", "forestock-purchase-order.pdf");
             return ResponseEntity.ok().headers(headers).body(pdf);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (NoSuchElementException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to generate purchase order"));
         }
     }
 

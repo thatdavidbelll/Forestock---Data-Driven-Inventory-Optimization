@@ -139,21 +139,46 @@ public class SuggestionService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] generatePurchaseOrderPdfForShop(String shopDomain, List<UUID> suggestionIds) {
-        if (shopDomain == null || shopDomain.isBlank() || suggestionIds == null || suggestionIds.isEmpty()) {
-            throw new NoSuchElementException("No suggestions selected");
+    public byte[] generatePurchaseOrderPdfForShop(String shopDomain, List<String> suggestionIds) {
+        if (shopDomain == null || shopDomain.isBlank()) {
+            throw new IllegalArgumentException("Shop domain is required");
+        }
+
+        List<UUID> parsedSuggestionIds = parseSuggestionIds(suggestionIds);
+        if (parsedSuggestionIds.isEmpty()) {
+            throw new IllegalArgumentException("No valid suggestions selected");
         }
 
         Store store = shopifyConnectionRepository.findByShopDomainAndActiveTrue(shopDomain)
                 .map(connection -> connection.getStore())
                 .orElseThrow(() -> new NoSuchElementException("Store not found"));
 
-        List<OrderSuggestion> suggestions = suggestionIds.stream()
+        List<OrderSuggestion> suggestions = parsedSuggestionIds.stream()
                 .map(id -> suggestionRepository.findByIdAndStoreId(id, store.getId())
-                        .orElseThrow(() -> new NoSuchElementException("Suggestion not found")))
+                        .orElseThrow(() -> new IllegalArgumentException("One or more selected suggestions are invalid for this shop")))
                 .toList();
 
         return renderPurchaseOrderPdf(suggestions);
+    }
+
+    private List<UUID> parseSuggestionIds(List<String> suggestionIds) {
+        if (suggestionIds == null || suggestionIds.isEmpty()) {
+            throw new IllegalArgumentException("No suggestions selected");
+        }
+
+        List<UUID> parsedIds = new ArrayList<>();
+        for (String suggestionId : suggestionIds) {
+            if (suggestionId == null || suggestionId.isBlank()) {
+                continue;
+            }
+            try {
+                parsedIds.add(UUID.fromString(suggestionId.trim()));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("One or more suggestion IDs are invalid");
+            }
+        }
+
+        return parsedIds;
     }
 
     private byte[] renderPurchaseOrderPdf(List<OrderSuggestion> suggestions) {
