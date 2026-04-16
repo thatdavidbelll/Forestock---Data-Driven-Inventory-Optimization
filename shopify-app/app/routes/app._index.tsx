@@ -6,7 +6,6 @@ import {
   Badge,
   Card,
   DateText,
-  DateTimeText,
   EmptyState,
   ErrorState,
   Grid,
@@ -93,26 +92,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function AppIndex() {
   const data = useLoaderData<typeof loader>();
   const hasAttention = data.criticalSuggestions > 0 || data.highSuggestions > 0;
-  const readinessBody = data.recommendationReadinessReasons.length > 0
-    ? data.recommendationReadinessReasons.join(" • ")
-    : "Recommendations are ready to review.";
 
   return (
     <AppShell
       title={data.storeName || "Forestock"}
     >
-      <Grid columns={3}>
+      <Grid columns={2}>
         <MetricCard
           label="Needs attention"
           value={data.totalActiveSuggestions}
           hint={hasAttention ? `${data.criticalSuggestions} critical · ${data.highSuggestions} high` : "No urgent items right now"}
           tone={hasAttention ? "critical" : "subtle"}
-        />
-        <MetricCard
-          label="Forecast freshness"
-          value={data.forecastCompletedAt ? <DateTimeText value={data.forecastCompletedAt} /> : "Not run yet"}
-          hint={data.forecastStatus === "RUNNING" ? "A fresh run is in progress." : readinessBody}
-          tone={data.forecastStatus === "RUNNING" ? "accent" : data.forecastCompletedAt ? "success" : "warning"}
         />
         <MetricCard
           label="Active catalog"

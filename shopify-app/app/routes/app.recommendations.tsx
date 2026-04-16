@@ -423,9 +423,7 @@ export default function RecommendationsPage() {
                     <KeyValueList
                       items={[
                         { label: "Current stock", value: recommendation.currentStock != null ? formatMetricNumber(recommendation.currentStock) : "Not available" },
-                        { label: "Estimated value", value: recommendation.estimatedOrderValue != null ? recommendation.estimatedOrderValue.toFixed(2) : "Unknown" },
                         { label: "Supplier", value: recommendation.supplierName ?? "Not set" },
-                        { label: "Generated", value: <DateTimeText value={recommendation.generatedAt} /> },
                       ]}
                       />
                   </div>
