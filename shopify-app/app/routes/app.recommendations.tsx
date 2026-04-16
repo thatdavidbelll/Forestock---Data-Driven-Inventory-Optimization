@@ -156,6 +156,16 @@ function clampText(lines: number): CSSProperties {
   }
 }
 
+function badgeGroupStyle(): CSSProperties {
+  return {
+    display: "inline-flex",
+    gap: 8,
+    flexWrap: "nowrap",
+    minWidth: 0,
+    maxWidth: "100%",
+  }
+}
+
 export default function RecommendationsPage() {
   const data = useLoaderData<typeof loader>();
   const revalidator = useRevalidator()
@@ -346,14 +356,16 @@ export default function RecommendationsPage() {
                       </div>
                       <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, minHeight: 32, alignContent: "flex-start" }}>
-                        <Badge tone={tone}>{recommendation.urgency}</Badge>
+                        <span style={badgeGroupStyle()}>
+                          <Badge tone={tone}>{recommendation.urgency}</Badge>
+                          {showsLowConfidence(recommendation.forecastModel, recommendation.lowConfidence) ? (
+                            <Badge tone="warning">Low confidence</Badge>
+                          ) : null}
+                        </span>
                         {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel) ? (
                           <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
                             <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
                           </span>
-                        ) : null}
-                        {showsLowConfidence(recommendation.forecastModel, recommendation.lowConfidence) ? (
-                          <Badge tone="warning">Low confidence</Badge>
                         ) : null}
                       </div>
                       <div

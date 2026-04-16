@@ -182,11 +182,6 @@ export default function SettingsPage() {
   return (
     <AppShell
       title="Settings"
-      actions={
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <Badge tone="subtle">Store config</Badge>
-        </div>
-      }
     >
       <Section title="Setup status" description="We handle the setup for you.">
         <Card>
