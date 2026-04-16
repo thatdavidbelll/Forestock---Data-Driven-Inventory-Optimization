@@ -153,25 +153,15 @@ export default function AppIndex() {
               }
             />
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
-              <Grid columns={4}>
+              <Grid columns={2}>
                 <MetricCard label="Days of stock" value={data.topRecommendation.daysOfStock ?? "Unknown"} tone="subtle" />
                 <MetricCard label="Suggested reorder" value={data.topRecommendation.suggestedQty ?? "Unknown"} tone="subtle" />
-                <MetricCard label="Estimated value" value={data.topRecommendation.estimatedOrderValue ?? "Unknown"} tone="subtle" />
-                <MetricCard label="Generated" value={<DateTimeText value={data.topRecommendation.generatedAt} />} tone="subtle" />
               </Grid>
             </div>
             <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
               <KeyValueList
                 items={[
                   { label: "SKU", value: data.topRecommendation.productSku },
-                  ...(showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence)
-                    ? [{
-                        label: "Confidence",
-                        value: data.topRecommendation.historyDaysAtGeneration != null
-                          ? `Low (${data.topRecommendation.historyDaysAtGeneration} sales days observed)`
-                          : "Low",
-                      }]
-                    : []),
                   ...(data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel)
                     ? [{
                         label: "Model",
