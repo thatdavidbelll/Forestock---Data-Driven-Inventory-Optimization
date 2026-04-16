@@ -345,8 +345,8 @@ jobs:
             EOF
 
             cd ~/forestock/shopify-runtime
-            npm ci --omit=dev
-            npx prisma generate
+            rm -rf ~/.npm/_cacache ~/.cache/prisma || true
+            npm ci --omit=dev --no-audit --no-fund
             npx prisma migrate deploy
 
             sudo systemctl daemon-reload
@@ -354,5 +354,6 @@ jobs:
             sudo systemctl restart forestock-shopify
             sleep 8
             curl -I --max-time 20 http://127.0.0.1:3000
+            rm -f ~/shopify-app-deploy.tar.gz
 
             echo "✓ Shopify app deployed"
