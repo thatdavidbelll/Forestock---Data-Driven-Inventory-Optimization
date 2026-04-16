@@ -80,15 +80,6 @@ function resolveHomeTitle(storeName: string | null | undefined, shopDomain: stri
     .join(" ");
 }
 
-function badgeStackStyle() {
-  return {
-    display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "flex-start",
-    gap: 6,
-  };
-}
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const headers = new Headers();
@@ -151,14 +142,12 @@ export default function AppIndex() {
                     {data.topRecommendation.productSku}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                    <div style={badgeStackStyle()}>
-                      <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
-                        {data.topRecommendation.urgency}
-                      </Badge>
-                      {showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
-                        <Badge tone="warning">Low confidence</Badge>
-                      ) : null}
-                    </div>
+                    <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
+                      {data.topRecommendation.urgency}
+                    </Badge>
+                    {showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
+                      <Badge tone="warning">Low confidence</Badge>
+                    ) : null}
                     {data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel) ? (
                       <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
                         <Badge tone={recommendationModelTone(data.topRecommendation.forecastModel)}>
