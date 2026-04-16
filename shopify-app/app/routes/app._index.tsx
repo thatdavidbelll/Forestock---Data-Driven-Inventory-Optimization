@@ -62,6 +62,33 @@ function recommendationSummary(recommendation: NonNullable<AppHomeOverviewRespon
   return "This product currently carries the highest restocking priority based on stock cover, demand, and the latest forecast output.";
 }
 
+function resolveHomeTitle(storeName: string | null | undefined, shopDomain: string | null | undefined) {
+  const normalizedStoreName = storeName?.trim();
+  if (normalizedStoreName && normalizedStoreName.toLowerCase() !== "store") {
+    return normalizedStoreName;
+  }
+
+  const subdomain = shopDomain?.split(".")[0]?.trim();
+  if (!subdomain) {
+    return "Forestock";
+  }
+
+  return subdomain
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function badgeStackStyle() {
+  return {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "flex-start",
+    gap: 6,
+  };
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const headers = new Headers();
@@ -95,7 +122,7 @@ export default function AppIndex() {
 
   return (
     <AppShell
-      title={data.storeName || "Forestock"}
+      title={resolveHomeTitle(data.storeName, data.shopDomain)}
     >
       <Grid columns={2}>
         <MetricCard
@@ -124,18 +151,20 @@ export default function AppIndex() {
                     {data.topRecommendation.productSku}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                    <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
-                      {data.topRecommendation.urgency}
-                    </Badge>
+                    <div style={badgeStackStyle()}>
+                      <Badge tone={data.topRecommendation.urgency === "CRITICAL" ? "critical" : data.topRecommendation.urgency === "HIGH" ? "warning" : "accent"}>
+                        {data.topRecommendation.urgency}
+                      </Badge>
+                      {showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
+                        <Badge tone="warning">Low confidence</Badge>
+                      ) : null}
+                    </div>
                     {data.topRecommendation.forecastModel && shouldShowModelBadge(data.topRecommendation.forecastModel) ? (
                       <span title={modelTooltip[data.topRecommendation.forecastModel] ?? ""}>
                         <Badge tone={recommendationModelTone(data.topRecommendation.forecastModel)}>
                           {recommendationModelLabel(data.topRecommendation.forecastModel)}
                         </Badge>
                       </span>
-                    ) : null}
-                    {showsLowConfidence(data.topRecommendation.forecastModel, data.topRecommendation.lowConfidence) ? (
-                      <Badge tone="warning">Low confidence</Badge>
                     ) : null}
                   </div>
                   {recommendationSummary(data.topRecommendation)}

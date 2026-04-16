@@ -156,13 +156,12 @@ function clampText(lines: number): CSSProperties {
   }
 }
 
-function badgeGroupStyle(): CSSProperties {
+function badgeStackStyle(): CSSProperties {
   return {
-    display: "inline-flex",
-    gap: 8,
-    flexWrap: "nowrap",
-    minWidth: 0,
-    maxWidth: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 6,
   }
 }
 
@@ -356,12 +355,12 @@ export default function RecommendationsPage() {
                       </div>
                       <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, minHeight: 32, alignContent: "flex-start" }}>
-                        <span style={badgeGroupStyle()}>
+                        <div style={badgeStackStyle()}>
                           <Badge tone={tone}>{recommendation.urgency}</Badge>
                           {showsLowConfidence(recommendation.forecastModel, recommendation.lowConfidence) ? (
                             <Badge tone="warning">Low confidence</Badge>
                           ) : null}
-                        </span>
+                        </div>
                         {recommendation.forecastModel && shouldShowModelBadge(recommendation.forecastModel) ? (
                           <span title={modelTooltip[recommendation.forecastModel ?? ""] ?? ""}>
                             <Badge tone={modelTone(recommendation.forecastModel)}>{modelLabel(recommendation.forecastModel)}</Badge>
