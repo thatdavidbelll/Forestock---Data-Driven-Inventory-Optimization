@@ -11,7 +11,7 @@ import {
   MetricCard,
   Section,
 } from "../components";
-import { getForestockAppHome, getForestockStoreConfig } from "../forestock.server";
+import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
 import { getBillingStatus } from "../billing.server";
 import { getSetupStages } from "../setup-state";
 import { authenticate } from "../shopify.server";
@@ -21,8 +21,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const { admin, session } = await authenticate.admin(request);
     const identity = await loadShopIdentity(admin, session.shop);
-    const overview = await getForestockAppHome(session.shop);
-    const config = await getForestockStoreConfig(session.shop);
+    const overview = await loadForestockAppHomeWithRecovery(admin, session.shop);
+    const config = await loadForestockConfigWithRecovery(admin, session.shop);
     return { shopDomain: session.shop, config, identity, overview };
   } catch (error) {
     if (error instanceof Response) throw error;

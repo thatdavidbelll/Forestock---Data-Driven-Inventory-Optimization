@@ -23,6 +23,20 @@ The backend dev profile expects:
 The repo already includes these in:
 - `forestock-backend/docker-compose.yml`
 
+## Fastest current setup
+From repo root:
+
+```bash
+bash scripts/shopify-local-bootstrap.sh
+```
+
+This does three things:
+- creates `forestock-backend/.env` from `forestock-backend/.env.local.shopify.example` if missing
+- creates `shopify-app/.env` from `shopify-app/.env.local.example` if missing
+- starts PostgreSQL and Redis for the backend
+
+It does not invent your Shopify credentials or tunnel URL. You still need to edit the generated env files before running the app.
+
 ## Required tools
 - Node.js 20+
 - Java 21+

@@ -16,7 +16,7 @@ import {
 } from "../components";
 import { authenticate } from "../shopify.server";
 import type { AppHomeOverviewResponse } from "../forestock.server";
-import { getForestockAppHome } from "../forestock.server";
+import { loadForestockAppHomeWithRecovery } from "../forestock-bootstrap.server";
 import { getSetupStages } from "../setup-state";
 
 function recommendationModelLabel(forecastModel: string | null | undefined) {
@@ -84,8 +84,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const headers = new Headers();
     headers.set("Cache-Control", "no-store");
-    const { session } = await authenticate.admin(request);
-    const overview = await getForestockAppHome(session.shop);
+    const { admin, session } = await authenticate.admin(request);
+    const overview = await loadForestockAppHomeWithRecovery(admin, session.shop);
     const stages = getSetupStages(overview);
     const setupIncomplete = stages.some((stage) =>
       stage.id !== "recommendations" &&

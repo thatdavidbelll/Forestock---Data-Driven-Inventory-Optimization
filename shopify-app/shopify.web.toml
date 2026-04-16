@@ -3,5 +3,5 @@ roles = ["frontend", "backend"]
 webhooks_path = "/webhooks/app/uninstalled"
 
 [commands]
-predev = "sh -lc '[ -f .env ] || { echo \"Missing shopify-app/.env. Copy .env.local.example to .env and fill the required values.\" >&2; exit 1; }; set -a; . ./.env; set +a; npx prisma generate'"
-dev = "sh -lc '[ -f .env ] || { echo \"Missing shopify-app/.env. Copy .env.local.example to .env and fill the required values.\" >&2; exit 1; }; set -a; . ./.env; set +a; npx prisma migrate deploy && npm exec react-router dev'"
+predev = "bash ./scripts/predev.sh"
+dev = "bash ./scripts/dev-server.sh"

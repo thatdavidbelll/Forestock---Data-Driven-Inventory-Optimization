@@ -47,6 +47,18 @@ Start local development:
 npm run dev
 ```
 
+Fastest current local setup from repo root:
+
+```bash
+cd /path/to/Forestock
+bash scripts/shopify-local-bootstrap.sh
+```
+
+Then:
+- fill `shopify-app/.env` with real Shopify credentials and a public HTTPS `SHOPIFY_APP_URL`
+- run the backend in `forestock-backend/`
+- run `npm run dev` in `shopify-app/`
+
 Release-gate checks:
 
 ```bash
