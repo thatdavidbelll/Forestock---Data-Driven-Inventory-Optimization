@@ -43,6 +43,11 @@ public class ShopifyProvisioningService {
         if (existingConnection.isPresent()) {
             ShopifyConnection connection = existingConnection.get();
             Store store = connection.getStore();
+            String resolvedStoreName = resolveStoreName(request, normalizedShopDomain);
+            if (!store.getName().equals(resolvedStoreName)) {
+                store.setName(resolvedStoreName);
+                storeRepository.save(store);
+            }
             boolean createdAdmin = ensureAdminUser(store, request).created();
             ensureStoreConfiguration(store, request);
 
