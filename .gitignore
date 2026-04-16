@@ -28,3 +28,9 @@ forestock-frontend/dist/
 
 # Temporary
 tmp/
+.local/
+
+# Shopify local development
+shopify-app/node_modules/
+shopify-app/build/
+shopify-app/.shopify/
