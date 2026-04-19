@@ -2,7 +2,7 @@
 
 Forestock helps retail operators turn sales history into practical restocking decisions.
 
-**Current status:** ready for a **controlled invited non-Shopify pilot** with manual onboarding/support. Broad public launch is not approved yet.
+**Current status:** the standalone product is ready for a controlled invited pilot. The Shopify app is under active development and should be tested only on a dedicated dev app and dev store.
 
 ## What’s in this repo
 
@@ -10,7 +10,7 @@ Forestock helps retail operators turn sales history into practical restocking de
 Forestock/
 ├── forestock-backend/     Spring Boot API
 ├── forestock-frontend/    React + Vite web app
-└── shopify-app/           Shopify integration (not in scope for first pilot)
+└── shopify-app/           Embedded Shopify app
 ```
 
 ## First-pilot scope
@@ -22,7 +22,7 @@ Primary workflow:
 4. review suggestions
 5. optionally connect Shopify later
 
-For the first pilot:
+For the first standalone pilot:
 - Shopify is intentionally **out of scope**
 - onboarding is manual
 - support is manual
@@ -62,10 +62,55 @@ npm install
 npm run dev
 ```
 
+### Shopify app
+
+Use the dedicated startup script from repo root:
+
+```bash
+bash scripts/start-shopify-local.sh
+```
+
+What it does:
+- ensures local env files exist
+- starts PostgreSQL and Redis for the backend
+- starts the Spring backend
+- waits for backend readiness
+- starts the Shopify app
+
+Required local files:
+- `forestock-backend/.env`
+- `shopify-app/.env`
+
+Important local Shopify values:
+- backend: `SHOPIFY_PROVISIONING_SECRET=dev-provisioning-secret`
+- Shopify app: `FORESTOCK_PROVISIONING_SECRET=dev-provisioning-secret`
+
+Typical local session database choices:
+- local Postgres:
+  - `DATABASE_URL=postgresql://forestock_user:forestock_pass@localhost:5432/forestock?schema=shopify_app_local`
+- Neon:
+  - use a full Neon connection string with real credentials and a dedicated schema such as `shopify_app_local`
+
+When you finish a local Shopify preview, reset the dev preview so the dev store stops pointing at the temporary tunnel:
+
+```bash
+cd shopify-app
+npx shopify app dev clean
+```
+
+Do not use the production Shopify app for local previews. Keep these separate:
+- production app config
+- development app config
+- production store usage
+- development store usage
+
+If you run `shopify app dev` against the wrong app/store pair, Shopify can temporarily point the store at the local preview tunnel instead of the released app.
+
 ### Default local URLs
 
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:8080`
+- Shopify app local server: `http://localhost:3000`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - Adminer: `http://localhost:8090`
 
@@ -87,6 +132,15 @@ npm run build
 ```
 
 `npm run build` already includes TypeScript compilation via `tsc -b`.
+
+### Shopify app
+
+```bash
+cd shopify-app
+npm run typecheck
+npm run lint
+npm run build
+```
 
 ## Access model
 
@@ -136,8 +190,11 @@ Operational and release docs live in [`docs/`](docs):
 - `docs/VERIFICATION_MATRIX.md`
 - `docs/ROLLBACK_PROCEDURES.md`
 - `docs/CHANGELOG.md`
+- `docs/SHOPIFY_LOCAL_ENV_RUNBOOK.md`
+- `docs/SHOPIFY_LOCAL_COMMAND_SEQUENCE.md`
 
 ## Notes
 
-- Shopify support exists in the repo, but it is **not part of the first pilot decision**.
+- Shopify support exists in the repo, but it is **not part of the first standalone pilot decision**.
+- For Shopify local work, prefer the dedicated docs and scripts instead of improvising commands.
 - If you need deeper operational or launch context, start in `docs/` rather than expanding this README.
