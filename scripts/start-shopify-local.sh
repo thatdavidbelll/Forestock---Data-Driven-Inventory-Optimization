@@ -9,6 +9,7 @@ BOOTSTRAP_SCRIPT="$ROOT_DIR/scripts/shopify-local-bootstrap.sh"
 BACKEND_LOG_DIR="$ROOT_DIR/.local"
 BACKEND_LOG_FILE="$BACKEND_LOG_DIR/shopify-backend.log"
 BACKEND_PID=""
+BACKEND_HEALTH_URL="http://localhost:8080/actuator/health/readiness"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -33,6 +34,14 @@ cleanup() {
   fi
 }
 
+backend_ready() {
+  curl -fsS "$BACKEND_HEALTH_URL" >/dev/null 2>&1
+}
+
+backend_process_running() {
+  [ -n "$BACKEND_PID" ] && kill -0 "$BACKEND_PID" >/dev/null 2>&1
+}
+
 trap cleanup EXIT INT TERM
 
 require_cmd bash
@@ -55,34 +64,48 @@ require_env_key "$SHOPIFY_DIR/.env" "FORESTOCK_PROVISIONING_SECRET"
 
 mkdir -p "$BACKEND_LOG_DIR"
 
-echo "Starting Forestock backend in background..."
-(
-  cd "$BACKEND_DIR"
-  export SPRING_PROFILES_ACTIVE=dev
-  set -a
-  source .env
-  set +a
-  ./mvnw spring-boot:run
-) >"$BACKEND_LOG_FILE" 2>&1 &
-BACKEND_PID=$!
+if backend_ready; then
+  echo "Backend is already ready on localhost:8080; reusing it."
+else
+  echo "Starting Forestock backend in background..."
+  (
+    cd "$BACKEND_DIR"
+    export SPRING_PROFILES_ACTIVE=dev
+    set -a
+    source .env
+    set +a
+    ./mvnw spring-boot:run
+  ) >"$BACKEND_LOG_FILE" 2>&1 &
+  BACKEND_PID=$!
 
-echo "Waiting for backend readiness..."
-for _ in $(seq 1 90); do
-  if curl -fsS http://localhost:8080/actuator/health/readiness >/dev/null 2>&1; then
-    echo "Backend is ready."
-    break
-  fi
+  echo "Waiting for backend readiness..."
+  for _ in $(seq 1 90); do
+    if ! backend_process_running; then
+      echo "Backend exited early. Check $BACKEND_LOG_FILE" >&2
+      exit 1
+    fi
 
-  if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+    if backend_ready; then
+      echo "Backend is ready."
+      break
+    fi
+
+    sleep 1
+  done
+
+  if ! backend_process_running; then
     echo "Backend exited early. Check $BACKEND_LOG_FILE" >&2
     exit 1
   fi
 
-  sleep 1
-done
+  if ! backend_ready; then
+    echo "Backend did not become ready in time. Check $BACKEND_LOG_FILE" >&2
+    exit 1
+  fi
+fi
 
-if ! curl -fsS http://localhost:8080/actuator/health/readiness >/dev/null 2>&1; then
-  echo "Backend did not become ready in time. Check $BACKEND_LOG_FILE" >&2
+if ! backend_ready; then
+  echo "Backend is not ready. Check $BACKEND_LOG_FILE" >&2
   exit 1
 fi
 

@@ -1,16 +1,27 @@
-import type { HeadersFunction } from "react-router";
-import { useRouteError, useRouteLoaderData } from "react-router";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useRouteError, useRouteLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { AppShell, Badge, Card, ErrorState, Section } from "../components";
+import { AnchorButton, AppShell, Badge, Card, ErrorState, InsetPanel, KeyValueList, Section } from "../components";
+import { authenticate } from "../shopify.server";
 import type { loader as appLoader } from "./app";
 
-function managedPricingHref() {
-  // eslint-disable-next-line no-undef
-  const handle = process.env.SHOPIFY_MANAGED_PRICING_HANDLE || "forestock-inventory-forecast";
+function managedPricingHref(handle: string) {
   return `shopify://admin/charges/${handle}/pricing_plans`;
 }
 
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  await authenticate.admin(request);
+
+  const managedPricingHandle = process.env.SHOPIFY_MANAGED_PRICING_HANDLE?.trim() || null;
+
+  return {
+    managedPricingHandle,
+    managedPricingHref: managedPricingHandle ? managedPricingHref(managedPricingHandle) : null,
+  };
+};
+
 export default function BillingPage() {
+  const { managedPricingHandle, managedPricingHref } = useLoaderData<typeof loader>();
   const data = useRouteLoaderData<typeof appLoader>("routes/app");
   const billing = data?.billing;
 
@@ -20,46 +31,78 @@ export default function BillingPage() {
 
   return (
     <AppShell
-      title="Choose a plan"
-      subtitle="Forestock needs an active Shopify app subscription before inventory forecasting and recommendations can run."
+      title="Activate billing"
+      subtitle="Billing is the entry gate for the embedded app. Once the plan is active, merchants should move directly into forecast setup and restock review."
       actions={<Badge tone="warning">Subscription required</Badge>}
     >
-      <Section title="What you get with Forestock">
+      <Section title="Before Forestock can run" description="This should feel like one clear next step, not a detour.">
         <Card>
-          <div style={{ display: "grid", gap: 20 }}>
-            <div style={{ display: "grid", gap: 12 }}>
-              {[
-                { icon: "📦", title: "AI-powered reorder forecasting", body: "Holt-Winters seasonal forecasting tells you exactly what to reorder and when — before you run out." },
-                { icon: "🚨", title: "CRITICAL & HIGH stock alerts", body: "Automatic urgency scoring so you always know which products need attention today." },
-                { icon: "📉", title: "Slow mover detection", body: "Identify dead stock tying up cash. Filter by 30, 60, or 90 days of inactivity." },
-                { icon: "📊", title: "Sales velocity & forecast accuracy", body: "Track how well forecasts match real sales. Model accuracy shown on every recommendation." },
-              ].map((feature) => (
-                <div key={feature.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <span style={{ fontSize: 20 }}>{feature.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>{feature.title}</div>
-                    <div style={{ color: "#6B7280", fontSize: 13, lineHeight: 1.6 }}>{feature.body}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ borderTop: "1px solid #E5E7EB", paddingTop: 20 }}>
-              <a
-                href={managedPricingHref()}
-                target="_top"
-                rel="noreferrer"
+          <div
+            style={{
+              display: "grid",
+              gap: "var(--space-xl)",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))",
+              alignItems: "start",
+            }}
+          >
+            <div style={{ display: "grid", gap: "var(--space-md)" }}>
+              <div
                 style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  padding: "12px 24px", borderRadius: 12, background: "var(--fs-indigo)",
-                  color: "#ffffff", textDecoration: "none", fontSize: 15, fontWeight: 700,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "var(--text-2xl)",
+                  lineHeight: "var(--leading-tight)",
+                  letterSpacing: "-0.02em",
+                  fontWeight: "var(--weight-bold)",
+                  color: "var(--fs-text)",
+                  maxWidth: "18ch",
                 }}
               >
-                View plans and start free trial
-              </a>
-              <div style={{ marginTop: 10, fontSize: 13, color: "#9CA3AF" }}>
-                Free trial available · Cancel anytime · No lock-in
+                Start the subscription to unlock forecasting, recommendations, and purchase-order export.
               </div>
+              <div style={{ maxWidth: "60ch", fontSize: "var(--text-body)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>
+                Once the plan is active, Forestock can sync the store, generate restock recommendations, and export purchase orders inside Shopify Admin.
+              </div>
+              {managedPricingHref ? (
+                <div>
+                  <AnchorButton href={managedPricingHref} target="_top" rel="noreferrer">
+                    Open pricing in Shopify
+                  </AnchorButton>
+                </div>
+              ) : (
+                <InsetPanel tone="warning">
+                  <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontSize: "var(--text-lg)",
+                        lineHeight: "var(--leading-tight)",
+                        letterSpacing: "-0.01em",
+                        fontWeight: "var(--weight-bold)",
+                        color: "var(--fs-text)",
+                      }}
+                    >
+                      Billing handle missing
+                    </div>
+                    <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>
+                      Set <code>SHOPIFY_MANAGED_PRICING_HANDLE</code> in <code>shopify-app/.env</code> to the URL handle of the active Shopify app before opening pricing.
+                    </div>
+                    <div style={{ fontSize: "var(--text-xs)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>
+                      Current handle: {managedPricingHandle ?? "not configured"}
+                    </div>
+                  </div>
+                </InsetPanel>
+              )}
             </div>
+
+            <InsetPanel>
+              <KeyValueList
+                items={[
+                  { label: "Forecast guidance", value: "See what to restock and how much" },
+                  { label: "Recommendations", value: "Work urgent products before lower-priority ones" },
+                  { label: "Purchase orders", value: "Export selected products to PDF" },
+                ]}
+              />
+            </InsetPanel>
           </div>
         </Card>
       </Section>

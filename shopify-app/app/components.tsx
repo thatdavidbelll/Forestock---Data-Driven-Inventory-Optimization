@@ -1,80 +1,161 @@
-import type { CSSProperties, PropsWithChildren, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, PropsWithChildren, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { isRouteErrorResponse } from "react-router";
+import { Link, isRouteErrorResponse } from "react-router";
+
+type SurfaceTone = "default" | "primary" | "secondary" | "success" | "warning" | "danger" | "subtle";
+type ActionTone = "primary" | "secondary";
+
+/* ------------------------------------------------------------------ */
+/*  Palette & Utilities                                                */
+/* ------------------------------------------------------------------ */
 
 const palette = {
-  base: "var(--fs-base)",
-  indigo: "var(--fs-indigo)",
-  violet: "var(--fs-violet)",
-  sky: "var(--fs-sky)",
-  white: "var(--fs-white)",
-  surface: "var(--fs-surface)",
-  surfaceStrong: "var(--fs-surface-strong)",
-  surfaceMuted: "var(--fs-surface-muted)",
-  border: "var(--fs-border)",
-  text: "var(--fs-text)",
-  textMuted: "var(--fs-text-muted)",
+  primary: "var(--fs-primary)",
+  secondary: "var(--fs-secondary)",
   success: "var(--fs-success)",
   warning: "var(--fs-warning)",
-  critical: "var(--fs-critical)",
-};
+  danger: "var(--fs-danger)",
+  surface: "var(--fs-surface)",
+  surfaceRaised: "var(--fs-surface-raised)",
+  surfaceMuted: "var(--fs-surface-muted)",
+  surfaceStrong: "var(--fs-surface-strong)",
+  border: "var(--fs-border)",
+  borderStrong: "var(--fs-border-strong)",
+  text: "var(--fs-text)",
+  textMuted: "var(--fs-text-muted)",
+  textSoft: "var(--fs-text-soft)",
+  shadowSm: "var(--fs-shadow-sm)",
+  shadowMd: "var(--fs-shadow-md)",
+  shadowLg: "var(--fs-shadow-lg)",
+} as const;
 
-const shadows = {
-  shell: "0 20px 48px rgba(15, 23, 42, 0.06)",
-  card: "0 14px 32px rgba(15, 23, 42, 0.06)",
-  focus: "0 0 0 4px rgba(79, 70, 229, 0.12)",
-};
+const layoutWidth = 1180;
 
-const layoutWidth = 1160;
+function paperFill(color: string) {
+  return `linear-gradient(180deg, rgb(255 255 255 / 0.84) 0%, rgb(255 255 255 / 0.36) 22%, transparent 48%), ${color}`;
+}
 
-function toneColors(tone: "default" | "accent" | "success" | "warning" | "critical" | "subtle") {
-  if (tone === "accent") {
-    return {
-      background: "rgba(79, 70, 229, 0.05)",
-      border: "1px solid rgba(79, 70, 229, 0.12)",
+function toneColors(tone: SurfaceTone) {
+  const mapping: Record<string, { background: string; border: string; text: string; muted: string }> = {
+    primary: {
+      background: paperFill("color-mix(in oklab, var(--fs-primary) 4%, var(--fs-surface))"),
+      border: `1px solid ${palette.primary}`,
       text: palette.text,
       muted: palette.textMuted,
-    };
-  }
-  if (tone === "success") {
-    return {
-      background: "rgba(31, 122, 92, 0.06)",
-      border: "1px solid rgba(31, 122, 92, 0.12)",
+    },
+    secondary: {
+      background: paperFill("color-mix(in oklab, var(--fs-secondary) 7%, var(--fs-surface))"),
+      border: `1px solid ${palette.secondary}`,
       text: palette.text,
       muted: palette.textMuted,
-    };
-  }
-  if (tone === "warning") {
-    return {
-      background: "rgba(161, 98, 7, 0.06)",
-      border: "1px solid rgba(161, 98, 7, 0.12)",
+    },
+    success: {
+      background: paperFill("color-mix(in oklab, var(--fs-success) 6%, var(--fs-surface))"),
+      border: `1px solid ${palette.success}`,
       text: palette.text,
       muted: palette.textMuted,
-    };
-  }
-  if (tone === "critical") {
-    return {
-      background: "rgba(180, 35, 24, 0.05)",
-      border: "1px solid rgba(180, 35, 24, 0.12)",
+    },
+    warning: {
+      background: paperFill("color-mix(in oklab, var(--fs-warning) 7%, var(--fs-surface))"),
+      border: `1px solid ${palette.warning}`,
       text: palette.text,
       muted: palette.textMuted,
-    };
-  }
-  if (tone === "subtle") {
-    return {
-      background: palette.surfaceMuted,
+    },
+    danger: {
+      background: paperFill("color-mix(in oklab, var(--fs-danger) 4%, var(--fs-surface))"),
+      border: `1px solid ${palette.danger}`,
+      text: palette.text,
+      muted: palette.textMuted,
+    },
+    subtle: {
+      background: paperFill(palette.surfaceMuted),
       border: `1px solid ${palette.border}`,
       text: palette.text,
       muted: palette.textMuted,
-    };
-  }
+    },
+    default: {
+      background: paperFill(palette.surfaceRaised),
+      border: `1px solid ${palette.border}`,
+      text: palette.text,
+      muted: palette.textMuted,
+    },
+  };
+
+  return mapping[tone] || mapping.default;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Typography Helpers                                                 */
+/* ------------------------------------------------------------------ */
+
+function appHeadingStyle(size: 14 | 16 | 18 | 24 | 32 | 40): CSSProperties {
+  const sizeMap = {
+    14: "var(--text-sm)",
+    16: "var(--text-body)",
+    18: "var(--text-lg)",
+    24: "var(--text-xl)",
+    32: "var(--text-2xl)",
+    40: "var(--text-3xl)",
+  };
+
   return {
-    background: palette.surface,
-    border: `1px solid ${palette.border}`,
-    text: palette.text,
-    muted: palette.textMuted,
+    margin: 0,
+    fontFamily: "var(--font-heading)",
+    fontSize: sizeMap[size],
+    lineHeight: "var(--leading-tight)",
+    letterSpacing: size >= 24 ? "-0.035em" : "-0.02em",
+    color: palette.text,
+    fontWeight: "var(--weight-bold)",
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Action Button Styles                                               */
+/* ------------------------------------------------------------------ */
+
+function actionStyle({
+  tone = "primary",
+  disabled = false,
+  fullWidth = false,
+}: {
+  tone?: ActionTone;
+  disabled?: boolean;
+  fullWidth?: boolean;
+}): CSSProperties {
+  const secondary = tone === "secondary";
+
+  return {
+    display: "inline-flex",
+    width: fullWidth ? "100%" : undefined,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+    padding: "0 calc(var(--space-lg) + var(--space-xs))",
+    borderRadius: 999,
+    border: secondary ? `1px solid ${palette.borderStrong}` : `1px solid ${palette.primary}`,
+    background: disabled
+      ? paperFill(palette.surfaceStrong)
+      : secondary
+        ? paperFill(palette.surfaceRaised)
+        : `linear-gradient(180deg, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0) 46%), linear-gradient(180deg, var(--fs-primary), var(--fs-primary-strong))`,
+    color: disabled ? palette.textSoft : secondary ? palette.text : palette.surface,
+    textDecoration: "none",
+    fontSize: "var(--text-sm)",
+    fontWeight: "var(--weight-bold)",
+    letterSpacing: "0.012em",
+    cursor: disabled ? "default" : "pointer",
+    transition: "transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast)",
+    boxShadow: disabled
+      ? "none"
+      : secondary
+        ? `inset 0 1px 0 rgb(255 255 255 / 0.72), ${palette.shadowSm}`
+        : "inset 0 1px 0 rgb(255 255 255 / 0.16), 0 18px 32px -24px color-mix(in oklab, var(--fs-primary) 62%, transparent)",
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  App Shell                                                          */
+/* ------------------------------------------------------------------ */
 
 export function AppShell({
   title,
@@ -87,66 +168,124 @@ export function AppShell({
   actions?: ReactNode;
 }>) {
   return (
-    <div style={{ color: palette.text }}>
-      <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "0 16px 56px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 24,
-            flexWrap: "wrap",
-            padding: "18px 2px 28px",
-          }}
-        >
-          <div style={{ maxWidth: 760, minWidth: 0, flex: "1 1 320px" }}>
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-                fontSize: "clamp(2.1rem, 4vw, 3.5rem)",
-                lineHeight: 0.98,
-                letterSpacing: "-0.05em",
-                color: palette.text,
-              }}
-            >
-              {title}
-            </h1>
-            {subtitle ? (
-              <p
+    <div data-fs-shell style={{ color: palette.text, background: "var(--fs-base)", minHeight: "100vh" }}>
+      <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "var(--space-xl) var(--space-lg) var(--space-4xl)" }}>
+        <header style={{ marginBottom: "var(--space-2xl)" }}>
+          <Card tone="subtle" style={{ padding: "var(--space-xl)", overflow: "hidden" }}>
+            <div style={{ display: "grid", gap: "var(--space-xl)", position: "relative" }}>
+              <div
                 style={{
-                  margin: "14px 0 0",
-                  maxWidth: 680,
-                  fontSize: 15,
-                  lineHeight: 1.72,
-                  color: palette.textMuted,
+                  display: "flex",
+                  gap: "var(--space-md)",
+                  flexWrap: "wrap",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                {subtitle}
-              </p>
-            ) : null}
-          </div>
-          {actions ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-start",
-                gap: 10,
-                minHeight: 40,
-                flexWrap: "wrap",
-                width: "100%",
-              }}
-            >
-              {actions}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "var(--space-sm)",
+                    width: "fit-content",
+                    minHeight: "var(--space-2xl)",
+                    padding: "0 var(--space-md)",
+                    borderRadius: 999,
+                    background: paperFill("color-mix(in oklab, var(--fs-primary) 5%, var(--fs-surface-raised))"),
+                    border: `1px solid ${palette.borderStrong}`,
+                    boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.68), ${palette.shadowSm}`,
+                    fontSize: "var(--text-xs)",
+                    fontWeight: "var(--weight-bold)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: palette.primary,
+                  }}
+                >
+                  Forestock
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "var(--text-xs)",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: palette.textMuted,
+                  }}
+                >
+                  Forecast / Restock
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gap: "var(--space-lg)",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
+                  alignItems: "start",
+                }}
+              >
+                <div style={{ minWidth: 0, display: "grid", gap: "var(--space-md)" }}>
+                  <div
+                    style={{
+                      width: 92,
+                      height: 2,
+                      borderRadius: 999,
+                      background: "linear-gradient(90deg, color-mix(in oklab, var(--fs-secondary) 72%, white), color-mix(in oklab, var(--fs-primary) 52%, white))",
+                    }}
+                  />
+                  <h1 style={{ ...appHeadingStyle(40), fontSize: "clamp(2.2rem, 4vw, 3.15rem)", maxWidth: "14ch" }}>{title}</h1>
+                  {subtitle ? (
+                    <p
+                      style={{
+                        margin: 0,
+                        maxWidth: "62ch",
+                        fontSize: "var(--text-body)",
+                        lineHeight: "var(--leading-body)",
+                        color: palette.textMuted,
+                      }}
+                    >
+                      {subtitle}
+                    </p>
+                  ) : null}
+                </div>
+                {actions ? (
+                  <div
+                    style={{
+                      display: "grid",
+                      justifyItems: "end",
+                      alignSelf: "end",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "var(--space-sm)",
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        padding: "var(--space-md)",
+                        borderRadius: 22,
+                        border: `1px solid ${palette.border}`,
+                        background: paperFill("color-mix(in oklab, var(--fs-secondary) 8%, var(--fs-surface-raised))"),
+                        boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.72), ${palette.shadowSm}`,
+                      }}
+                    >
+                      {actions}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          ) : null}
-        </div>
-        {children}
+          </Card>
+        </header>
+        <main style={{ display: "grid", gap: "var(--space-2xl)" }}>{children}</main>
       </div>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Navigation Tabs                                                    */
+/* ------------------------------------------------------------------ */
 
 export function NavTabs({
   items,
@@ -158,65 +297,75 @@ export function NavTabs({
   search?: string;
 }) {
   return (
-    <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "20px 16px 0" }}>
-      <div
+    <div style={{ maxWidth: layoutWidth, margin: "0 auto", padding: "var(--space-md) var(--space-lg) 0" }}>
+      <nav
+        aria-label="App navigation"
         style={{
           display: "flex",
-          justifyContent: "flex-start",
-          alignItems: "center",
-          gap: 14,
+          gap: "var(--space-xs)",
           flexWrap: "wrap",
-          padding: 8,
-          borderRadius: 24,
-          border: `1px solid rgba(229, 231, 235, 0.92)`,
-          background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.92) 100%)",
-          boxShadow: shadows.shell,
-          backdropFilter: "blur(14px)",
+          alignItems: "center",
+          padding: "var(--space-sm)",
+          borderRadius: 999,
+          border: `1px solid ${palette.border}`,
+          background: paperFill("color-mix(in oklab, var(--fs-secondary) 5%, var(--fs-surface-muted))"),
+          boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.72), ${palette.shadowSm}`,
         }}
       >
-        <div
-          style={{
-            display: "inline-flex",
-            gap: 6,
-            flexWrap: "wrap",
-            padding: 4,
-            borderRadius: 16,
-            background: "rgba(241,245,249,0.88)",
-            border: `1px solid ${palette.border}`,
-            flex: "1 1 100%",
-            width: "100%",
-            minWidth: 0,
-          }}
-        >
-          {items.map((item) => {
-            const active = currentPath === item.href;
-            const href = `${item.href}${search}`;
-            return (
-              <a
-                key={href}
-                href={href}
-                style={{
-                  textDecoration: "none",
-                  padding: "11px 16px",
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontWeight: active ? 700 : 600,
-                  color: active ? palette.text : palette.textMuted,
-                  background: active ? "linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)" : "transparent",
-                  border: active ? `1px solid ${palette.border}` : "1px solid transparent",
-                  boxShadow: active ? "0 10px 18px rgba(15, 23, 42, 0.08)" : "none",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {item.label}
-              </a>
-            );
-          })}
-        </div>
-      </div>
+        {items.map((item) => {
+          const active = currentPath === item.href;
+          const href = `${item.href}${search}`;
+          return (
+            <Link
+              key={href}
+              to={href}
+              aria-current={active ? "page" : undefined}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 42,
+                padding: "0 calc(var(--space-lg) + var(--space-xs))",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                borderRadius: 999,
+                border: active ? `1px solid ${palette.borderStrong}` : "1px solid transparent",
+                fontSize: "var(--text-xs)",
+                fontWeight: active ? "var(--weight-bold)" : "var(--weight-medium)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: active ? palette.primary : palette.textMuted,
+                background: active ? paperFill("color-mix(in oklab, var(--fs-primary) 4%, var(--fs-surface-raised))") : "transparent",
+                boxShadow: active ? `inset 0 1px 0 rgb(255 255 255 / 0.74), ${palette.shadowSm}` : "none",
+                transition: "background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  e.currentTarget.style.background = paperFill("color-mix(in oklab, var(--fs-primary) 3%, var(--fs-surface-raised))");
+                  e.currentTarget.style.color = palette.primary;
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = palette.textMuted;
+                  e.currentTarget.style.transform = "translateY(0)";
+                }
+              }}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Section                                                            */
+/* ------------------------------------------------------------------ */
 
 export function Section({
   title,
@@ -224,28 +373,31 @@ export function Section({
   children,
 }: PropsWithChildren<{ title: string; description?: string }>) {
   return (
-    <section style={{ marginBottom: 28 }}>
-      <div style={{ marginBottom: 14 }}>
-        <h2
+    <section style={{ display: "grid", gap: "var(--space-lg)" }}>
+      <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+        <div
           style={{
-            margin: 0,
-            fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-            fontSize: 20,
-            lineHeight: 1.15,
-            letterSpacing: "-0.03em",
-            color: palette.text,
+            width: 64,
+            height: 2,
+            borderRadius: 999,
+            background: "var(--fs-accent-line)",
           }}
-        >
-          {title}
-        </h2>
+        />
+        <h2 style={appHeadingStyle(24)}>{title}</h2>
         {description ? (
-          <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.65, color: palette.textMuted }}>{description}</p>
+          <p style={{ margin: 0, maxWidth: "60ch", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: palette.textMuted }}>
+            {description}
+          </p>
         ) : null}
       </div>
       {children}
     </section>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Grid                                                               */
+/* ------------------------------------------------------------------ */
 
 export function Grid({
   columns = 2,
@@ -255,7 +407,7 @@ export function Grid({
     <div
       style={{
         display: "grid",
-        gap: 16,
+        gap: "var(--space-lg)",
         gridTemplateColumns:
           columns === 4
             ? "repeat(auto-fit, minmax(180px, 1fr))"
@@ -269,12 +421,76 @@ export function Grid({
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Card                                                               */
+/* ------------------------------------------------------------------ */
+
 export function Card({
   children,
   tone = "default",
   style,
+  interactive = false,
+  onClick,
 }: PropsWithChildren<{
-  tone?: "default" | "accent" | "success" | "warning" | "critical" | "subtle";
+  tone?: SurfaceTone;
+  style?: CSSProperties;
+  interactive?: boolean;
+  onClick?: () => void;
+}>) {
+  const toneStyle = toneColors(tone);
+
+  return (
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      style={{
+        borderRadius: 26,
+        padding: "var(--space-lg)",
+        background: toneStyle.background,
+        border: toneStyle.border,
+        color: toneStyle.text,
+        boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.74), ${palette.shadowSm}`,
+        cursor: interactive || onClick ? "pointer" : undefined,
+        transition: interactive || onClick
+          ? "transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast)"
+          : undefined,
+        ...style,
+      }}
+      onMouseEnter={(e) => {
+        if (interactive || onClick) {
+          e.currentTarget.style.transform = "translateY(-1px)";
+          e.currentTarget.style.boxShadow = `inset 0 1px 0 rgb(255 255 255 / 0.74), ${palette.shadowMd}`;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (interactive || onClick) {
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.boxShadow = `inset 0 1px 0 rgb(255 255 255 / 0.74), ${palette.shadowSm}`;
+        }
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function InsetPanel({
+  children,
+  tone = "subtle",
+  style,
+}: PropsWithChildren<{
+  tone?: SurfaceTone;
   style?: CSSProperties;
 }>) {
   const toneStyle = toneColors(tone);
@@ -282,19 +498,23 @@ export function Card({
   return (
     <div
       style={{
-        borderRadius: 22,
-        padding: 22,
+        borderRadius: 20,
+        padding: "var(--space-md) var(--space-lg)",
         background: toneStyle.background,
         border: toneStyle.border,
-        boxShadow: tone === "default" || tone === "subtle" ? shadows.card : "none",
         color: toneStyle.text,
+        boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.68)",
         ...style,
       }}
     >
-      <div>{children}</div>
+      {children}
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Metric Card                                                        */
+/* ------------------------------------------------------------------ */
 
 export function MetricCard({
   label,
@@ -305,91 +525,69 @@ export function MetricCard({
   label: string;
   value: ReactNode;
   hint?: ReactNode;
-  tone?: "default" | "accent" | "success" | "warning" | "critical" | "subtle";
+  tone?: "default" | "primary" | "secondary" | "success" | "warning" | "danger" | "subtle";
 }) {
   const toneStyle = toneColors(tone);
 
   return (
-    <Card tone={tone} style={{ padding: 20 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          color: toneStyle.muted,
-          marginBottom: 14,
-        }}
-      >
-        {label}
+    <Card tone={tone} style={{ padding: "var(--space-md)", minHeight: "100%" }}>
+      <div style={{ display: "grid", gap: "var(--space-sm)", alignContent: "space-between", minHeight: "100%" }}>
+        <div
+          style={{
+            fontSize: "var(--text-xs)",
+            fontWeight: "var(--weight-bold)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: toneStyle.muted,
+          }}
+        >
+          {label}
+        </div>
+        <div style={{ ...appHeadingStyle(32), fontVariantNumeric: "tabular-nums" }}>{value}</div>
+        {hint ? <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: toneStyle.muted }}>{hint}</div> : null}
       </div>
-      <div
-        style={{
-          fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-          fontSize: 30,
-          fontWeight: 700,
-          lineHeight: 1.02,
-          letterSpacing: "-0.04em",
-          marginBottom: hint ? 8 : 0,
-        }}
-      >
-        {value}
-      </div>
-      {hint ? <div style={{ fontSize: 14, color: toneStyle.muted, lineHeight: 1.6 }}>{hint}</div> : null}
     </Card>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Badge / Chip                                                       */
+/* ------------------------------------------------------------------ */
+
 export function Badge({
   children,
   tone = "default",
-}: PropsWithChildren<{ tone?: "default" | "success" | "warning" | "critical" | "accent" | "subtle" }>) {
-  const styles: Record<string, CSSProperties> = {
-    default: {
-      background: palette.surface,
-      color: palette.text,
-      border: `1px solid ${palette.border}`,
-    },
-    subtle: {
-      background: palette.surfaceMuted,
-      color: palette.textMuted,
-      border: `1px solid ${palette.border}`,
-    },
-    success: {
-      background: "rgba(31, 122, 92, 0.08)",
-      color: palette.success,
-      border: "1px solid rgba(31, 122, 92, 0.12)",
-    },
-    warning: {
-      background: "rgba(161, 98, 7, 0.08)",
-      color: palette.warning,
-      border: "1px solid rgba(161, 98, 7, 0.12)",
-    },
-    critical: {
-      background: "rgba(180, 35, 24, 0.08)",
-      color: palette.critical,
-      border: "1px solid rgba(180, 35, 24, 0.12)",
-    },
-    accent: {
-      background: "rgba(79, 70, 229, 0.08)",
-      color: palette.indigo,
-      border: "1px solid rgba(79, 70, 229, 0.12)",
-    },
+}: PropsWithChildren<{ tone?: SurfaceTone }>) {
+  const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+    primary: { bg: `linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 45%), ${palette.primary}`, text: palette.surface, border: palette.primary },
+    secondary: { bg: paperFill("color-mix(in oklab, var(--fs-secondary) 10%, var(--fs-surface))"), text: palette.secondary, border: palette.secondary },
+    success: { bg: paperFill("color-mix(in oklab, var(--fs-success) 9%, var(--fs-surface))"), text: palette.success, border: palette.success },
+    warning: { bg: paperFill("color-mix(in oklab, var(--fs-warning) 9%, var(--fs-surface))"), text: palette.warning, border: palette.warning },
+    danger: { bg: paperFill("color-mix(in oklab, var(--fs-danger) 8%, var(--fs-surface))"), text: palette.danger, border: palette.danger },
+    subtle: { bg: paperFill(palette.surfaceStrong), text: palette.textMuted, border: palette.border },
+    default: { bg: paperFill(palette.surfaceRaised), text: palette.text, border: palette.border },
   };
+
+  const { bg, text, border } = colorMap[tone] || colorMap.default;
 
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
-        padding: "7px 11px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        textTransform: "uppercase",
+        gap: "var(--space-xs)",
+        minHeight: 30,
+        padding: "0 var(--space-md)",
+        borderRadius: "var(--space-xs)",
+        fontSize: "var(--text-xs)",
+        fontWeight: "var(--weight-bold)",
+        lineHeight: 1,
         letterSpacing: "0.08em",
-        ...styles[tone],
+        textTransform: "uppercase",
+        background: bg,
+        color: text,
+        border: `1px solid ${border}`,
+        boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.58)",
       }}
     >
       {children}
@@ -397,33 +595,45 @@ export function Badge({
   );
 }
 
-export function KeyValueList({
-  items,
-}: {
-  items: Array<{ label: string; value: ReactNode }>;
-}) {
+/* ------------------------------------------------------------------ */
+/*  Buttons                                                            */
+/* ------------------------------------------------------------------ */
+
+export function LinkButton({
+  to,
+  children,
+  tone = "primary",
+}: PropsWithChildren<{ to: string; tone?: ActionTone }>) {
   return (
-    <div style={{ display: "grid", gap: 0 }}>
-      {items.map((item, index) => (
-        <div
-          key={`${item.label}-${index}`}
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-            gap: 14,
-            alignItems: "start",
-            padding: "12px 0",
-            borderBottom: index === items.length - 1 ? "none" : `1px solid ${palette.border}`,
-          }}
-        >
-          <div style={{ fontSize: 13, color: palette.textMuted, lineHeight: 1.55, minWidth: 0, flex: "1 1 140px" }}>{item.label}</div>
-          <div style={{ fontSize: 14, fontWeight: 700, textAlign: "left", lineHeight: 1.5, color: palette.text, minWidth: 0, flex: "1 1 180px" }}>
-            {item.value}
-          </div>
-        </div>
-      ))}
-    </div>
+    <Link to={to} style={actionStyle({ tone })}>
+      {children}
+    </Link>
+  );
+}
+
+export function AnchorButton({
+  href,
+  children,
+  tone = "primary",
+  target,
+  rel,
+}: PropsWithChildren<{ href: string; tone?: ActionTone; target?: string; rel?: string }>) {
+  return (
+    <a href={href} target={target} rel={rel} style={actionStyle({ tone })}>
+      {children}
+    </a>
+  );
+}
+
+export function PlainButton({
+  children,
+  tone = "primary",
+  ...props
+}: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement> & { tone?: ActionTone }>) {
+  return (
+    <button {...props} style={{ ...actionStyle({ tone, disabled: props.disabled }), ...(props.style ?? {}) }}>
+      {children}
+    </button>
   );
 }
 
@@ -439,74 +649,109 @@ export function ActionButton({
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  KeyValue List                                                      */
+/* ------------------------------------------------------------------ */
+
+export function KeyValueList({
+  items,
+}: {
+  items: Array<{ label: string; value: ReactNode }>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 0 }}>
+      {items.map((item, index) => (
+        <div
+          key={`${item.label}-${index}`}
+          style={{
+            display: "grid",
+            gap: "var(--space-sm)",
+            gridTemplateColumns: "minmax(96px, 124px) minmax(0, 1fr)",
+            alignItems: "start",
+            padding: "var(--space-md) 0",
+            borderBottom: index === items.length - 1 ? "none" : `1px solid ${palette.border}`,
+          }}
+        >
+          <div style={{ fontSize: "var(--text-xs)", lineHeight: "var(--leading-body)", letterSpacing: "0.06em", textTransform: "uppercase", color: palette.textMuted }}>{item.label}</div>
+          <div
+            style={{
+              fontSize: "var(--text-body)",
+              fontWeight: "var(--weight-semibold)",
+              lineHeight: "var(--leading-body)",
+              color: palette.text,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Empty State                                                        */
+/* ------------------------------------------------------------------ */
+
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <Card tone="subtle" style={{ padding: 28 }}>
-      <div
-        style={{
-          fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-          fontSize: 22,
-          fontWeight: 700,
-          letterSpacing: "-0.03em",
-          marginBottom: 10,
-          color: palette.text,
-        }}
-      >
-        {title}
+    <Card tone="subtle" style={{ padding: "var(--space-xl)" }}>
+      <div style={{ display: "grid", gap: "var(--space-sm)", maxWidth: "60ch" }}>
+        <div style={appHeadingStyle(24)}>{title}</div>
+        <div style={{ fontSize: "var(--text-body)", lineHeight: "var(--leading-body)", color: palette.textMuted }}>{body}</div>
       </div>
-      <div style={{ maxWidth: 560, fontSize: 15, lineHeight: 1.7, color: palette.textMuted }}>{body}</div>
     </Card>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Info Banner                                                        */
+/* ------------------------------------------------------------------ */
+
 export function InfoBanner({
   title,
   body,
-  tone = "accent",
+  tone = "primary",
   actions,
 }: {
   title: string;
   body: ReactNode;
-  tone?: "accent" | "success" | "warning" | "critical" | "subtle";
+  tone?: "primary" | "secondary" | "success" | "warning" | "danger" | "subtle";
   actions?: ReactNode;
 }) {
   const toneStyle = toneColors(tone);
 
   return (
-    <Card tone={tone} style={{ marginBottom: 24, padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
-        <div style={{ maxWidth: 820 }}>
-          <div
-            style={{
-              fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-              fontSize: 20,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              marginBottom: 8,
-              color: toneStyle.text,
-            }}
-          >
-            {title}
-          </div>
-          <div style={{ fontSize: 14, lineHeight: 1.7, color: toneStyle.muted }}>{body}</div>
+    <Card tone={tone} style={{ padding: "var(--space-md)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-lg)", flexWrap: "wrap", alignItems: "start" }}>
+        <div style={{ display: "grid", gap: "var(--space-xs)", maxWidth: "68ch" }}>
+          <div style={{ ...appHeadingStyle(18), color: toneStyle.text }}>{title}</div>
+          <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: toneStyle.muted }}>{body}</div>
         </div>
-        {actions ? <div style={{ display: "flex", alignItems: "center" }}>{actions}</div> : null}
+        {actions ? <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap" }}>{actions}</div> : null}
       </div>
     </Card>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Inline List                                                        */
+/* ------------------------------------------------------------------ */
+
 export function InlineList({ items }: { items: string[] }) {
   return (
-    <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7, color: palette.textMuted, fontSize: 14 }}>
+    <ul style={{ margin: 0, paddingLeft: "var(--space-lg)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: palette.textMuted }}>
       {items.map((item) => (
-        <li key={item} style={{ marginBottom: 4 }}>
-          {item}
-        </li>
+        <li key={item}>{item}</li>
       ))}
     </ul>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Date / Time Helpers                                                */
+/* ------------------------------------------------------------------ */
 
 function stableDateTimeLabel(value: string | null | undefined) {
   if (!value) return "Not available";
@@ -519,7 +764,9 @@ function stableDateTimeLabel(value: string | null | undefined) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(date).replace(",", "");
+  })
+    .format(date)
+    .replace(",", "");
 }
 
 function stableDateLabel(value: string | null | undefined) {
@@ -537,7 +784,7 @@ export function DateTimeText({ value }: { value: string | null | undefined }) {
   if (!value) return <>Not available</>;
 
   const formatted = hydrated ? new Date(value).toLocaleString() : stableDateTimeLabel(value);
-  return <span suppressHydrationWarning>{formatted}</span>;
+  return <span suppressHydrationWarning style={{ fontFamily: "var(--font-mono)" }}>{formatted}</span>;
 }
 
 export function DateText({ value }: { value: string | null | undefined }) {
@@ -557,17 +804,21 @@ export function DateText({ value }: { value: string | null | undefined }) {
     }
   }
 
-  return <span suppressHydrationWarning>{formatted}</span>;
+  return <span suppressHydrationWarning style={{ fontFamily: "var(--font-mono)" }}>{formatted}</span>;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Tone Helpers                                                       */
+/* ------------------------------------------------------------------ */
 
 export function toneForForecast(
   status: string | null | undefined,
-): "default" | "success" | "warning" | "critical" | "accent" {
+): "default" | "success" | "warning" | "danger" | "primary" {
   if (!status) return "warning";
   const normalized = status.toUpperCase();
   if (normalized.includes("COMPLETED")) return "success";
-  if (normalized.includes("RUNNING") || normalized.includes("PENDING")) return "accent";
-  if (normalized.includes("FAILED") || normalized.includes("ERROR")) return "critical";
+  if (normalized.includes("RUNNING") || normalized.includes("PENDING")) return "primary";
+  if (normalized.includes("FAILED") || normalized.includes("ERROR")) return "danger";
   return "warning";
 }
 
@@ -579,22 +830,26 @@ export function toneForReadiness({
   activeProductCount: number;
   hasSalesHistory: boolean;
   forecastStatus: string | null;
-}): { label: string; tone: "success" | "warning" | "critical" | "accent" } {
+}): { label: string; tone: "success" | "warning" | "danger" | "primary" } {
   if (forecastStatus?.toUpperCase().includes("COMPLETED") && activeProductCount > 0 && hasSalesHistory) {
-    return { label: "Recommendations ready", tone: "success" };
+    return { label: "Ready", tone: "success" };
   }
   if (forecastStatus?.toUpperCase().includes("RUNNING") || forecastStatus?.toUpperCase().includes("PENDING")) {
-    return { label: "Forecast running", tone: "accent" };
+    return { label: "Forecast running", tone: "primary" };
   }
   if (activeProductCount > 0 || hasSalesHistory) {
-    return { label: "Needs completion", tone: "warning" };
+    return { label: "Needs attention", tone: "warning" };
   }
-  return { label: "Needs setup", tone: "critical" };
+  return { label: "Needs setup", tone: "danger" };
 }
 
-export function toneForBoolean(value: boolean, positiveTone: "success" | "accent" = "success") {
+export function toneForBoolean(value: boolean, positiveTone: "success" | "primary" = "success") {
   return value ? positiveTone : "warning";
 }
+
+/* ------------------------------------------------------------------ */
+/*  Form Primitives                                                    */
+/* ------------------------------------------------------------------ */
 
 export function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
   return (
@@ -602,10 +857,9 @@ export function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: 
       htmlFor={htmlFor}
       style={{
         display: "block",
-        marginBottom: 10,
-        fontSize: 13,
-        fontWeight: 700,
-        letterSpacing: "-0.01em",
+        marginBottom: "var(--space-sm)",
+        fontSize: "var(--text-sm)",
+        fontWeight: "var(--weight-bold)",
         color: palette.text,
       }}
     >
@@ -643,7 +897,7 @@ export function RangeInput({
       onChange={(event) => onChange(Number(event.currentTarget.value))}
       style={{
         width: "100%",
-        accentColor: palette.indigo,
+        accentColor: palette.primary,
         cursor: "pointer",
       }}
     />
@@ -654,10 +908,11 @@ export function InputFrame({ children }: PropsWithChildren) {
   return (
     <div
       style={{
-        borderRadius: 18,
+        borderRadius: 24,
         border: `1px solid ${palette.border}`,
-        background: palette.surfaceMuted,
-        padding: 18,
+        background: paperFill("color-mix(in oklab, var(--fs-secondary) 5%, var(--fs-surface-muted))"),
+        padding: "var(--space-lg)",
+        boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.68)",
       }}
     >
       {children}
@@ -665,24 +920,35 @@ export function InputFrame({ children }: PropsWithChildren) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Value Pill                                                         */
+/* ------------------------------------------------------------------ */
+
 export function ValuePill({ children }: PropsWithChildren) {
   return (
     <div
       style={{
         display: "inline-flex",
         alignItems: "center",
-        padding: "10px 14px",
+        minHeight: "var(--space-2xl)",
+        padding: "0 var(--space-md)",
         borderRadius: 999,
-        background: "rgba(79, 70, 229, 0.08)",
-        color: palette.indigo,
-        fontSize: 14,
-        fontWeight: 700,
+        background: paperFill("color-mix(in oklab, var(--fs-primary) 7%, var(--fs-surface))"),
+        color: palette.primary,
+        fontSize: "var(--text-sm)",
+        fontWeight: "var(--weight-bold)",
+        border: `1px solid ${palette.border}`,
+        boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.72)",
       }}
     >
       {children}
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Summary Split                                                      */
+/* ------------------------------------------------------------------ */
 
 export function SummarySplit({
   title,
@@ -697,31 +963,63 @@ export function SummarySplit({
     <div
       style={{
         display: "grid",
-        gap: 18,
-        gridTemplateColumns: aside ? "repeat(auto-fit, minmax(220px, 1fr))" : "1fr",
+        gap: "var(--space-xl)",
+        gridTemplateColumns: aside ? "repeat(auto-fit, minmax(min(260px, 100%), 1fr))" : "1fr",
         alignItems: "start",
       }}
     >
-      <div>
-        <div
-          style={{
-            fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-            fontSize: 24,
-            lineHeight: 1.06,
-            letterSpacing: "-0.04em",
-            fontWeight: 700,
-            color: palette.text,
-            marginBottom: 10,
-          }}
-        >
-          {title}
-        </div>
-        <div style={{ fontSize: 15, lineHeight: 1.7, color: palette.textMuted }}>{body}</div>
+      <div style={{ display: "grid", gap: "var(--space-sm)" }}>
+        <div style={appHeadingStyle(24)}>{title}</div>
+        <div style={{ fontSize: "var(--text-body)", lineHeight: "var(--leading-body)", color: palette.textMuted }}>{body}</div>
       </div>
       {aside ? <div>{aside}</div> : null}
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Skeleton                                                           */
+/* ------------------------------------------------------------------ */
+
+export function Skeleton({
+  lines = 1,
+  width = "100%",
+  height = "1em",
+  style,
+}: {
+  lines?: number;
+  width?: string | number;
+  height?: string | number;
+  style?: CSSProperties;
+}) {
+  return (
+    <div style={{ display: "grid", gap: "var(--space-sm)", width }}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            height,
+            borderRadius: 6,
+            background: `linear-gradient(90deg, ${palette.surfaceMuted} 25%, ${palette.surfaceRaised} 50%, ${palette.surfaceMuted} 75%)`,
+            backgroundSize: "200% 100%",
+            animation: "paper-skeleton 1.4s ease infinite",
+            ...style,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes paper-skeleton {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Error Handling                                                     */
+/* ------------------------------------------------------------------ */
 
 export function getErrorMessage(error: unknown) {
   if (isRouteErrorResponse(error)) {
@@ -743,7 +1041,7 @@ export function getErrorMessage(error: unknown) {
 }
 
 export function ErrorState({
-  title = "Unexpected Server Error",
+  title = "Something went wrong",
   error,
 }: {
   title?: string;
@@ -752,29 +1050,21 @@ export function ErrorState({
   return (
     <AppShell
       title={title}
-      subtitle="The embedded app hit a server-side failure while loading this route."
-      actions={<Badge tone="critical">Load failed</Badge>}
+      subtitle="Forestock could not load this screen inside Shopify Admin."
+      actions={<Badge tone="danger">Load failed</Badge>}
     >
-      <Card tone="critical" style={{ maxWidth: 820 }}>
-        <div
-          style={{
-            fontFamily: '"Space Grotesk", "Manrope", sans-serif',
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: "-0.03em",
-            marginBottom: 10,
-          }}
-        >
-          {getErrorMessage(error)}
-        </div>
-        <div style={{ fontSize: 14, lineHeight: 1.7, color: palette.textMuted }}>
-          Common causes here are a backend request failure, missing Shopify store linkage, or a configuration mismatch between the embedded app and the Forestock API.
-        </div>
-        {isRouteErrorResponse(error) ? (
-          <div style={{ marginTop: 12, fontSize: 13, color: palette.textMuted }}>
-            Status: {error.status} {error.statusText}
+      <Card tone="danger" style={{ maxWidth: 780 }}>
+        <div style={{ display: "grid", gap: "var(--space-sm)" }}>
+          <div style={appHeadingStyle(24)}>{getErrorMessage(error)}</div>
+          <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: palette.textMuted }}>
+            Refresh the app first. If the problem keeps happening, check the Shopify connection and the Forestock backend.
           </div>
-        ) : null}
+          {isRouteErrorResponse(error) ? (
+            <div style={{ fontSize: "var(--text-xs)", color: palette.textMuted }}>
+              Status: {error.status} {error.statusText}
+            </div>
+          ) : null}
+        </div>
       </Card>
     </AppShell>
   );

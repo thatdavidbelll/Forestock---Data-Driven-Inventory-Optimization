@@ -9,21 +9,17 @@ import {
   Card,
   DateTimeText,
   ErrorState,
-  Grid,
-  InlineList,
-  KeyValueList,
   FieldLabel,
+  InlineList,
   InputFrame,
-  MetricCard,
+  KeyValueList,
   RangeInput,
   Section,
   SummarySplit,
   ValuePill,
   toneForReadiness,
 } from "../components";
-import {
-  updateForestockStoreConfig,
-} from "../forestock.server";
+import { updateForestockStoreConfig } from "../forestock.server";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
 import { getBillingStatus } from "../billing.server";
 import { getSetupStages, type SetupStage } from "../setup-state";
@@ -41,10 +37,9 @@ type WebhookActionData =
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const { admin, session } = await authenticate.admin(request);
-    const identity = await loadShopIdentity(admin, session.shop);
     const overview = await loadForestockAppHomeWithRecovery(admin, session.shop);
     const config = await loadForestockConfigWithRecovery(admin, session.shop);
-    return { shopDomain: session.shop, config, identity, overview };
+    return { config, overview };
   } catch (error) {
     if (error instanceof Response) throw error;
     throw new Response(error instanceof Error ? error.message : "Failed to load store settings.", {
@@ -128,10 +123,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 function stepTone(status: SetupStage["status"]) {
   if (status === "completed") return "success" as const;
-  if (status === "running") return "accent" as const;
-  if (status === "failed") return "critical" as const;
+  if (status === "running") return "primary" as const;
+  if (status === "failed") return "danger" as const;
   if (status === "blocked") return "warning" as const;
-  if (status === "ready_to_run") return "accent" as const;
+  if (status === "ready_to_run") return "primary" as const;
   return "subtle" as const;
 }
 
@@ -181,136 +176,184 @@ export default function SettingsPage() {
   return (
     <AppShell
       title="Settings"
+      subtitle="Keep setup healthy, tune the forecast horizon, and recover the Shopify connection if forecast or restock workflows break."
+      actions={<Badge tone={readiness.tone}>{readiness.label}</Badge>}
     >
-      <Section title="Setup status" description="We handle the setup for you.">
+      <Section title="Setup health" description="This area should stay quiet once the store is healthy. Use it when sync, forecast readiness, or store setup needs attention.">
         <Card>
-          <SummarySplit
-            title={
-              setupFetcher.state !== "idle"
-                ? "Preparing store data..."
-                : setupBlockedExternally
-                  ? "Setup is externally blocked"
-                  : shouldAutoBootstrap
-                    ? "Setup still needs to finish"
-                    : "Setup completed"
-            }
-            body={
-              setupBlockedExternally
-                ? setupFetcher.data?.externalBlock?.message ??
-                  "Shopify approval is still blocking order import."
-                : nextSetupStage
-                  ? `${nextSetupStage.title}: ${nextSetupStage.summary}`
-                  : "Everything needed for recommendations is in place."
-            }
-          />
-          <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
-            <Grid columns={3}>
-              <MetricCard label="Products" value={overview.activeProductCount} hint={`${overview.totalProductCount} total synced`} tone="subtle" />
-              <MetricCard label="Sales history" value={overview.hasSalesHistory ? "Available" : "Missing"} hint={`${overview.salesTransactionCount} rows`} tone={overview.hasSalesHistory ? "success" : "warning"} />
-              <MetricCard label="Forecast" value={overview.forecastStatus ?? "Pending"} hint={overview.forecastCompletedAt ? <DateTimeText value={overview.forecastCompletedAt} /> : "No completed run yet"} tone={overview.forecastStatus?.toUpperCase().includes("COMPLETED") ? "success" : "accent"} />
-            </Grid>
-          </div>
-          <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <Badge tone={readiness.tone}>{readiness.label}</Badge>
-            <setupFetcher.Form method="post">
-              <input type="hidden" name="intent" value="setup" />
-              <ActionButton loading={setupFetcher.state !== "idle"}>
-                {shouldAutoBootstrap ? "Retry setup" : "Run setup again"}
-              </ActionButton>
-            </setupFetcher.Form>
-          </div>
-          {setupFetcher.data ? (
-            <div style={{ marginTop: 18, paddingTop: 18, borderTop: "1px solid #E5E7EB" }}>
-              <KeyValueList
-                items={[
-                  { label: "Result", value: setupFetcher.data.message },
-                  { label: "External blocker", value: setupFetcher.data.externalBlock?.message ?? "None" },
-                  { label: "Products processed", value: setupFetcher.data.catalogSync?.processedItems ?? "Not available" },
-                  { label: "Orders imported", value: setupFetcher.data.orderBackfill?.importedOrders ?? "Not available" },
-                  { label: "Forecast started", value: setupFetcher.data.forecastTriggered ? "Yes" : "No" },
-                ]}
-              />
+          <div style={{ display: "grid", gap: "var(--space-lg)" }}>
+            <SummarySplit
+              title={
+                setupFetcher.state !== "idle"
+                  ? "Forestock is preparing store data."
+                  : setupBlockedExternally
+                    ? "Setup is blocked outside Forestock."
+                    : shouldAutoBootstrap
+                      ? "Setup still needs attention."
+                      : "Setup looks healthy."
+              }
+              body={
+                setupBlockedExternally
+                  ? setupFetcher.data?.externalBlock?.message ?? "Shopify approval is still blocking order import."
+                  : nextSetupStage
+                    ? `${nextSetupStage.title}: ${nextSetupStage.summary}`
+                    : "Catalog sync, sales history, and forecasting are already in place."
+              }
+              aside={
+                <KeyValueList
+                  items={[
+                    { label: "Products", value: `${overview.activeProductCount} active of ${overview.totalProductCount}` },
+                    { label: "Sales history", value: overview.hasSalesHistory ? `${overview.salesTransactionCount} rows available` : "Missing" },
+                    { label: "Forecast", value: overview.forecastCompletedAt ? <DateTimeText value={overview.forecastCompletedAt} /> : overview.forecastStatus ?? "Pending" },
+                  ]}
+                />
+              }
+            />
+
+            <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+              <setupFetcher.Form method="post">
+                <input type="hidden" name="intent" value="setup" />
+                <ActionButton loading={setupFetcher.state !== "idle"}>
+                  {shouldAutoBootstrap ? "Run setup now" : "Try setup again"}
+                </ActionButton>
+              </setupFetcher.Form>
+              {setupFetcher.data ? (
+                <Badge tone={setupFetcher.data.ok ? "success" : "danger"}>{setupFetcher.data.message}</Badge>
+              ) : null}
             </div>
-          ) : null}
+          </div>
         </Card>
       </Section>
 
       {!setupComplete ? (
-        <Section title="Progress" description="Keep the stage list compact and factual.">
-          <Grid columns={2}>
-            {stages.map((stage) => (
-              <Card key={stage.id}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>{stage.title}</div>
-                  <Badge tone={stepTone(stage.status)}>{stage.status.replaceAll("_", " ")}</Badge>
-                </div>
-                <div style={{ color: "#6B7280", lineHeight: 1.65, marginBottom: 12, fontSize: 14 }}>{stage.summary}</div>
-                {stage.blockers.length > 0 ? <InlineList items={stage.blockers.slice(0, 2)} /> : null}
-                {stage.evidenceAt ? (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #E5E7EB", fontSize: 13, color: "#6B7280" }}>
-                    {stage.evidenceLabel ?? "Evidence"}: <DateTimeText value={stage.evidenceAt} />
+        <Section title="Setup stages" description="Show the full stage list only while setup still needs work.">
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            {stages.map((stage, index) => (
+              <div
+                key={stage.id}
+                style={{
+                  padding: "var(--space-lg) var(--space-xl)",
+                  borderTop: index === 0 ? "none" : "1px solid var(--fs-border)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "var(--space-lg)",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+                    alignItems: "start",
+                  }}
+                >
+                  <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+                    <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+                      <Badge tone={stepTone(stage.status)}>{stage.status.replaceAll("_", " ")}</Badge>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--fs-text-muted)" }}>{stage.step}</span>
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontSize: "var(--text-lg)",
+                        lineHeight: "var(--leading-tight)",
+                        letterSpacing: "-0.01em",
+                        fontWeight: "var(--weight-bold)",
+                        color: "var(--fs-text)",
+                      }}
+                    >
+                      {stage.title}
+                    </div>
+                    <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>{stage.summary}</div>
                   </div>
-                ) : null}
-              </Card>
+                  {stage.blockers.length > 0 ? (
+                    <InlineList items={stage.blockers.slice(0, 2)} />
+                  ) : (
+                    <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>{stage.successLooksLike}</div>
+                  )}
+                </div>
+              </div>
             ))}
-          </Grid>
+          </Card>
         </Section>
       ) : null}
 
-      <Section
-        title="Forecast horizon"
-        description="This changes how many days the shared backend forecast projects forward for this store."
-      >
+      <Section title="Forecast horizon" description="This is the main forecast setting most merchants may want to tune over time.">
         <Card>
-          <forecastFetcher.Form method="post" style={{ display: "grid", gap: 20 }}>
-            <MetricCard
-              label="Current horizon"
-              value={`${forecastHorizonDays} days`}
-              hint={effectiveConfig.updatedAt ? <>Updated <DateTimeText value={effectiveConfig.updatedAt} /></> : "Using current store configuration"}
-              tone="accent"
-            />
-            <InputFrame>
-              <FieldLabel htmlFor="forecastHorizonDays">Horizon days</FieldLabel>
-              <RangeInput
-                id="forecastHorizonDays"
-                name="forecastHorizonDays"
-                min="3"
-                max="90"
-                step="1"
-                value={forecastHorizonDays}
-                onChange={setForecastHorizonDays}
-              />
-              <div style={{ marginTop: 14 }}>
-                <ValuePill>{forecastHorizonDays} days</ValuePill>
+          <forecastFetcher.Form method="post" style={{ display: "grid", gap: "var(--space-lg)" }}>
+            <div
+              style={{
+                display: "grid",
+                gap: "var(--space-lg)",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+                alignItems: "start",
+              }}
+            >
+              <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--fs-text-muted)" }}>
+                  Current horizon
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "var(--text-3xl)",
+                    lineHeight: "var(--leading-tight)",
+                    letterSpacing: "-0.02em",
+                    fontWeight: "var(--weight-bold)",
+                    color: "var(--fs-text)",
+                  }}
+                >
+                  {forecastHorizonDays} days
+                </div>
+                <div style={{ fontSize: "var(--text-xs)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>
+                  {effectiveConfig.updatedAt ? <>Updated <DateTimeText value={effectiveConfig.updatedAt} /></> : "Using current store configuration"}
+                </div>
               </div>
-              <div style={{ marginTop: 8, fontSize: 14, color: "#64748b" }}>
-                Choose a value between 3 and 90 days.
-              </div>
-            </InputFrame>
-            <div>
-              <s-button type="submit" loading={forecastFetcher.state !== "idle"}>
+              <InputFrame>
+                <FieldLabel htmlFor="forecastHorizonDays">Forecast horizon</FieldLabel>
+                <RangeInput
+                  id="forecastHorizonDays"
+                  name="forecastHorizonDays"
+                  min="3"
+                  max="90"
+                  step="1"
+                  value={forecastHorizonDays}
+                  onChange={setForecastHorizonDays}
+                />
+                <div style={{ marginTop: "var(--space-md)", display: "flex", gap: "var(--space-sm)", flexWrap: "wrap" }}>
+                  <ValuePill>{forecastHorizonDays} days</ValuePill>
+                  <span style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)" }}>
+                    Shorter horizons stay cautious. Longer horizons favor planning further ahead.
+                  </span>
+                </div>
+              </InputFrame>
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+              <ActionButton loading={forecastFetcher.state !== "idle"}>
                 Save horizon
-              </s-button>
+              </ActionButton>
+              {forecastFetcher.data ? (
+                <Badge tone={forecastFetcher.data.ok ? "success" : "danger"}>{forecastFetcher.data.message}</Badge>
+              ) : null}
             </div>
           </forecastFetcher.Form>
-          {forecastFetcher.data ? (
-            <div style={{ marginTop: 16 }}>
-              <Badge tone={forecastFetcher.data.ok ? "success" : "critical"}>{forecastFetcher.data.message}</Badge>
-            </div>
-          ) : null}
         </Card>
       </Section>
 
-      <Section title="Webhook health" description="Re-register Shopify webhooks if delivery has drifted out of sync.">
-        <Card>
-          <div style={{ display: "grid", gap: 16 }}>
-            <webhookFetcher.Form method="post">
-              <input type="hidden" name="intent" value="reregister-webhooks" />
-              <ActionButton loading={webhookFetcher.state !== "idle"}>Re-register webhooks</ActionButton>
-            </webhookFetcher.Form>
-            {webhookFetcher.data ? (
-              <Badge tone={webhookFetcher.data.ok ? "success" : "critical"}>{webhookFetcher.data.message}</Badge>
-            ) : null}
+      <Section title="Maintenance" description="Use this only if the Shopify connection broke or reinstall did not finish cleanly.">
+        <Card tone="subtle">
+          <div style={{ display: "grid", gap: "var(--space-md)" }}>
+            <div style={{ fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", color: "var(--fs-text-muted)", maxWidth: "60ch" }}>
+              Re-register webhooks if events stopped arriving after a reinstall or a broken setup cycle.
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+              <webhookFetcher.Form method="post">
+                <input type="hidden" name="intent" value="reregister-webhooks" />
+                <ActionButton loading={webhookFetcher.state !== "idle"} tone="secondary">
+                  Register webhooks again
+                </ActionButton>
+              </webhookFetcher.Form>
+              {webhookFetcher.data ? (
+                <Badge tone={webhookFetcher.data.ok ? "success" : "danger"}>{webhookFetcher.data.message}</Badge>
+              ) : null}
+            </div>
           </div>
         </Card>
       </Section>

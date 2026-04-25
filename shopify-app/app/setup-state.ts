@@ -139,7 +139,7 @@ export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] 
     summary: recommendationsReady
       ? "The shared recommendation pipeline is ready for merchant review."
       : "Recommendation trust is still blocked by setup or forecast gaps.",
-    successLooksLike: "The recommendations page exposes a usable queue backed by the shared forecast engine.",
+    successLooksLike: "The recommendations page exposes a usable review surface backed by the shared forecast engine.",
     blockers: recommendationsReady ? [] : overview.recommendationReadinessReasons,
     evidenceAt: overview.forecastProof?.finishedAt ?? null,
     evidenceLabel: overview.forecastProof?.finishedAt ? "Underlying forecast finished" : null,
@@ -147,4 +147,3 @@ export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] 
 
   return [provision, catalog, orders, forecast, recommendations];
 }
-

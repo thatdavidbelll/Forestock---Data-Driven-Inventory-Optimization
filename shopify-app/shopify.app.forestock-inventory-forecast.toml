@@ -26,3 +26,6 @@ redirect_urls = [
   "https://portal.forestock.ro/webhooks/customers/redact",
   "https://portal.forestock.ro/webhooks/shop/redact"
 ]
+
+[build]
+automatically_update_urls_on_dev = true

@@ -7,6 +7,8 @@ import { ErrorState, NavTabs } from "../components";
 import { getBillingStatus } from "../billing.server";
 import { authenticate } from "../shopify.server";
 
+const TEST_APP_API_KEY = "dadbec5afb4fbddb896fe55a7ea3ff9b";
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
 
@@ -19,7 +21,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const billing = await getBillingStatus(admin);
+  const billingBypassEnabled = process.env.SHOPIFY_BILLING_REQUIRED === "false" || apiKey === TEST_APP_API_KEY;
+  const billing = billingBypassEnabled
+    ? {
+        activeSubscriptions: [],
+        hasActiveSubscription: true,
+      }
+    : await getBillingStatus(admin);
   const url = new URL(request.url);
   const onBillingRoute = url.pathname === "/app/billing";
 
@@ -31,7 +39,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw redirect(`/app${url.search}`);
   }
 
-  return { apiKey, billing };
+  return { apiKey, billing, billingBypassEnabled };
 };
 
 export default function App() {
@@ -43,8 +51,8 @@ export default function App() {
       <div
         style={{
           minHeight: "100vh",
-          background:
-            "linear-gradient(180deg, rgba(79, 70, 229, 0.03) 0%, rgba(255, 255, 255, 0) 160px), linear-gradient(180deg, #f4f5f7 0%, #f7f7f8 100%)",
+          background: "var(--fs-base)",
+          color: "var(--fs-text)",
         }}
       >
         <NavTabs
@@ -52,7 +60,7 @@ export default function App() {
           search={location.search}
           items={billing.hasActiveSubscription
             ? [
-                { label: "Home", href: "/app" },
+                { label: "Dashboard", href: "/app" },
                 { label: "Recommendations", href: "/app/recommendations" },
                 { label: "Settings", href: "/app/settings" },
               ]
