@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "react-router build",
-    "dev": "sh -lc '[ -f .env ] || { echo \"Missing shopify-app/.env. Copy .env.local.example to .env and fill the required values.\" >&2; exit 1; }; npx shopify app dev'",
+    "dev": "sh -lc '[ -f .env ] || { echo \"Missing shopify-app/.env. Copy .env.local.example to .env and fill the required values.\" >&2; exit 1; }; npx shopify app dev --config forestock-inventory-forecast --no-update'",
     "config:link": "npx shopify app config link",
     "generate": "npx shopify app generate",
     "deploy": "npx shopify app deploy",

@@ -23,5 +23,9 @@ while IFS= read -r line || [ -n "$line" ]; do
     continue
   fi
 
+  if [ "${!key+x}" = "x" ]; then
+    continue
+  fi
+
   export "$key=$value"
 done < "$ENV_FILE"
