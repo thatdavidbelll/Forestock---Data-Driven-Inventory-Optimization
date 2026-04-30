@@ -4,17 +4,12 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppShell, Badge, Card, ErrorState, Section } from "../components";
 import type { loader as appLoader } from "./app";
 
-function managedPricingHref() {
-  // eslint-disable-next-line no-undef
-  const handle = process.env.SHOPIFY_MANAGED_PRICING_HANDLE || "forestock-inventory-forecast";
-  return `shopify://admin/charges/${handle}/pricing_plans`;
-}
-
 export default function BillingPage() {
   const data = useRouteLoaderData<typeof appLoader>("routes/app");
   const billing = data?.billing;
+  const managedPricingUrl = data?.managedPricingUrl;
 
-  if (!billing) {
+  if (!billing || !managedPricingUrl) {
     return <ErrorState error={new Error("Billing status is unavailable.")} />;
   }
 
@@ -45,7 +40,7 @@ export default function BillingPage() {
             </div>
             <div style={{ borderTop: "1px solid #E5E7EB", paddingTop: 20 }}>
               <a
-                href={managedPricingHref()}
+                href={managedPricingUrl}
                 target="_top"
                 rel="noreferrer"
                 style={{

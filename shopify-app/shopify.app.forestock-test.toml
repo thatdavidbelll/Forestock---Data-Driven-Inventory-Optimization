@@ -1,0 +1,30 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "dadbec5afb4fbddb896fe55a7ea3ff9b"
+name = "forestock test"
+application_url = "https://portal.forestock.ro"
+embedded = true
+
+[webhooks]
+api_version = "2026-04"
+
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "/webhooks/compliance"
+
+[access_scopes]
+scopes = "read_draft_orders,read_inventory,write_metaobject_definitions,write_metaobjects,read_orders,read_products,write_products,customer_read_orders"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://portal.forestock.ro/auth/callback",
+  "https://portal.forestock.ro/auth/shopify/callback",
+  "https://portal.forestock.ro/webhooks/customers/data_request",
+  "https://portal.forestock.ro/webhooks/customers/redact",
+  "https://portal.forestock.ro/webhooks/shop/redact"
+]
+
+[build]
+automatically_update_urls_on_dev = true

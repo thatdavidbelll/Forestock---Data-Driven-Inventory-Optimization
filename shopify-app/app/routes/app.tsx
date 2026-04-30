@@ -4,14 +4,17 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { ErrorState, NavTabs } from "../components";
-import { getBillingStatus } from "../billing.server";
+import { getBillingStatus, hasBillingAccess } from "../billing.server";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
 
   // eslint-disable-next-line no-undef
   const apiKey = process.env.SHOPIFY_API_KEY;
+  const managedPricingHandle = process.env.SHOPIFY_MANAGED_PRICING_HANDLE || "forestock-inventory-forecast";
+  const shopHandle = session.shop.split(".")[0];
+  const managedPricingUrl = `https://admin.shopify.com/store/${shopHandle}/charges/${managedPricingHandle}/pricing_plans`;
   if (!apiKey) {
     throw new Response("SHOPIFY_API_KEY is not configured for the embedded app.", {
       status: 500,
@@ -20,22 +23,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const billing = await getBillingStatus(admin);
+  const billingAccess = hasBillingAccess(billing);
   const url = new URL(request.url);
   const onBillingRoute = url.pathname === "/app/billing";
 
-  if (!billing.hasActiveSubscription && !onBillingRoute) {
+  if (!billingAccess && !onBillingRoute) {
     throw redirect(`/app/billing${url.search}`);
   }
 
-  if (billing.hasActiveSubscription && onBillingRoute) {
+  if (billingAccess && onBillingRoute) {
     throw redirect(`/app${url.search}`);
   }
 
-  return { apiKey, billing };
+  return { apiKey, billing, billingAccess, managedPricingHandle, managedPricingUrl };
 };
 
 export default function App() {
-  const { apiKey, billing } = useLoaderData<typeof loader>();
+  const { apiKey, billingAccess } = useLoaderData<typeof loader>();
   const location = useLocation();
 
   return (
@@ -50,7 +54,7 @@ export default function App() {
         <NavTabs
           currentPath={location.pathname}
           search={location.search}
-          items={billing.hasActiveSubscription
+          items={billingAccess
             ? [
                 { label: "Home", href: "/app" },
                 { label: "Recommendations", href: "/app/recommendations" },

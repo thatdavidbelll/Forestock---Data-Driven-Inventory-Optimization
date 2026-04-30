@@ -10,6 +10,14 @@ export type BillingStatus = {
   hasActiveSubscription: boolean;
 };
 
+export function shouldEnforceBilling() {
+  return process.env.NODE_ENV === "production" || process.env.FORESTOCK_ENFORCE_BILLING === "true";
+}
+
+export function hasBillingAccess(billing: BillingStatus) {
+  return billing.hasActiveSubscription || !shouldEnforceBilling();
+}
+
 export async function getBillingStatus(admin: { graphql: (query: string) => Promise<Response> }): Promise<BillingStatus> {
   try {
     const response = await admin.graphql(`

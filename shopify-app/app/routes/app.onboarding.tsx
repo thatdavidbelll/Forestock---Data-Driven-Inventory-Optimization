@@ -12,7 +12,7 @@ import {
   Section,
 } from "../components";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
-import { getBillingStatus } from "../billing.server";
+import { getBillingStatus, hasBillingAccess } from "../billing.server";
 import { getSetupStages } from "../setup-state";
 import { authenticate } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
@@ -40,7 +40,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
     const billing = await getBillingStatus(admin);
-    if (!billing.hasActiveSubscription) {
+    if (!hasBillingAccess(billing)) {
       return {
         intent: "full",
         ok: false,

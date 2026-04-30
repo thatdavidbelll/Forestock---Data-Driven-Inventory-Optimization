@@ -25,7 +25,7 @@ import {
   updateForestockStoreConfig,
 } from "../forestock.server";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
-import { getBillingStatus } from "../billing.server";
+import { getBillingStatus, hasBillingAccess } from "../billing.server";
 import { getSetupStages, type SetupStage } from "../setup-state";
 import { authenticate, registerWebhooks } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
@@ -61,7 +61,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
     const billing = await getBillingStatus(admin);
-    if (!billing.hasActiveSubscription) {
+    if (!hasBillingAccess(billing)) {
       return {
         intent: "full",
         ok: false,
@@ -102,7 +102,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const { admin, session } = await authenticate.admin(request);
   const billing = await getBillingStatus(admin);
-  if (!billing.hasActiveSubscription) {
+  if (!hasBillingAccess(billing)) {
     return { ok: false, message: "Activate a Shopify plan for Forestock before changing settings." } satisfies ActionData;
   }
   const forecastHorizonDays = Number(formData.get("forecastHorizonDays"));

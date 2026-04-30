@@ -1,0 +1,10 @@
+{
+  "name": "forestock-root",
+  "private": true,
+  "scripts": {
+    "dev": "bash scripts/start-shopify-local.sh",
+    "dev:shopify": "bash scripts/start-shopify-local.sh",
+    "dev:shopify:app": "npm --prefix shopify-app run dev",
+    "dev:frontend": "npm --prefix forestock-frontend run dev"
+  }
+}

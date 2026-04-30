@@ -1,16 +1,13 @@
 import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig, type UserConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 // Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
-// Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the Vite server.
-// The CLI will eventually stop passing in HOST,
-// so we can remove this workaround after the next major release.
-if (
-  process.env.HOST &&
-  (!process.env.SHOPIFY_APP_URL ||
-    process.env.SHOPIFY_APP_URL === process.env.HOST)
-) {
+// In Shopify local dev, the CLI-provided HOST is the authoritative public app URL.
+// Prefer it over any stale SHOPIFY_APP_URL value from .env so auth/callbacks stay aligned
+// with the current preview tunnel.
+if (process.env.HOST) {
   process.env.SHOPIFY_APP_URL = process.env.HOST;
   delete process.env.HOST;
 }
@@ -49,6 +46,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    tailwindcss(),
     reactRouter(),
     tsconfigPaths(),
   ],

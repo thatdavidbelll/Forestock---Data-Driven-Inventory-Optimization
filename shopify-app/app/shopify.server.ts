@@ -18,13 +18,14 @@ type ShopifySessionStorage = NonNullable<Parameters<typeof shopifyApp>[0]["sessi
 // nominally incompatible even though the runtime storage implementation is correct.
 // Keep the cast narrow and documented instead of using a raw `as any` inline.
 const sessionStorage = new PrismaSessionStorage(prisma) as unknown as ShopifySessionStorage;
+const appUrl = process.env.HOST || process.env.SHOPIFY_APP_URL || "";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.October25,
   scopes: process.env.SCOPES?.split(","),
-  appUrl: process.env.SHOPIFY_APP_URL || "",
+  appUrl,
   authPathPrefix: "/auth",
   sessionStorage,
   distribution: AppDistribution.AppStore,

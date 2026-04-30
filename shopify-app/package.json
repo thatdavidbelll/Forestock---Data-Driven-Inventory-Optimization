@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "react-router build",
-    "dev": "sh -lc '[ -f .env ] || { echo \"Missing shopify-app/.env. Copy .env.local.example to .env and fill the required values.\" >&2; exit 1; }; npx shopify app dev --config forestock-inventory-forecast --no-update'",
+    "dev": "sh -lc '[ -f .env ] || { echo \"Missing shopify-app/.env. Copy .env.local.example to .env and fill the required values.\" >&2; exit 1; }; if [ -n \"${SHOPIFY_CLI_CONFIG:-}\" ]; then echo \"Starting Shopify CLI with config: $SHOPIFY_CLI_CONFIG\"; npx shopify app dev --config \"$SHOPIFY_CLI_CONFIG\"; else echo \"Starting Shopify CLI with config: forestock-test\"; npx shopify app dev --config forestock-test; fi'",
     "config:link": "npx shopify app config link",
     "generate": "npx shopify app generate",
     "deploy": "npx shopify app deploy",
@@ -30,13 +30,16 @@
     "@react-router/node": "^7.12.0",
     "@react-router/serve": "^7.12.0",
     "@shopify/app-bridge-react": "^4.2.4",
+    "@shopify/polaris": "^13.9.5",
     "@shopify/shopify-app-react-router": "^1.1.0",
     "@shopify/shopify-app-session-storage-prisma": "^8.0.0",
+    "@tailwindcss/vite": "^4.2.4",
     "isbot": "^5.1.31",
     "prisma": "^6.16.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router": "^7.12.0",
+    "tailwindcss": "^4.2.4",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
