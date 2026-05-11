@@ -202,6 +202,9 @@ type RecommendationsResponse = {
   recommendations: RecommendationCard[];
 };
 
+export const MERCHANT_SETUP_RETRY_MESSAGE =
+  "Forestock could not finish setup right now. Please try again in a moment.";
+
 function getApiBaseUrl() {
   const apiBaseUrl = process.env.FORESTOCK_API_BASE_URL;
   if (!apiBaseUrl) {
@@ -246,6 +249,18 @@ async function readApiResponse<T>(response: Response): Promise<{ message?: strin
   } catch {
     return { message: response.statusText || "Forestock API request failed" };
   }
+}
+
+export function resolveMerchantSafeSetupErrorMessage(
+  status: number,
+  message: string | undefined,
+  fallback: string,
+) {
+  if (status === 401 || status === 403) {
+    return MERCHANT_SETUP_RETRY_MESSAGE;
+  }
+
+  return message || fallback;
 }
 
 export async function provisionForestockShop(
@@ -434,7 +449,17 @@ export async function syncForestockPlan(
 
   const responseBody = await readApiResponse<PlanSyncResponse>(response);
   if (!response.ok || !responseBody.data) {
-    throw new Error(responseBody.message || "Failed to sync Forestock plan");
+    console.error(`[Forestock] Plan sync request failed for ${shopDomain}:`, {
+      status: response.status,
+      message: responseBody.message,
+    });
+    throw new Error(
+      resolveMerchantSafeSetupErrorMessage(
+        response.status,
+        responseBody.message,
+        "Failed to sync Forestock plan",
+      ),
+    );
   }
 
   return responseBody.data;
@@ -455,7 +480,17 @@ export async function confirmForestockFreePlanChoice(shopDomain: string): Promis
 
   const responseBody = await readApiResponse<PlanSyncResponse>(response);
   if (!response.ok || !responseBody.data) {
-    throw new Error(responseBody.message || "Failed to confirm Forestock free plan choice");
+    console.error(`[Forestock] Free plan choice confirmation failed for ${shopDomain}:`, {
+      status: response.status,
+      message: responseBody.message,
+    });
+    throw new Error(
+      resolveMerchantSafeSetupErrorMessage(
+        response.status,
+        responseBody.message,
+        "Failed to confirm Forestock free plan choice",
+      ),
+    );
   }
 
   return responseBody.data;

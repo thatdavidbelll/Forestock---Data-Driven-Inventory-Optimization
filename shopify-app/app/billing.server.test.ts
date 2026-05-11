@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./forestock.server", () => ({
+  MERCHANT_SETUP_RETRY_MESSAGE: "Forestock could not finish setup right now. Please try again in a moment.",
   syncForestockPlan: vi.fn(),
 }));
 
-import { buildManagedPricingUrl, loadBillingContext, resolvePlanTier, resolveWebhookPlanTier } from "./billing.server";
+import {
+  buildManagedPricingUrl,
+  buildPlanSyncErrorMessage,
+  loadBillingContext,
+  resolvePlanTier,
+  resolveWebhookPlanTier,
+} from "./billing.server";
 import { syncForestockPlan } from "./forestock.server";
 
 function jsonResponse(body: unknown) {
@@ -70,6 +77,15 @@ describe("billing plan helpers", () => {
     process.env.SHOPIFY_MANAGED_PRICING_HANDLE = "custom-pricing-handle";
 
     expect(buildManagedPricingUrl()).toBe("shopify://admin/charges/custom-pricing-handle/pricing_plans");
+  });
+
+  it("does not append raw setup details when plan sync already returned a generic setup error", () => {
+    expect(
+      buildPlanSyncErrorMessage(
+        "FREE",
+        "Forestock could not finish setup right now. Please try again in a moment.",
+      ),
+    ).toBe("Forestock could not finish setup right now. Please try again in a moment.");
   });
 
   it("uses the synced backend plan when billing sync succeeds", async () => {

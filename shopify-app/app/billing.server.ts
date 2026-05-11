@@ -1,4 +1,8 @@
-import { syncForestockPlan, type PlanSyncResponse } from "./forestock.server";
+import {
+  MERCHANT_SETUP_RETRY_MESSAGE,
+  syncForestockPlan,
+  type PlanSyncResponse,
+} from "./forestock.server";
 
 type ActiveSubscription = {
   id: string;
@@ -54,6 +58,16 @@ export function buildManagedPricingUrl(
 }
 
 export function buildPlanSyncErrorMessage(billingPlanTier: PlanTier, detail: string) {
+  const normalizedDetail = detail.trim().toLowerCase();
+  if (
+    detail === MERCHANT_SETUP_RETRY_MESSAGE
+    || normalizedDetail.includes("unauthorized")
+    || normalizedDetail.includes("please log in")
+    || normalizedDetail.includes("invalid provisioning secret")
+  ) {
+    return MERCHANT_SETUP_RETRY_MESSAGE;
+  }
+
   const prefix = billingPlanTier === "PAID"
     ? "Shopify billing is active, but Forestock could not sync the paid plan yet. Refresh the app or rerun setup in a moment."
     : "Forestock could not sync this store plan yet. Try again in a moment.";
