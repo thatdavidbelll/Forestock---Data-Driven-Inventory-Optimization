@@ -13,6 +13,7 @@ import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.AuditLogService;
 import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.ProductBulkImportService;
+import com.forestock.forestock_backend.service.StorePlanService;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,7 @@ public class ProductController {
     private final AuditLogService auditLogService;
     private final ProductBulkImportService productBulkImportService;
     private final ForecastTriggerService forecastTriggerService;
+    private final StorePlanService storePlanService;
 
     // ── Read ─────────────────────────────────────────────────────────────────
 
@@ -116,6 +118,16 @@ public class ProductController {
                     .body(ApiResponse.error("No store context"));
         }
 
+        boolean shouldActivate = !Boolean.FALSE.equals(request.getActive());
+        try {
+            if (shouldActivate) {
+                storePlanService.assertCanActivateAdditionalProducts(storeId, 1);
+            }
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new NoSuchElementException("Store not found"));
 
@@ -164,6 +176,19 @@ public class ProductController {
         return productRepository.findById(id)
                 .map(existing -> {
                     if (isAccessDenied(existing)) return FORBIDDEN;
+                    boolean activatingFromInactive =
+                            Boolean.FALSE.equals(existing.getActive()) && !Boolean.FALSE.equals(updates.getActive());
+                    try {
+                        if (activatingFromInactive) {
+                            UUID productStoreId =
+                                    existing.getStore() != null ? existing.getStore().getId() : TenantContext.getStoreId();
+                            storePlanService.assertCanActivateAdditionalProducts(productStoreId, 1);
+                        }
+                    } catch (IllegalStateException e) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(ApiResponse.<ProductDto>error(e.getMessage()));
+                    }
+
                     Map<String, Object> before = new LinkedHashMap<>();
                     before.put("name", existing.getName());
                     before.put("category", existing.getCategory());
@@ -232,12 +257,19 @@ public class ProductController {
                         return ResponseEntity.status(HttpStatus.CONFLICT)
                                 .body(ApiResponse.<ProductDto>error("Product is already active"));
                     }
+                    UUID productStoreId = p.getStore() != null ? p.getStore().getId() : TenantContext.getStoreId();
+                    try {
+                        storePlanService.assertCanActivateAdditionalProducts(productStoreId, 1);
+                    } catch (IllegalStateException e) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(ApiResponse.<ProductDto>error(e.getMessage()));
+                    }
                     p.setActive(true);
                     Product saved = productRepository.save(p);
                     auditLogService.log("PRODUCT_RESTORED", "Product", saved.getId().toString(),
                             "Restored product '" + saved.getSku() + "'");
-                    UUID productStoreId = saved.getStore() != null ? saved.getStore().getId() : TenantContext.getStoreId();
-                    forecastTriggerService.triggerForStore(productStoreId, "product-restored");
+                    UUID savedStoreId = saved.getStore() != null ? saved.getStore().getId() : TenantContext.getStoreId();
+                    forecastTriggerService.triggerForStore(savedStoreId, "product-restored");
                     return ResponseEntity.ok(ApiResponse.success("Product restored", toDto(saved)));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
