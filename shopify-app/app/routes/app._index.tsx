@@ -110,11 +110,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function AppIndex() {
   const data = useLoaderData<typeof loader>();
   const hasAttention = data.criticalSuggestions > 0 || data.highSuggestions > 0;
+  const currentPlan = data.planTier ?? "FREE";
+  const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
 
   return (
     <AppShell
       title={resolveHomeTitle(data.storeName, data.shopDomain)}
+      actions={<Badge tone={planBadgeTone}>{currentPlan} plan</Badge>}
     >
+      <Card tone={data.overProductLimit ? "warning" : "subtle"}>
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Plan usage</div>
+          <div style={{ color: "#475569", lineHeight: 1.6 }}>
+            {currentPlan === "PAID"
+              ? "Paid plan · Unlimited active products"
+              : `${data.activeProductCount} / ${data.productLimit ?? 15} active products`}
+          </div>
+          {data.planMessage ? <Badge tone="warning">{data.planMessage}</Badge> : null}
+        </div>
+      </Card>
+
+      <div style={{ marginTop: 16 }}>
       <Grid columns={2}>
         <MetricCard
           label="Needs attention"
@@ -129,6 +145,7 @@ export default function AppIndex() {
           tone={data.activeProductCount > 0 ? "subtle" : "warning"}
         />
       </Grid>
+      </div>
 
       <div style={{ marginTop: 16 }}>
       <Section title="Top recommendation">

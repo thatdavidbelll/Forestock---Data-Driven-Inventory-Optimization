@@ -25,7 +25,6 @@ import {
   updateForestockStoreConfig,
 } from "../forestock.server";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
-import { getBillingStatus, hasBillingAccess } from "../billing.server";
 import { getSetupStages, type SetupStage } from "../setup-state";
 import { authenticate, registerWebhooks } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
@@ -60,14 +59,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
-    const billing = await getBillingStatus(admin);
-    if (!hasBillingAccess(billing)) {
-      return {
-        intent: "full",
-        ok: false,
-        message: "Activate a Shopify plan for Forestock before running setup.",
-      } satisfies ShopifySetupStepResult;
-    }
     const identity = await loadShopIdentity(admin, session.shop);
 
     try {
@@ -100,11 +91,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  const { admin, session } = await authenticate.admin(request);
-  const billing = await getBillingStatus(admin);
-  if (!hasBillingAccess(billing)) {
-    return { ok: false, message: "Activate a Shopify plan for Forestock before changing settings." } satisfies ActionData;
-  }
+  const { session } = await authenticate.admin(request);
   const forecastHorizonDays = Number(formData.get("forecastHorizonDays"));
 
   if (!Number.isFinite(forecastHorizonDays)) {
@@ -164,6 +151,8 @@ export default function SettingsPage() {
   const nextSetupStage = stages.find((stage) => stage.status !== "completed");
   const setupBlockedExternally = Boolean(setupFetcher.data?.externalBlock);
   const shouldAutoBootstrap = !setupBlockedExternally && shouldAutoRunSetup(stages);
+  const currentPlan = overview.planTier ?? "FREE";
+  const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
 
   useEffect(() => {
     setForecastHorizonDays(Math.min(90, Math.max(3, effectiveConfig.forecastHorizonDays)));
@@ -181,7 +170,24 @@ export default function SettingsPage() {
   return (
     <AppShell
       title="Settings"
+      actions={<Badge tone={planBadgeTone}>{currentPlan} plan</Badge>}
     >
+      <Section title="Plan usage" description="Free stores stay in the app, but active product tracking is capped until the plan is upgraded.">
+        <Card tone={overview.overProductLimit ? "warning" : "subtle"}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {currentPlan === "PAID" ? "Paid plan" : "Free plan"}
+            </div>
+            <div style={{ color: "#475569", lineHeight: 1.6 }}>
+              {currentPlan === "PAID"
+                ? "Unlimited active products are available for this store."
+                : `${overview.activeProductCount} / ${overview.productLimit ?? 15} active products are currently in use.`}
+            </div>
+            {overview.planMessage ? <Badge tone="warning">{overview.planMessage}</Badge> : null}
+          </div>
+        </Card>
+      </Section>
+
       <Section title="Setup status" description="We handle the setup for you.">
         <Card>
           <SummarySplit

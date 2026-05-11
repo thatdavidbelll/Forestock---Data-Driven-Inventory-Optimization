@@ -8,6 +8,8 @@ export default function BillingPage() {
   const data = useRouteLoaderData<typeof appLoader>("routes/app");
   const billing = data?.billing;
   const managedPricingUrl = data?.managedPricingUrl;
+  const currentPlan = data?.planTier ?? (billing?.hasActiveSubscription ? "PAID" : "FREE");
+  const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
 
   if (!billing || !managedPricingUrl) {
     return <ErrorState error={new Error("Billing status is unavailable.")} />;
@@ -15,28 +17,46 @@ export default function BillingPage() {
 
   return (
     <AppShell
-      title="Choose a plan"
-      subtitle="Forestock needs an active Shopify app subscription before inventory forecasting and recommendations can run."
-      actions={<Badge tone="warning">Subscription required</Badge>}
+      title="Plans"
+      subtitle="Free stores can stay in the app with up to 15 active tracked products. Paid stores unlock unlimited active products."
+      actions={<Badge tone={planBadgeTone}>{currentPlan} plan</Badge>}
     >
-      <Section title="What you get with Forestock">
+      <Section title="Choose the right plan">
         <Card>
-          <div style={{ display: "grid", gap: 20 }}>
-            <div style={{ display: "grid", gap: 12 }}>
-              {[
-                { icon: "📦", title: "AI-powered reorder forecasting", body: "Holt-Winters seasonal forecasting tells you exactly what to reorder and when — before you run out." },
-                { icon: "🚨", title: "CRITICAL & HIGH stock alerts", body: "Automatic urgency scoring so you always know which products need attention today." },
-                { icon: "📉", title: "Slow mover detection", body: "Identify dead stock tying up cash. Filter by 30, 60, or 90 days of inactivity." },
-                { icon: "📊", title: "Sales velocity & forecast accuracy", body: "Track how well forecasts match real sales. Model accuracy shown on every recommendation." },
-              ].map((feature) => (
-                <div key={feature.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <span style={{ fontSize: 20 }}>{feature.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>{feature.title}</div>
-                    <div style={{ color: "#6B7280", fontSize: 13, lineHeight: 1.6 }}>{feature.body}</div>
-                  </div>
+          <div style={{ display: "grid", gap: 16 }}>
+            <div style={{ display: "grid", gap: 16 }}>
+              <div
+                style={{
+                  padding: 16,
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 16,
+                  background: currentPlan === "FREE" ? "#F8FAFC" : "#FFFFFF",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>Free</div>
+                  {currentPlan === "FREE" ? <Badge tone="accent">Current plan</Badge> : null}
                 </div>
-              ))}
+                <div style={{ marginTop: 6, color: "#64748B", lineHeight: 1.6 }}>
+                  Access the app, sync products, and track up to 15 active products.
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: 16,
+                  border: "1px solid #C7D2FE",
+                  borderRadius: 16,
+                  background: "#EEF2FF",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>Paid</div>
+                  {currentPlan === "PAID" ? <Badge tone="success">Current plan</Badge> : null}
+                </div>
+                <div style={{ marginTop: 6, color: "#4338CA", lineHeight: 1.6 }}>
+                  $14.99 / month. Unlimited active products and no free-tier activation cap.
+                </div>
+              </div>
             </div>
             <div style={{ borderTop: "1px solid #E5E7EB", paddingTop: 20 }}>
               <a
@@ -49,10 +69,10 @@ export default function BillingPage() {
                   color: "#ffffff", textDecoration: "none", fontSize: 15, fontWeight: 700,
                 }}
               >
-                View plans and start free trial
+                Manage Shopify billing
               </a>
               <div style={{ marginTop: 10, fontSize: 13, color: "#9CA3AF" }}>
-                Free trial available · Cancel anytime · No lock-in
+                Upgrade, downgrade, or review subscription details in Shopify Admin.
               </div>
             </div>
           </div>

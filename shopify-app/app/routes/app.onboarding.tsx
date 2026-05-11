@@ -12,7 +12,6 @@ import {
   Section,
 } from "../components";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
-import { getBillingStatus, hasBillingAccess } from "../billing.server";
 import { getSetupStages } from "../setup-state";
 import { authenticate } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
@@ -39,14 +38,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
-    const billing = await getBillingStatus(admin);
-    if (!hasBillingAccess(billing)) {
-      return {
-        intent: "full",
-        ok: false,
-        message: "Activate a Shopify plan for Forestock before running setup.",
-      } satisfies ShopifySetupStepResult;
-    }
     const identity = await loadShopIdentity(admin, session.shop);
 
     try {
@@ -87,9 +78,11 @@ export default function OnboardingPage() {
   const setupFetcher = useFetcher<ShopifySetupStepResult>();
   const stages = getSetupStages(overview);
   const setupComplete = stages.every((stage) => stage.status === "completed");
+  const currentPlan = overview.planTier ?? "FREE";
+  const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
 
   return (
-    <AppShell title="Onboarding">
+    <AppShell title="Onboarding" actions={<Badge tone={planBadgeTone}>{currentPlan} plan</Badge>}>
       <Section title="Get started" description="Complete the initial Forestock setup for this store.">
         <Card>
           <div style={{ display: "grid", gap: 24 }}>
@@ -99,6 +92,19 @@ export default function OnboardingPage() {
               </div>
               <div style={{ marginTop: 8, fontSize: 15, lineHeight: 1.6, color: "#64748B" }}>
                 Review the setup stages below and run setup when you&apos;re ready.
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <Card tone={overview.overProductLimit ? "warning" : "subtle"}>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>Plan usage</div>
+                    <div style={{ color: "#475569", lineHeight: 1.6 }}>
+                      {currentPlan === "PAID"
+                        ? "Paid plan · Unlimited active products"
+                        : `${overview.activeProductCount} / ${overview.productLimit ?? 15} active products`}
+                    </div>
+                    {overview.planMessage ? <Badge tone="warning">{overview.planMessage}</Badge> : null}
+                  </div>
+                </Card>
               </div>
             </div>
 
