@@ -10,12 +10,22 @@ export type BillingStatus = {
   hasActiveSubscription: boolean;
 };
 
+export type PlanTier = "FREE" | "PAID";
+
 export function shouldEnforceBilling() {
   return process.env.NODE_ENV === "production" || process.env.FORESTOCK_ENFORCE_BILLING === "true";
 }
 
 export function hasBillingAccess(billing: BillingStatus) {
   return billing.hasActiveSubscription || !shouldEnforceBilling();
+}
+
+export function resolvePlanTier(billing: BillingStatus): PlanTier {
+  return billing.hasActiveSubscription ? "PAID" : "FREE";
+}
+
+export function resolveWebhookPlanTier(status: string | undefined): PlanTier {
+  return status === "ACTIVE" ? "PAID" : "FREE";
 }
 
 export async function getBillingStatus(admin: { graphql: (query: string) => Promise<Response> }): Promise<BillingStatus> {

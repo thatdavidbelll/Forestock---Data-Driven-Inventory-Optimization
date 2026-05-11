@@ -1,3 +1,5 @@
+import type { PlanTier } from "./billing.server";
+
 type ProvisionRequest = {
   shopDomain: string;
   shopName: string | null;
@@ -96,6 +98,16 @@ type ForecastTriggerResponse = {
   message: string;
 };
 
+export type PlanSyncResponse = {
+  planTier: PlanTier;
+  productLimit: number | null;
+  activeProductCount: number;
+  remainingProductSlots: number | null;
+  overProductLimit: boolean;
+  forecastAllowed: boolean;
+  statusMessage: string | null;
+};
+
 export type StoreConfigurationResponse = {
   timezone: string;
   currencySymbol: string;
@@ -128,6 +140,11 @@ export type AppHomeOverviewResponse = {
   shopDomain: string;
   storeName: string;
   shopifyConnectionActive: boolean;
+  planTier: PlanTier | null;
+  productLimit: number | null;
+  remainingProductSlots: number | null;
+  overProductLimit: boolean;
+  planMessage: string | null;
   activeProductCount: number;
   totalProductCount: number;
   hasSalesHistory: boolean;
@@ -395,6 +412,30 @@ export async function triggerForestockForecast(shopDomain: string): Promise<Fore
   return {
     message: responseBody.data || responseBody.message || "Forecast started in background",
   };
+}
+
+export async function syncForestockPlan(
+  shopDomain: string,
+  planTier: PlanTier,
+): Promise<PlanSyncResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(`${apiBaseUrl}/api/shopify/plan`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forestock-Shopify-Secret": provisioningSecret,
+    },
+    body: JSON.stringify({ shopDomain, planTier }),
+  });
+
+  const responseBody = await readApiResponse<PlanSyncResponse>(response);
+  if (!response.ok || !responseBody.data) {
+    throw new Error(responseBody.message || "Failed to sync Forestock plan");
+  }
+
+  return responseBody.data;
 }
 
 export async function getForestockStoreConfig(shopDomain: string): Promise<StoreConfigurationResponse> {

@@ -4,7 +4,8 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { ErrorState, NavTabs } from "../components";
-import { getBillingStatus, hasBillingAccess } from "../billing.server";
+import { getBillingStatus, resolvePlanTier } from "../billing.server";
+import { syncForestockPlan } from "../forestock.server";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -23,23 +24,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const billing = await getBillingStatus(admin);
-  const billingAccess = hasBillingAccess(billing);
-  const url = new URL(request.url);
-  const onBillingRoute = url.pathname === "/app/billing";
+  const planTier = resolvePlanTier(billing);
 
-  if (!billingAccess && !onBillingRoute) {
-    throw redirect(`/app/billing${url.search}`);
+  try {
+    await syncForestockPlan(session.shop, planTier);
+  } catch (error) {
+    console.error(`[Forestock] Failed to sync plan for ${session.shop}:`, error);
   }
 
-  if (billingAccess && onBillingRoute) {
-    throw redirect(`/app${url.search}`);
-  }
-
-  return { apiKey, billing, billingAccess, managedPricingHandle, managedPricingUrl };
+  return { apiKey, billing, planTier, managedPricingHandle, managedPricingUrl };
 };
 
 export default function App() {
-  const { apiKey, billingAccess } = useLoaderData<typeof loader>();
+  const { apiKey } = useLoaderData<typeof loader>();
   const location = useLocation();
 
   return (
@@ -54,15 +51,12 @@ export default function App() {
         <NavTabs
           currentPath={location.pathname}
           search={location.search}
-          items={billingAccess
-            ? [
-                { label: "Home", href: "/app" },
-                { label: "Recommendations", href: "/app/recommendations" },
-                { label: "Settings", href: "/app/settings" },
-              ]
-            : [
-                { label: "Billing", href: "/app/billing" },
-              ]}
+          items={[
+            { label: "Home", href: "/app" },
+            { label: "Recommendations", href: "/app/recommendations" },
+            { label: "Settings", href: "/app/settings" },
+            { label: "Billing", href: "/app/billing" },
+          ]}
         />
         <Outlet />
       </div>
