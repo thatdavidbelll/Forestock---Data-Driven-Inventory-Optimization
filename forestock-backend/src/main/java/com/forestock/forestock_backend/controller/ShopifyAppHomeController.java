@@ -135,9 +135,15 @@ public class ShopifyAppHomeController {
 
         return shopifyConnectionRepository.findByShopDomainAndActiveTrue(shopDomain)
                 .map(connection -> {
-                    forecastOrchestrator.runForecast(connection.getStore().getId(), "SHOPIFY_APP");
-                    return ResponseEntity.accepted()
-                            .body(ApiResponse.success("Forecast started in background", "Forecast started in background"));
+                    try {
+                        storePlanService.assertForecastAllowed(connection.getStore().getId());
+                        forecastOrchestrator.runForecast(connection.getStore().getId(), "SHOPIFY_APP");
+                        return ResponseEntity.accepted()
+                                .body(ApiResponse.success("Forecast started in background", "Forecast started in background"));
+                    } catch (IllegalStateException e) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(ApiResponse.<String>error(e.getMessage()));
+                    }
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiResponse.error("No active Shopify connection found for this shop")));

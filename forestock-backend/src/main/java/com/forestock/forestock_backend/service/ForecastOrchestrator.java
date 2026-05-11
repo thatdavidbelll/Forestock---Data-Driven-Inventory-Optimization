@@ -54,6 +54,7 @@ public class ForecastOrchestrator {
     private final StoreConfigurationService storeConfigurationService;
     private final S3DataExportService s3ExportService;
     private final NotificationService notificationService;
+    private final StorePlanService storePlanService;
 
     /**
      * Async entry point for store-scoped/manual triggers.
@@ -97,6 +98,13 @@ public class ForecastOrchestrator {
      * Synchronous cycle for a specific store.
      */
     public ForecastRun runFullCycle(String triggeredBy, Store store) {
+        try {
+            storePlanService.assertForecastAllowed(store.getId());
+        } catch (IllegalStateException e) {
+            log.info("Skipping forecast for store {} because plan rules block execution: {}", store.getSlug(), e.getMessage());
+            return null;
+        }
+
         // Guard: prevent parallel runs for the same store
         if (forecastRunRepository.existsByStoreIdAndStatus(store.getId(), ForecastStatus.RUNNING)) {
             log.warn("Forecast already RUNNING for store {} — skipping run triggered by {}", store.getSlug(), triggeredBy);

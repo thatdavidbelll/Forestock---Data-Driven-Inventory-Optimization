@@ -30,6 +30,7 @@ public class ShopifyCatalogSyncService {
     private final InventoryRepository inventoryRepository;
     private final AuditLogService auditLogService;
     private final ForecastTriggerService forecastTriggerService;
+    private final StorePlanService storePlanService;
 
     @Transactional
     public CatalogSyncResult syncCatalog(CatalogSyncRequest request) {
@@ -45,9 +46,11 @@ public class ShopifyCatalogSyncService {
         int createdProducts = 0;
         int updatedProducts = 0;
         int inventorySnapshotsCreated = 0;
+        StorePlanService.PlanSnapshot planSnapshot = storePlanService.getPlanForStore(store.getId());
+        int reservedActivations = 0;
 
         for (ShopifyCatalogItem item : request.items()) {
-            SyncOutcome outcome = upsertCatalogItem(store, item);
+            SyncOutcome outcome = upsertCatalogItem(store, item, planSnapshot, reservedActivations);
             if (outcome.createdProduct()) {
                 createdProducts++;
             } else if (outcome.updatedProduct()) {
@@ -55,6 +58,9 @@ public class ShopifyCatalogSyncService {
             }
             if (outcome.createdInventorySnapshot()) {
                 inventorySnapshotsCreated++;
+            }
+            if (outcome.productActivated()) {
+                reservedActivations++;
             }
         }
 
@@ -167,7 +173,10 @@ public class ShopifyCatalogSyncService {
         return result;
     }
 
-    private SyncOutcome upsertCatalogItem(Store store, ShopifyCatalogItem item) {
+    private SyncOutcome upsertCatalogItem(Store store,
+                                          ShopifyCatalogItem item,
+                                          StorePlanService.PlanSnapshot planSnapshot,
+                                          int reservedActivations) {
         String variantGid = normalize(item.shopifyVariantGid());
         if (variantGid == null) {
             throw new IllegalArgumentException("Shopify variant GID is required");
@@ -178,6 +187,16 @@ public class ShopifyCatalogSyncService {
                 .or(() -> productRepository.findByStoreIdAndSku(store.getId(), normalizedSku))
                 .orElse(null);
 
+        boolean wasActive = product != null && Boolean.TRUE.equals(product.getActive());
+        boolean shouldBeActive = item.active();
+        if (shouldBeActive && planSnapshot.productLimit() != null) {
+            int additionalActivation = wasActive ? 0 : 1;
+            long futureActiveCount = planSnapshot.activeProductCount() + reservedActivations + additionalActivation;
+            if (futureActiveCount > planSnapshot.productLimit()) {
+                shouldBeActive = false;
+            }
+        }
+
         boolean createdProduct = false;
         boolean updatedProduct = false;
 
@@ -185,7 +204,7 @@ public class ShopifyCatalogSyncService {
             product = Product.builder()
                     .store(store)
                     .sku(normalizedSku)
-                    .active(item.active())
+                    .active(shouldBeActive)
                     .build();
             createdProduct = true;
         } else if (!normalizedSku.equals(product.getSku())
@@ -197,7 +216,7 @@ public class ShopifyCatalogSyncService {
                 || !safeEquals(product.getShopifyInventoryItemGid(), normalize(item.shopifyInventoryItemGid()))
                 || !safeEquals(product.getProductImageUrl(), normalize(item.productImageUrl()))
                 || !safeEquals(product.getUnitCost(), item.unitCost())
-                || !safeEquals(product.getActive(), item.active())) {
+                || !safeEquals(product.getActive(), shouldBeActive)) {
             updatedProduct = true;
         }
 
@@ -212,12 +231,13 @@ public class ShopifyCatalogSyncService {
         product.setShopifyVariantGid(variantGid);
         product.setShopifyInventoryItemGid(normalize(item.shopifyInventoryItemGid()));
         product.setProductImageUrl(normalize(item.productImageUrl()));
-        product.setActive(item.active());
+        product.setActive(shouldBeActive);
 
         Product saved = productRepository.save(product);
         boolean createdInventorySnapshot = syncInventory(store, saved, item.inventoryQuantity());
+        boolean productActivated = !wasActive && Boolean.TRUE.equals(saved.getActive());
 
-        return new SyncOutcome(createdProduct, updatedProduct, createdInventorySnapshot);
+        return new SyncOutcome(createdProduct, updatedProduct, createdInventorySnapshot, productActivated);
     }
 
     private boolean syncInventory(Store store, Product product, BigDecimal quantity) {
@@ -320,6 +340,11 @@ public class ShopifyCatalogSyncService {
     ) {
     }
 
-    private record SyncOutcome(boolean createdProduct, boolean updatedProduct, boolean createdInventorySnapshot) {
+    private record SyncOutcome(
+            boolean createdProduct,
+            boolean updatedProduct,
+            boolean createdInventorySnapshot,
+            boolean productActivated
+    ) {
     }
 }

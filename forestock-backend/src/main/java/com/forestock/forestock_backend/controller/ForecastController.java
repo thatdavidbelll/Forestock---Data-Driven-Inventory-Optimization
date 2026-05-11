@@ -7,6 +7,7 @@ import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.security.TenantContext;
 import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import com.forestock.forestock_backend.service.ForecastService;
+import com.forestock.forestock_backend.service.StorePlanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +26,18 @@ public class ForecastController {
     private final ForecastOrchestrator forecastOrchestrator;
     private final ForecastService forecastService;
     private final ForecastRunRepository forecastRunRepository;
+    private final StorePlanService storePlanService;
 
     /** Manually triggers a full forecast cycle (async). */
     @PostMapping("/run")
     public ResponseEntity<ApiResponse<String>> triggerRun() {
         UUID storeId = TenantContext.getStoreId();
+        try {
+            storePlanService.assertForecastAllowed(storeId);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error(e.getMessage()));
+        }
         if (forecastRunRepository.existsByStoreIdAndStatus(storeId, ForecastStatus.RUNNING)) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("A forecast is already running for this store"));

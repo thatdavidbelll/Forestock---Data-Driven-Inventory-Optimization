@@ -54,6 +54,14 @@ public class StorePlanService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public void assertForecastAllowed(UUID storeId) {
+        PlanSnapshot snapshot = getPlanForStore(storeId);
+        if (!snapshot.forecastAllowed()) {
+            throw new IllegalStateException(snapshot.statusMessage());
+        }
+    }
+
     private PlanSnapshot buildSnapshot(UUID storeId, StorePlanTier planTier, Integer productLimit) {
         long activeProductCount = productRepository.countByStoreIdAndActiveTrue(storeId);
         Integer remainingProductSlots = productLimit == null
@@ -62,7 +70,8 @@ public class StorePlanService {
         boolean overProductLimit = productLimit != null && activeProductCount > productLimit;
         boolean forecastAllowed = !overProductLimit;
         String statusMessage = overProductLimit
-                ? "Reduce active products to 15 or upgrade to continue running forecasts."
+                ? "This store has %d active products on the Free plan. Reduce active products to 15 or upgrade to resume forecasting."
+                        .formatted(activeProductCount)
                 : null;
 
         return new PlanSnapshot(
