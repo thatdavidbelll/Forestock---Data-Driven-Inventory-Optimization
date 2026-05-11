@@ -6,6 +6,7 @@ import com.forestock.forestock_backend.domain.Product;
 import com.forestock.forestock_backend.domain.ShopifyConnection;
 import com.forestock.forestock_backend.domain.Store;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
+import com.forestock.forestock_backend.domain.enums.StorePlanTier;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.repository.ForecastRunRepository;
 import com.forestock.forestock_backend.repository.OrderSuggestionRepository;
@@ -48,6 +49,9 @@ class ShopifyAppHomeServiceTest {
 
     @Mock
     private DashboardService dashboardService;
+
+    @Mock
+    private StorePlanService storePlanService;
 
     @InjectMocks
     private ShopifyAppHomeService shopifyAppHomeService;
@@ -119,5 +123,44 @@ class ShopifyAppHomeServiceTest {
         assertThat(dto.getAcknowledgedReason()).isEqualTo("PO raised");
         assertThat(dto.getOrderReference()).isEqualTo("PO-1001");
         assertThat(dto.getUrgency()).isEqualTo(Urgency.CRITICAL);
+    }
+
+    @Test
+    void getOverview_includesPlanMetadataAndOverLimitMessage() {
+        UUID storeId = UUID.randomUUID();
+        Store store = Store.builder().id(storeId).name("Demo Store").build();
+        ShopifyConnection connection = ShopifyConnection.builder()
+                .shopDomain("demo.myshopify.com")
+                .active(true)
+                .store(store)
+                .planTier(StorePlanTier.FREE)
+                .productLimit(15)
+                .build();
+
+        when(shopifyConnectionRepository.findByShopDomain("demo.myshopify.com"))
+                .thenReturn(Optional.of(connection));
+        when(productRepository.countByStoreId(storeId)).thenReturn(20L);
+        when(productRepository.countByStoreIdAndActiveTrue(storeId)).thenReturn(18L);
+        when(salesTransactionRepository.existsByStoreId(storeId)).thenReturn(false);
+        when(salesTransactionRepository.countByStoreId(storeId)).thenReturn(0L);
+        when(dashboardService.getDataQualityWarnings(storeId)).thenReturn(List.of());
+        when(storePlanService.getPlanForStore(storeId)).thenReturn(new StorePlanService.PlanSnapshot(
+                StorePlanTier.FREE,
+                15,
+                18,
+                0,
+                true,
+                false,
+                "Reduce active products to 15 or upgrade to continue running forecasts."
+        ));
+
+        var overview = shopifyAppHomeService.getOverview("demo.myshopify.com");
+
+        assertThat(overview.planTier()).isEqualTo("FREE");
+        assertThat(overview.productLimit()).isEqualTo(15);
+        assertThat(overview.remainingProductSlots()).isZero();
+        assertThat(overview.overProductLimit()).isTrue();
+        assertThat(overview.recommendationReadinessReasons())
+                .anyMatch(reason -> reason.contains("Reduce active products to 15 or upgrade"));
     }
 }

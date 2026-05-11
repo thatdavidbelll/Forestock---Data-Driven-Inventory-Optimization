@@ -1,6 +1,7 @@
 package com.forestock.forestock_backend.controller;
 
 import com.forestock.forestock_backend.config.ShopifyProperties;
+import com.forestock.forestock_backend.domain.enums.StorePlanTier;
 import com.forestock.forestock_backend.dto.request.ShopifyPurchaseOrderRequest;
 import com.forestock.forestock_backend.dto.request.UpdateStoreConfigRequest;
 import com.forestock.forestock_backend.dto.response.ApiResponse;
@@ -9,6 +10,7 @@ import com.forestock.forestock_backend.repository.ShopifyConnectionRepository;
 import com.forestock.forestock_backend.service.ForecastOrchestrator;
 import com.forestock.forestock_backend.service.ForecastTriggerService;
 import com.forestock.forestock_backend.service.ShopifyAppHomeService;
+import com.forestock.forestock_backend.service.StorePlanService;
 import com.forestock.forestock_backend.service.StoreConfigurationService;
 import com.forestock.forestock_backend.service.SuggestionService;
 import jakarta.validation.Valid;
@@ -44,6 +46,7 @@ public class ShopifyAppHomeController {
     private final StoreConfigurationService storeConfigurationService;
     private final SuggestionService suggestionService;
     private final ShopifyProperties shopifyProperties;
+    private final StorePlanService storePlanService;
 
     @GetMapping("/app-home")
     public ResponseEntity<ApiResponse<ShopifyAppHomeService.AppHomeOverview>> getAppHome(
@@ -63,6 +66,19 @@ public class ShopifyAppHomeController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
         }
         return ResponseEntity.ok(ApiResponse.success(shopifyAppHomeService.getRecommendations(shopDomain)));
+    }
+
+    @PutMapping("/plan")
+    public ResponseEntity<ApiResponse<StorePlanService.PlanSnapshot>> syncPlan(
+            @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
+            @Valid @RequestBody PlanSyncRequest request) {
+        if (!isValidSecret(provisioningSecret)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
+        }
+
+        StorePlanService.PlanSnapshot snapshot =
+                storePlanService.syncPlanForShop(request.shopDomain(), StorePlanTier.valueOf(request.planTier()));
+        return ResponseEntity.ok(ApiResponse.success("Plan synced", snapshot));
     }
 
     @GetMapping("/config")
@@ -161,5 +177,8 @@ public class ShopifyAppHomeController {
                         expected.getBytes(StandardCharsets.UTF_8),
                         provisioningSecret.getBytes(StandardCharsets.UTF_8)
                 );
+    }
+
+    public record PlanSyncRequest(String shopDomain, String planTier) {
     }
 }

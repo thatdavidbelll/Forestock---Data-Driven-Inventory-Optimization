@@ -4,6 +4,7 @@ import com.forestock.forestock_backend.dto.response.SuggestionDto;
 import com.forestock.forestock_backend.domain.ForecastRun;
 import com.forestock.forestock_backend.domain.OrderSuggestion;
 import com.forestock.forestock_backend.domain.ShopifyConnection;
+import com.forestock.forestock_backend.domain.enums.StorePlanTier;
 import com.forestock.forestock_backend.domain.enums.ForecastStatus;
 import com.forestock.forestock_backend.domain.enums.Urgency;
 import com.forestock.forestock_backend.repository.ForecastRunRepository;
@@ -34,6 +35,7 @@ public class ShopifyAppHomeService {
     private final ForecastRunRepository forecastRunRepository;
     private final OrderSuggestionRepository orderSuggestionRepository;
     private final DashboardService dashboardService;
+    private final StorePlanService storePlanService;
 
     @Transactional(readOnly = true)
     public AppHomeOverview getOverview(String shopDomain) {
@@ -43,6 +45,11 @@ public class ShopifyAppHomeService {
                     .shopDomain(shopDomain)
                     .storeName(null)
                     .shopifyConnectionActive(false)
+                    .planTier(null)
+                    .productLimit(null)
+                    .remainingProductSlots(null)
+                    .overProductLimit(false)
+                    .planMessage(null)
                     .activeProductCount(0)
                     .totalProductCount(0)
                     .hasSalesHistory(false)
@@ -94,6 +101,7 @@ public class ShopifyAppHomeService {
         long highSuggestions = activeSuggestions.stream()
                 .filter(suggestion -> suggestion.getUrgency() == Urgency.HIGH)
                 .count();
+        StorePlanService.PlanSnapshot planSnapshot = storePlanService.getPlanForStore(storeId);
 
         List<String> readinessReasons = buildRecommendationReadinessReasons(
                 connection.isActive(),
@@ -101,13 +109,19 @@ public class ShopifyAppHomeService {
                 hasSalesHistory,
                 latestRun,
                 latestCompletedRun,
-                activeSuggestions.size()
+                activeSuggestions.size(),
+                planSnapshot
         );
 
         return AppHomeOverview.builder()
                 .shopDomain(connection.getShopDomain())
                 .storeName(connection.getStore().getName())
                 .shopifyConnectionActive(connection.isActive())
+                .planTier(planSnapshot.planTier().name())
+                .productLimit(planSnapshot.productLimit())
+                .remainingProductSlots(planSnapshot.remainingProductSlots())
+                .overProductLimit(planSnapshot.overProductLimit())
+                .planMessage(planSnapshot.statusMessage())
                 .activeProductCount((int) activeProductCount)
                 .totalProductCount((int) totalProductCount)
                 .hasSalesHistory(hasSalesHistory)
@@ -194,11 +208,15 @@ public class ShopifyAppHomeService {
                                                              boolean hasSalesHistory,
                                                              ForecastRun latestRun,
                                                              ForecastRun latestCompletedRun,
-                                                             int activeSuggestionCount) {
+                                                             int activeSuggestionCount,
+                                                             StorePlanService.PlanSnapshot planSnapshot) {
         List<String> reasons = new ArrayList<>();
 
         if (!connectionActive) {
             reasons.add("The Shopify connection is inactive.");
+        }
+        if (planSnapshot.statusMessage() != null) {
+            reasons.add(planSnapshot.statusMessage());
         }
         if (activeProductCount == 0) {
             reasons.add("No active products are available in Forestock yet.");
@@ -286,6 +304,11 @@ public class ShopifyAppHomeService {
             String shopDomain,
             String storeName,
             boolean shopifyConnectionActive,
+            String planTier,
+            Integer productLimit,
+            Integer remainingProductSlots,
+            boolean overProductLimit,
+            String planMessage,
             int activeProductCount,
             int totalProductCount,
             boolean hasSalesHistory,
