@@ -81,6 +81,18 @@ public class ShopifyAppHomeController {
         return ResponseEntity.ok(ApiResponse.success("Plan synced", snapshot));
     }
 
+    @PostMapping("/plan-choice/free")
+    public ResponseEntity<ApiResponse<StorePlanService.PlanSnapshot>> confirmFreePlanChoice(
+            @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
+            @Valid @RequestBody PlanChoiceRequest request) {
+        if (!isValidSecret(provisioningSecret)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Invalid provisioning secret"));
+        }
+
+        StorePlanService.PlanSnapshot snapshot = storePlanService.confirmFreePlanChoiceForShop(request.shopDomain());
+        return ResponseEntity.ok(ApiResponse.success("Free plan choice confirmed", snapshot));
+    }
+
     @GetMapping("/config")
     public ResponseEntity<ApiResponse<StoreConfigurationDto>> getConfig(
             @RequestHeader(name = PROVISIONING_HEADER, required = false) String provisioningSecret,
@@ -186,5 +198,8 @@ public class ShopifyAppHomeController {
     }
 
     public record PlanSyncRequest(String shopDomain, String planTier) {
+    }
+
+    public record PlanChoiceRequest(String shopDomain) {
     }
 }

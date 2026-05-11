@@ -80,6 +80,7 @@ public class ShopifyProvisioningService {
                 .shopDomain(normalizedShopDomain)
                 .webhookSecret(null)
                 .active(true)
+                .planChoiceConfirmed(false)
                 .build());
 
         AdminUserResult admin = ensureAdminUser(store, request);

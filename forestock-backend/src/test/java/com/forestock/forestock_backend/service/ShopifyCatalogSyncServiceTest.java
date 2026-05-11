@@ -63,7 +63,7 @@ class ShopifyCatalogSyncServiceTest {
         when(shopifyConnectionRepository.findByShopDomain("demo.myshopify.com"))
                 .thenReturn(Optional.of(connection));
         when(storePlanService.getPlanForStore(storeId))
-                .thenReturn(new StorePlanService.PlanSnapshot(StorePlanTier.FREE, 15, 15, 0, false, true, null));
+                .thenReturn(new StorePlanService.PlanSnapshot(StorePlanTier.FREE, 15, 15, 0, false, true, null, true));
         when(productRepository.findByStoreIdAndShopifyVariantGid(storeId, "gid://shopify/ProductVariant/1"))
                 .thenReturn(Optional.empty());
         when(productRepository.findByStoreIdAndSku(storeId, "SKU-1"))

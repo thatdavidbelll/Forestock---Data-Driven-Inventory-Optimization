@@ -13,6 +13,7 @@ function buildOverview(overrides: Partial<AppHomeOverviewResponse> = {}): AppHom
     remainingProductSlots: 0,
     overProductLimit: false,
     planMessage: null,
+    planChoiceConfirmed: true,
     activeProductCount: 15,
     totalProductCount: 42,
     hasSalesHistory: true,

@@ -56,6 +56,10 @@ public class ShopifyConnection {
     @Column(name = "product_limit")
     private Integer productLimit = StorePlanTier.FREE.getProductLimit();
 
+    @Builder.Default
+    @Column(name = "plan_choice_confirmed", nullable = false)
+    private boolean planChoiceConfirmed = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

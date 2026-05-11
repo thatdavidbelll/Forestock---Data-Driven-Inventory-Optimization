@@ -50,6 +50,7 @@ public class ShopifyAppHomeService {
                     .remainingProductSlots(null)
                     .overProductLimit(false)
                     .planMessage(null)
+                    .planChoiceConfirmed(false)
                     .activeProductCount(0)
                     .totalProductCount(0)
                     .hasSalesHistory(false)
@@ -122,6 +123,7 @@ public class ShopifyAppHomeService {
                 .remainingProductSlots(planSnapshot.remainingProductSlots())
                 .overProductLimit(planSnapshot.overProductLimit())
                 .planMessage(planSnapshot.statusMessage())
+                .planChoiceConfirmed(planSnapshot.planChoiceConfirmed())
                 .activeProductCount((int) activeProductCount)
                 .totalProductCount((int) totalProductCount)
                 .hasSalesHistory(hasSalesHistory)
@@ -309,6 +311,7 @@ public class ShopifyAppHomeService {
             Integer remainingProductSlots,
             boolean overProductLimit,
             String planMessage,
+            boolean planChoiceConfirmed,
             int activeProductCount,
             int totalProductCount,
             boolean hasSalesHistory,

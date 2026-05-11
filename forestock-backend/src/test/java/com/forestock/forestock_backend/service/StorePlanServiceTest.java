@@ -40,6 +40,7 @@ class StorePlanServiceTest {
                 .active(true)
                 .planTier(StorePlanTier.FREE)
                 .productLimit(15)
+                .planChoiceConfirmed(false)
                 .build();
 
         when(shopifyConnectionRepository.findByShopDomainAndActiveTrue("demo.myshopify.com"))
@@ -55,6 +56,59 @@ class StorePlanServiceTest {
         assertThat(snapshot.activeProductCount()).isEqualTo(4);
         assertThat(snapshot.remainingProductSlots()).isNull();
         assertThat(snapshot.overProductLimit()).isFalse();
+        assertThat(snapshot.planChoiceConfirmed()).isTrue();
+    }
+
+    @Test
+    void syncPlanForShop_keepsFreePlanUnconfirmedUntilMerchantChoosesIt() {
+        UUID storeId = UUID.randomUUID();
+        Store store = Store.builder().id(storeId).name("Demo Store").build();
+        ShopifyConnection connection = ShopifyConnection.builder()
+                .store(store)
+                .shopDomain("demo.myshopify.com")
+                .active(true)
+                .planTier(StorePlanTier.FREE)
+                .productLimit(15)
+                .planChoiceConfirmed(false)
+                .build();
+
+        when(shopifyConnectionRepository.findByShopDomainAndActiveTrue("demo.myshopify.com"))
+                .thenReturn(Optional.of(connection));
+        when(shopifyConnectionRepository.save(connection)).thenReturn(connection);
+        when(productRepository.countByStoreIdAndActiveTrue(storeId)).thenReturn(4L);
+
+        StorePlanService.PlanSnapshot snapshot =
+                storePlanService.syncPlanForShop("demo.myshopify.com", StorePlanTier.FREE);
+
+        assertThat(snapshot.planTier()).isEqualTo(StorePlanTier.FREE);
+        assertThat(snapshot.productLimit()).isEqualTo(15);
+        assertThat(snapshot.planChoiceConfirmed()).isFalse();
+    }
+
+    @Test
+    void confirmFreePlanChoiceForShop_marksChoiceConfirmed() {
+        UUID storeId = UUID.randomUUID();
+        Store store = Store.builder().id(storeId).name("Demo Store").build();
+        ShopifyConnection connection = ShopifyConnection.builder()
+                .store(store)
+                .shopDomain("demo.myshopify.com")
+                .active(true)
+                .planTier(StorePlanTier.FREE)
+                .productLimit(15)
+                .planChoiceConfirmed(false)
+                .build();
+
+        when(shopifyConnectionRepository.findByShopDomainAndActiveTrue("demo.myshopify.com"))
+                .thenReturn(Optional.of(connection));
+        when(shopifyConnectionRepository.save(connection)).thenReturn(connection);
+        when(productRepository.countByStoreIdAndActiveTrue(storeId)).thenReturn(4L);
+
+        StorePlanService.PlanSnapshot snapshot =
+                storePlanService.confirmFreePlanChoiceForShop("demo.myshopify.com");
+
+        assertThat(snapshot.planTier()).isEqualTo(StorePlanTier.FREE);
+        assertThat(snapshot.productLimit()).isEqualTo(15);
+        assertThat(snapshot.planChoiceConfirmed()).isTrue();
     }
 
     @Test
@@ -81,6 +135,7 @@ class StorePlanServiceTest {
         assertThat(snapshot.overProductLimit()).isTrue();
         assertThat(snapshot.forecastAllowed()).isFalse();
         assertThat(snapshot.statusMessage()).contains("Reduce active products to 15 or upgrade");
+        assertThat(snapshot.planChoiceConfirmed()).isFalse();
     }
 
     @Test
@@ -93,6 +148,7 @@ class StorePlanServiceTest {
                 .active(true)
                 .planTier(StorePlanTier.FREE)
                 .productLimit(15)
+                .planChoiceConfirmed(true)
                 .build();
 
         when(shopifyConnectionRepository.findByStoreId(storeId)).thenReturn(Optional.of(connection));

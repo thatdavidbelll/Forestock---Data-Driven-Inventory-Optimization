@@ -81,6 +81,7 @@ describe("billing plan helpers", () => {
       overProductLimit: false,
       forecastAllowed: true,
       statusMessage: null,
+      planChoiceConfirmed: true,
     });
 
     const result = await loadBillingContext(
@@ -96,6 +97,7 @@ describe("billing plan helpers", () => {
       syncedPlan: expect.objectContaining({
         planTier: "PAID",
         activeProductCount: 42,
+        planChoiceConfirmed: true,
       }),
     });
   });

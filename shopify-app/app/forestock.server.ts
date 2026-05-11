@@ -106,6 +106,7 @@ export type PlanSyncResponse = {
   overProductLimit: boolean;
   forecastAllowed: boolean;
   statusMessage: string | null;
+  planChoiceConfirmed: boolean;
 };
 
 export type StoreConfigurationResponse = {
@@ -145,6 +146,7 @@ export type AppHomeOverviewResponse = {
   remainingProductSlots: number | null;
   overProductLimit: boolean;
   planMessage: string | null;
+  planChoiceConfirmed: boolean;
   activeProductCount: number;
   totalProductCount: number;
   hasSalesHistory: boolean;
@@ -433,6 +435,27 @@ export async function syncForestockPlan(
   const responseBody = await readApiResponse<PlanSyncResponse>(response);
   if (!response.ok || !responseBody.data) {
     throw new Error(responseBody.message || "Failed to sync Forestock plan");
+  }
+
+  return responseBody.data;
+}
+
+export async function confirmForestockFreePlanChoice(shopDomain: string): Promise<PlanSyncResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+  const provisioningSecret = getProvisioningSecret();
+
+  const response = await fetch(`${apiBaseUrl}/api/shopify/plan-choice/free`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Forestock-Shopify-Secret": provisioningSecret,
+    },
+    body: JSON.stringify({ shopDomain }),
+  });
+
+  const responseBody = await readApiResponse<PlanSyncResponse>(response);
+  if (!response.ok || !responseBody.data) {
+    throw new Error(responseBody.message || "Failed to confirm Forestock free plan choice");
   }
 
   return responseBody.data;

@@ -151,7 +151,8 @@ class ShopifyAppHomeServiceTest {
                 0,
                 true,
                 false,
-                "Reduce active products to 15 or upgrade to continue running forecasts."
+                "Reduce active products to 15 or upgrade to continue running forecasts.",
+                false
         ));
 
         var overview = shopifyAppHomeService.getOverview("demo.myshopify.com");
@@ -160,6 +161,7 @@ class ShopifyAppHomeServiceTest {
         assertThat(overview.productLimit()).isEqualTo(15);
         assertThat(overview.remainingProductSlots()).isZero();
         assertThat(overview.overProductLimit()).isTrue();
+        assertThat(overview.planChoiceConfirmed()).isFalse();
         assertThat(overview.recommendationReadinessReasons())
                 .anyMatch(reason -> reason.contains("Reduce active products to 15 or upgrade"));
     }

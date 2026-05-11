@@ -25,16 +25,32 @@ public class StorePlanService {
 
         connection.setPlanTier(planTier);
         connection.setProductLimit(planTier.getProductLimit());
+        if (planTier == StorePlanTier.PAID) {
+            connection.setPlanChoiceConfirmed(true);
+        }
         ShopifyConnection saved = shopifyConnectionRepository.save(connection);
 
-        return buildSnapshot(saved.getStore().getId(), saved.getPlanTier(), saved.getProductLimit());
+        return buildSnapshot(saved.getStore().getId(), saved.getPlanTier(), saved.getProductLimit(), saved.isPlanChoiceConfirmed());
+    }
+
+    @Transactional
+    public PlanSnapshot confirmFreePlanChoiceForShop(String shopDomain) {
+        ShopifyConnection connection = shopifyConnectionRepository.findByShopDomainAndActiveTrue(shopDomain)
+                .orElseThrow(() -> new NoSuchElementException("No active Shopify connection found for domain: " + shopDomain));
+
+        connection.setPlanTier(StorePlanTier.FREE);
+        connection.setProductLimit(StorePlanTier.FREE.getProductLimit());
+        connection.setPlanChoiceConfirmed(true);
+        ShopifyConnection saved = shopifyConnectionRepository.save(connection);
+
+        return buildSnapshot(saved.getStore().getId(), saved.getPlanTier(), saved.getProductLimit(), saved.isPlanChoiceConfirmed());
     }
 
     @Transactional(readOnly = true)
     public PlanSnapshot getPlanForStore(UUID storeId) {
         return shopifyConnectionRepository.findByStoreId(storeId)
-                .map(connection -> buildSnapshot(storeId, connection.getPlanTier(), connection.getProductLimit()))
-                .orElseGet(() -> buildSnapshot(storeId, StorePlanTier.PAID, null));
+                .map(connection -> buildSnapshot(storeId, connection.getPlanTier(), connection.getProductLimit(), connection.isPlanChoiceConfirmed()))
+                .orElseGet(() -> buildSnapshot(storeId, StorePlanTier.PAID, null, true));
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +78,7 @@ public class StorePlanService {
         }
     }
 
-    private PlanSnapshot buildSnapshot(UUID storeId, StorePlanTier planTier, Integer productLimit) {
+    private PlanSnapshot buildSnapshot(UUID storeId, StorePlanTier planTier, Integer productLimit, boolean planChoiceConfirmed) {
         long activeProductCount = productRepository.countByStoreIdAndActiveTrue(storeId);
         Integer remainingProductSlots = productLimit == null
                 ? null
@@ -81,7 +97,8 @@ public class StorePlanService {
                 remainingProductSlots,
                 overProductLimit,
                 forecastAllowed,
-                statusMessage
+                statusMessage,
+                planChoiceConfirmed
         );
     }
 
@@ -92,7 +109,8 @@ public class StorePlanService {
             Integer remainingProductSlots,
             boolean overProductLimit,
             boolean forecastAllowed,
-            String statusMessage
+            String statusMessage,
+            boolean planChoiceConfirmed
     ) {
     }
 }
