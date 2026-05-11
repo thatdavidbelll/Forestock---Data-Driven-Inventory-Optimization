@@ -29,6 +29,7 @@ forestock-frontend/dist/
 # Temporary
 tmp/
 .local/
+.worktrees/
 
 # Shopify local development
 shopify-app/node_modules/
