@@ -4,8 +4,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { ErrorState, NavTabs } from "../components";
-import { getBillingStatus, resolvePlanTier } from "../billing.server";
-import { syncForestockPlan } from "../forestock.server";
+import { buildManagedPricingUrl, buildPlanSyncErrorMessage, loadBillingContext } from "../billing.server";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -13,9 +12,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // eslint-disable-next-line no-undef
   const apiKey = process.env.SHOPIFY_API_KEY;
-  const managedPricingHandle = process.env.SHOPIFY_MANAGED_PRICING_HANDLE || "forestock-inventory-forecast";
-  const shopHandle = session.shop.split(".")[0];
-  const managedPricingUrl = `https://admin.shopify.com/store/${shopHandle}/charges/${managedPricingHandle}/pricing_plans`;
+  const managedPricingUrl = buildManagedPricingUrl();
   if (!apiKey) {
     throw new Response("SHOPIFY_API_KEY is not configured for the embedded app.", {
       status: 500,
@@ -23,16 +20,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  const billing = await getBillingStatus(admin);
-  const planTier = resolvePlanTier(billing);
+  const billingContext = await loadBillingContext(admin, session.shop);
+  const planSyncMessage = billingContext.planSync.ok
+    ? null
+    : buildPlanSyncErrorMessage(billingContext.billingPlanTier, billingContext.planSync.message);
 
-  try {
-    await syncForestockPlan(session.shop, planTier);
-  } catch (error) {
-    console.error(`[Forestock] Failed to sync plan for ${session.shop}:`, error);
-  }
-
-  return { apiKey, billing, planTier, managedPricingHandle, managedPricingUrl };
+  return { apiKey, managedPricingUrl, planSyncMessage, ...billingContext };
 };
 
 export default function App() {

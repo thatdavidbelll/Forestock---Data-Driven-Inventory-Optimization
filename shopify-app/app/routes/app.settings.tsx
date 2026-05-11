@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useFetcher, useLoaderData, useRouteError } from "react-router";
+import { useFetcher, useLoaderData, useRevalidator, useRouteError, useRouteLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   ActionButton,
@@ -25,9 +25,11 @@ import {
   updateForestockStoreConfig,
 } from "../forestock.server";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
-import { getSetupStages, type SetupStage } from "../setup-state";
+import { getSetupStages, hasIncompleteSetup, type SetupStage } from "../setup-state";
+import { buildPlanSyncErrorMessage, loadBillingContext } from "../billing.server";
 import { authenticate, registerWebhooks } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
+import type { loader as appLoader } from "./app";
 
 type ActionData =
   | { ok: true; message: string; config: Awaited<ReturnType<typeof loadForestockConfigWithRecovery>> }
@@ -59,6 +61,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
+    const billingContext = await loadBillingContext(admin, session.shop);
+
+    if (!billingContext.planSync.ok) {
+      return {
+        intent: "full",
+        ok: false,
+        message: buildPlanSyncErrorMessage(billingContext.billingPlanTier, billingContext.planSync.message),
+      } satisfies ShopifySetupStepResult;
+    }
+
     const identity = await loadShopIdentity(admin, session.shop);
 
     try {
@@ -123,20 +135,18 @@ function stepTone(status: SetupStage["status"]) {
 }
 
 function shouldAutoRunSetup(stages: SetupStage[]) {
-  return stages.some(
-    (stage) =>
-      stage.id !== "recommendations" &&
-      stage.status !== "completed" &&
-      stage.status !== "running",
-  );
+  return hasIncompleteSetup(stages);
 }
 
 export default function SettingsPage() {
   const { config, overview } = useLoaderData<typeof loader>();
+  const appData = useRouteLoaderData<typeof appLoader>("routes/app");
   const setupFetcher = useFetcher<ShopifySetupStepResult>();
   const forecastFetcher = useFetcher<ActionData>();
   const webhookFetcher = useFetcher<WebhookActionData>();
+  const revalidator = useRevalidator();
   const autoSubmitted = useRef(false);
+  const lastRevalidatedResult = useRef<string | null>(null);
   const effectiveConfig = forecastFetcher.data?.ok ? forecastFetcher.data.config : config;
   const [forecastHorizonDays, setForecastHorizonDays] = useState(
     Math.min(90, Math.max(3, effectiveConfig.forecastHorizonDays)),
@@ -150,7 +160,7 @@ export default function SettingsPage() {
   const setupComplete = stages.every((stage) => stage.status === "completed");
   const nextSetupStage = stages.find((stage) => stage.status !== "completed");
   const setupBlockedExternally = Boolean(setupFetcher.data?.externalBlock);
-  const shouldAutoBootstrap = !setupBlockedExternally && shouldAutoRunSetup(stages);
+  const shouldAutoBootstrap = !setupBlockedExternally && !appData?.planSyncMessage && shouldAutoRunSetup(stages);
   const currentPlan = overview.planTier ?? "FREE";
   const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
 
@@ -166,6 +176,20 @@ export default function SettingsPage() {
     autoSubmitted.current = true;
     setupFetcher.submit({ intent: "setup" }, { method: "post" });
   }, [setupFetcher, shouldAutoBootstrap]);
+
+  useEffect(() => {
+    if (setupFetcher.state !== "idle" || !setupFetcher.data?.ok) {
+      return;
+    }
+
+    const refreshKey = JSON.stringify(setupFetcher.data);
+    if (lastRevalidatedResult.current === refreshKey) {
+      return;
+    }
+
+    lastRevalidatedResult.current = refreshKey;
+    revalidator.revalidate();
+  }, [revalidator, setupFetcher.data, setupFetcher.state]);
 
   return (
     <AppShell
@@ -184,6 +208,7 @@ export default function SettingsPage() {
                 : `${overview.activeProductCount} / ${overview.productLimit ?? 15} active products are currently in use.`}
             </div>
             {overview.planMessage ? <Badge tone="warning">{overview.planMessage}</Badge> : null}
+            {appData?.planSyncMessage ? <Badge tone="warning">{appData.planSyncMessage}</Badge> : null}
           </div>
         </Card>
       </Section>

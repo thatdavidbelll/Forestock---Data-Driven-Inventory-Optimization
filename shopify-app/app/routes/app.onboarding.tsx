@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Link, useFetcher, useLoaderData, useRouteError } from "react-router";
+import { useEffect, useRef } from "react";
+import { Link, useFetcher, useLoaderData, useRevalidator, useRouteError, useRouteLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   ActionButton,
@@ -12,9 +13,11 @@ import {
   Section,
 } from "../components";
 import { loadForestockAppHomeWithRecovery, loadForestockConfigWithRecovery } from "../forestock-bootstrap.server";
-import { getSetupStages } from "../setup-state";
+import { getSetupStages, hasIncompleteSetup } from "../setup-state";
+import { buildPlanSyncErrorMessage, loadBillingContext } from "../billing.server";
 import { authenticate } from "../shopify.server";
 import { loadShopIdentity, runShopifyAutomaticSetup, type ShopifySetupStepResult } from "../shopify-sync.server";
+import type { loader as appLoader } from "./app";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -38,6 +41,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "setup") {
     const { admin, session } = await authenticate.admin(request);
+    const billingContext = await loadBillingContext(admin, session.shop);
+
+    if (!billingContext.planSync.ok) {
+      return {
+        intent: "full",
+        ok: false,
+        message: buildPlanSyncErrorMessage(billingContext.billingPlanTier, billingContext.planSync.message),
+      } satisfies ShopifySetupStepResult;
+    }
+
     const identity = await loadShopIdentity(admin, session.shop);
 
     try {
@@ -75,11 +88,40 @@ function stepTone(status: ReturnType<typeof getSetupStages>[number]["status"]) {
 
 export default function OnboardingPage() {
   const { overview } = useLoaderData<typeof loader>();
+  const appData = useRouteLoaderData<typeof appLoader>("routes/app");
   const setupFetcher = useFetcher<ShopifySetupStepResult>();
+  const revalidator = useRevalidator();
+  const autoSubmitted = useRef(false);
+  const lastRevalidatedResult = useRef<string | null>(null);
   const stages = getSetupStages(overview);
   const setupComplete = stages.every((stage) => stage.status === "completed");
+  const setupBlockedExternally = Boolean(setupFetcher.data?.externalBlock);
+  const shouldAutoBootstrap = !setupBlockedExternally && !appData?.planSyncMessage && hasIncompleteSetup(stages);
   const currentPlan = overview.planTier ?? "FREE";
   const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
+
+  useEffect(() => {
+    if (autoSubmitted.current || !shouldAutoBootstrap || setupFetcher.state !== "idle") {
+      return;
+    }
+
+    autoSubmitted.current = true;
+    setupFetcher.submit({ intent: "setup" }, { method: "post" });
+  }, [setupFetcher, shouldAutoBootstrap]);
+
+  useEffect(() => {
+    if (setupFetcher.state !== "idle" || !setupFetcher.data?.ok) {
+      return;
+    }
+
+    const refreshKey = JSON.stringify(setupFetcher.data);
+    if (lastRevalidatedResult.current === refreshKey) {
+      return;
+    }
+
+    lastRevalidatedResult.current = refreshKey;
+    revalidator.revalidate();
+  }, [revalidator, setupFetcher.data, setupFetcher.state]);
 
   return (
     <AppShell title="Onboarding" actions={<Badge tone={planBadgeTone}>{currentPlan} plan</Badge>}>
@@ -103,6 +145,7 @@ export default function OnboardingPage() {
                         : `${overview.activeProductCount} / ${overview.productLimit ?? 15} active products`}
                     </div>
                     {overview.planMessage ? <Badge tone="warning">{overview.planMessage}</Badge> : null}
+                    {appData?.planSyncMessage ? <Badge tone="warning">{appData.planSyncMessage}</Badge> : null}
                   </div>
                 </Card>
               </div>
@@ -167,7 +210,9 @@ export default function OnboardingPage() {
               ) : (
                 <setupFetcher.Form method="post">
                   <input type="hidden" name="intent" value="setup" />
-                  <ActionButton loading={setupFetcher.state !== "idle"}>Run setup</ActionButton>
+                  <ActionButton loading={setupFetcher.state !== "idle"}>
+                    {shouldAutoBootstrap ? "Retry setup" : "Run setup"}
+                  </ActionButton>
                 </setupFetcher.Form>
               )}
 

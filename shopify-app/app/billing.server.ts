@@ -1,3 +1,5 @@
+import { syncForestockPlan, type PlanSyncResponse } from "./forestock.server";
+
 type ActiveSubscription = {
   id: string;
   name: string;
@@ -11,6 +13,23 @@ export type BillingStatus = {
 };
 
 export type PlanTier = "FREE" | "PAID";
+
+export type BillingContext = {
+  billing: BillingStatus;
+  billingPlanTier: PlanTier;
+  appPlanTier: PlanTier;
+  planSync:
+    | {
+        ok: true;
+        syncedPlan: PlanSyncResponse;
+      }
+    | {
+        ok: false;
+        message: string;
+      };
+};
+
+const DEFAULT_MANAGED_PRICING_HANDLE = "forestock-inventory-forecast";
 
 export function shouldEnforceBilling() {
   return process.env.NODE_ENV === "production" || process.env.FORESTOCK_ENFORCE_BILLING === "true";
@@ -26,6 +45,20 @@ export function resolvePlanTier(billing: BillingStatus): PlanTier {
 
 export function resolveWebhookPlanTier(status: string | undefined): PlanTier {
   return status === "ACTIVE" ? "PAID" : "FREE";
+}
+
+export function buildManagedPricingUrl(
+  managedPricingHandle = process.env.SHOPIFY_MANAGED_PRICING_HANDLE || DEFAULT_MANAGED_PRICING_HANDLE,
+) {
+  return `shopify://admin/charges/${managedPricingHandle}/pricing_plans`;
+}
+
+export function buildPlanSyncErrorMessage(billingPlanTier: PlanTier, detail: string) {
+  const prefix = billingPlanTier === "PAID"
+    ? "Shopify billing is active, but Forestock could not sync the paid plan yet. Refresh the app or rerun setup in a moment."
+    : "Forestock could not sync this store plan yet. Try again in a moment.";
+
+  return detail ? `${prefix} ${detail}` : prefix;
 }
 
 export async function getBillingStatus(admin: { graphql: (query: string) => Promise<Response> }): Promise<BillingStatus> {
@@ -72,6 +105,38 @@ export async function getBillingStatus(admin: { graphql: (query: string) => Prom
     return {
       activeSubscriptions: [],
       hasActiveSubscription: true,
+    };
+  }
+}
+
+export async function loadBillingContext(
+  admin: { graphql: (query: string) => Promise<Response> },
+  shopDomain: string,
+): Promise<BillingContext> {
+  const billing = await getBillingStatus(admin);
+  const billingPlanTier = resolvePlanTier(billing);
+
+  try {
+    const syncedPlan = await syncForestockPlan(shopDomain, billingPlanTier);
+    return {
+      billing,
+      billingPlanTier,
+      appPlanTier: syncedPlan.planTier,
+      planSync: {
+        ok: true,
+        syncedPlan,
+      },
+    };
+  } catch (error) {
+    console.error(`[Forestock] Failed to sync plan for ${shopDomain}:`, error);
+    return {
+      billing,
+      billingPlanTier,
+      appPlanTier: "FREE",
+      planSync: {
+        ok: false,
+        message: error instanceof Error ? error.message : "Failed to sync Forestock plan",
+      },
     };
   }
 }

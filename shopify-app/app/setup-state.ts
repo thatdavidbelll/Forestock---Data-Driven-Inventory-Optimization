@@ -24,6 +24,15 @@ function includesToken(value: string | null | undefined, token: string) {
   return value?.toUpperCase().includes(token) ?? false;
 }
 
+export function hasIncompleteSetup(stages: SetupStage[]) {
+  return stages.some(
+    (stage) =>
+      stage.id !== "recommendations" &&
+      stage.status !== "completed" &&
+      stage.status !== "running",
+  );
+}
+
 export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] {
   const forecastStatus = overview.forecastProof?.status ?? overview.forecastStatus;
   const forecastRunning = includesToken(forecastStatus, "RUNNING") || includesToken(forecastStatus, "PENDING");
@@ -32,6 +41,10 @@ export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] 
   const recommendationsReady =
     overview.recommendationReadinessReasons.length === 0 &&
     Boolean(overview.forecastProof?.readyForRecommendations);
+  const catalogNeedsPaidRecovery =
+    overview.planTier === "PAID" &&
+    overview.totalProductCount > 0 &&
+    overview.activeProductCount < overview.totalProductCount;
 
   const provision: SetupStage = {
     id: "provision",
@@ -48,7 +61,7 @@ export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] 
   };
 
   const catalogBlocked = !overview.shopifyConnectionActive;
-  const catalogCompleted = overview.totalProductCount > 0;
+  const catalogCompleted = overview.totalProductCount > 0 && !catalogNeedsPaidRecovery;
   const catalog: SetupStage = {
     id: "catalog",
     step: "Step 2",
@@ -56,11 +69,17 @@ export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] 
     status: catalogCompleted ? "completed" : catalogBlocked ? "blocked" : "ready_to_run",
     summary: catalogCompleted
       ? `${overview.totalProductCount} products are mapped into Forestock, including ${overview.activeProductCount} active items.`
+      : catalogNeedsPaidRecovery
+        ? `${overview.activeProductCount} of ${overview.totalProductCount} Shopify products are active in Forestock. Setup needs to run again after the paid upgrade to reactivate the rest.`
       : catalogBlocked
         ? "Catalog import is blocked until the Shopify store is linked."
         : "Catalog and inventory still need to be imported into Forestock.",
     successLooksLike: "Products are processed, created or updated, and inventory snapshots are recorded.",
-    blockers: catalogBlocked ? ["Link the store first so catalog data has a target workspace."] : [],
+    blockers: catalogBlocked
+      ? ["Link the store first so catalog data has a target workspace."]
+      : catalogNeedsPaidRecovery
+        ? ["Rerun setup after the paid upgrade so Forestock can reactivate Shopify-active products beyond the old free-plan cap."]
+        : [],
     evidenceAt: null,
     evidenceLabel: null,
   };
@@ -147,4 +166,3 @@ export function getSetupStages(overview: AppHomeOverviewResponse): SetupStage[] 
 
   return [provision, catalog, orders, forecast, recommendations];
 }
-

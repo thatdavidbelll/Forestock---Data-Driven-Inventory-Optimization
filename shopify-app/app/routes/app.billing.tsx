@@ -8,7 +8,8 @@ export default function BillingPage() {
   const data = useRouteLoaderData<typeof appLoader>("routes/app");
   const billing = data?.billing;
   const managedPricingUrl = data?.managedPricingUrl;
-  const currentPlan = data?.planTier ?? (billing?.hasActiveSubscription ? "PAID" : "FREE");
+  const planSyncMessage = data?.planSyncMessage;
+  const currentPlan = data?.appPlanTier ?? "FREE";
   const planBadgeTone = currentPlan === "PAID" ? "success" : "accent";
 
   if (!billing || !managedPricingUrl) {
@@ -24,6 +25,7 @@ export default function BillingPage() {
       <Section title="Choose the right plan">
         <Card>
           <div style={{ display: "grid", gap: 16 }}>
+            {planSyncMessage ? <Badge tone="warning">{planSyncMessage}</Badge> : null}
             <div style={{ display: "grid", gap: 16 }}>
               <div
                 style={{

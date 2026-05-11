@@ -17,7 +17,7 @@ import {
 import { authenticate } from "../shopify.server";
 import type { AppHomeOverviewResponse } from "../forestock.server";
 import { loadForestockAppHomeWithRecovery } from "../forestock-bootstrap.server";
-import { getSetupStages } from "../setup-state";
+import { getSetupStages, hasIncompleteSetup } from "../setup-state";
 
 function recommendationModelLabel(forecastModel: string | null | undefined) {
   if (forecastModel === "HOLT_WINTERS") return "Seasonal model";
@@ -87,11 +87,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { admin, session } = await authenticate.admin(request);
     const overview = await loadForestockAppHomeWithRecovery(admin, session.shop);
     const stages = getSetupStages(overview);
-    const setupIncomplete = stages.some((stage) =>
-      stage.id !== "recommendations" &&
-      stage.status !== "completed" &&
-      stage.status !== "running",
-    );
+    const setupIncomplete = hasIncompleteSetup(stages);
 
     if (setupIncomplete) {
       throw redirect(`/app/onboarding${new URL(request.url).search}`, { headers });
